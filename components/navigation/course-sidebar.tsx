@@ -41,7 +41,7 @@ const courses = [
 
 export function CourseSidebar() {
   return (
-    <Sidebar>
+    <Sidebar className="shadow-[4px_4px_20px_0px_rgba(0,0,0,0.1)]">
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
