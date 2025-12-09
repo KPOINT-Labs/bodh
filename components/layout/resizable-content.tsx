@@ -6,6 +6,7 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface ResizableContentProps {
   header: ReactNode;
@@ -23,7 +24,7 @@ export function ResizableContent({ header, content, footer, rightPanel }: Resiza
 
   if (!isMounted) {
     return (
-      <div className="h-screen overflow-hidden">
+      <div className="h-screen overflow-hidden bg-[#F4F4F4]">
         <div className="flex h-full">
           {/* Main Content Panel - Static Layout */}
           <div className="flex-1 flex flex-col">
@@ -33,9 +34,9 @@ export function ResizableContent({ header, content, footer, rightPanel }: Resiza
             </div>
 
             {/* Scrollable Content */}
-            <div className="flex-1 min-h-0 overflow-auto">
+            <ScrollArea className="flex-1 h-0">
               {content}
-            </div>
+            </ScrollArea>
 
             {/* Fixed Footer */}
             <div className="shrink-0">
@@ -53,7 +54,7 @@ export function ResizableContent({ header, content, footer, rightPanel }: Resiza
   }
 
   return (
-    <div className="h-screen overflow-hidden">
+    <div className="h-screen overflow-hidden bg-[#F4F4F4]">
       <ResizablePanelGroup direction="horizontal" className="h-full">
         {/* Main Content Panel */}
         <ResizablePanel defaultSize={75} minSize={50} className="flex flex-col">
@@ -63,9 +64,9 @@ export function ResizableContent({ header, content, footer, rightPanel }: Resiza
           </div>
 
           {/* Scrollable Content */}
-          <div className="flex-1 min-h-0 overflow-auto">
+          <ScrollArea className="flex-1 h-0">
             {content}
-          </div>
+          </ScrollArea>
 
           {/* Fixed Footer */}
           <div className="shrink-0">
