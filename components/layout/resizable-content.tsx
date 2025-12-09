@@ -1,0 +1,90 @@
+"use client";
+
+import { ReactNode, useState, useEffect } from "react";
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "@/components/ui/resizable";
+
+interface ResizableContentProps {
+  header: ReactNode;
+  content: ReactNode;
+  footer: ReactNode;
+  rightPanel: ReactNode;
+}
+
+export function ResizableContent({ header, content, footer, rightPanel }: ResizableContentProps) {
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  if (!isMounted) {
+    return (
+      <div className="h-screen overflow-hidden">
+        <div className="flex h-full">
+          {/* Main Content Panel - Static Layout */}
+          <div className="flex-1 flex flex-col">
+            {/* Fixed Header */}
+            <div className="shrink-0">
+              {header}
+            </div>
+
+            {/* Scrollable Content */}
+            <div className="flex-1 min-h-0 overflow-auto">
+              {content}
+            </div>
+
+            {/* Fixed Footer */}
+            <div className="shrink-0">
+              {footer}
+            </div>
+          </div>
+
+          {/* Right Panel - Hidden on mobile */}
+          <div className="hidden lg:block w-1/4 min-w-[20%] max-w-[60%]">
+            {rightPanel}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-screen overflow-hidden">
+      <ResizablePanelGroup direction="horizontal" className="h-full">
+        {/* Main Content Panel */}
+        <ResizablePanel defaultSize={75} minSize={50} className="flex flex-col">
+          {/* Fixed Header */}
+          <div className="shrink-0">
+            {header}
+          </div>
+
+          {/* Scrollable Content */}
+          <div className="flex-1 min-h-0 overflow-auto">
+            {content}
+          </div>
+
+          {/* Fixed Footer */}
+          <div className="shrink-0">
+            {footer}
+          </div>
+        </ResizablePanel>
+
+        <ResizableHandle className="hidden lg:block" />
+
+        {/* Right Panel */}
+        <ResizablePanel
+          defaultSize={25}
+          minSize={20}
+          maxSize={60}
+          className="hidden lg:block"
+        >
+          {rightPanel}
+        </ResizablePanel>
+      </ResizablePanelGroup>
+    </div>
+  );
+}
