@@ -93,6 +93,35 @@ export default async function Page() {
 3. Prisma Client automatically regenerates (via postinstall hook)
 4. Import and use: `import { prisma } from "@/lib/prisma"`
 
+## LiveKit Documentation
+
+LiveKit Agents is a fast-evolving project, and the documentation is updated frequently. You should always refer to the latest documentation when working with this project. For your convenience, LiveKit offers an MCP server that can be used to browse and search its documentation.
+
+## Figma MCP Integration Rules
+
+When working with Figma designs, always follow this workflow for consistently good output:
+
+### Required Workflow
+1. Run `get_design_context` first to understand the design
+2. Use `get_metadata` if the response is large
+3. Run `get_screenshot` for visual reference
+4. Download necessary assets
+5. Translate output to project conventions
+
+### Implementation Guidelines
+- **Figma Fidelity**: Prioritize exact match to Figma designs - treat MCP output as the design representation
+- **Component Usage**: Use components from `@/components/ui` (shadcn/ui) when possible and create new components following existing patterns
+- **Styling**: Replace generic Tailwind classes with project utilities and design system tokens
+- **Class Merging**: Use `cn()` utility from `@/lib/utils` for conditional classes as per project conventions
+- **Architecture**: Follow Next.js 16 App Router patterns and TypeScript strict mode requirements
+- **Data Access**: Use Prisma client from `@/lib/prisma` singleton for any data operations
+- **Theming**: Respect existing color system using OKLch and CSS custom properties for theming
+- **Assets**: Use localhost sources directly for images/SVGs from Figma payload - do not import new icon packages
+- **Accessibility**: Follow WCAG accessibility requirements and add proper ARIA labels
+- **TypeScript**: Add TypeScript interfaces for component props following project patterns
+- **Design Tokens**: Avoid hardcoded values - use design tokens and CSS variables where available
+- **Documentation**: Create reusable, well-documented components that integrate with existing codebase architecture
+
 ## Important Notes
 
 - **Package Manager**: This project uses Bun, not npm/yarn/pnpm
