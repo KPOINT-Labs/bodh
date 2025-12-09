@@ -1,0 +1,13 @@
+{
+  "inputs": [],
+  "servers": {
+    "livekit-docs": {
+      "url": "https://docs.livekit.io/mcp",
+      "type": "http"
+    },
+    "figma": {
+      "url": "https://mcp.figma.com/mcp",
+      "type": "http"
+    }
+  }
+}
