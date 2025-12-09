@@ -1,6 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { MessageCircle, Users } from "lucide-react";
+import { MessageCircle, Users, Send } from "lucide-react";
 
 interface PeerLearningPanelProps {
   className?: string;
@@ -8,23 +8,15 @@ interface PeerLearningPanelProps {
 
 export function PeerLearningPanel({ className = "" }: PeerLearningPanelProps) {
   return (
-    <div className={`flex h-full flex-col bg-muted/30 ${className}`}>
-      {/* Right Panel Header */}
-      <div className="border-b bg-background px-4 py-3">
-        <div className="flex items-center gap-2">
-          <MessageCircle className="h-4 w-4" />
-          <span className="text-sm font-medium">Add Comments</span>
-        </div>
-      </div>
-
+    <div className={`flex h-full flex-col ${className}`}>
       {/* Video in Conversation */}
       <div className="p-4">
-        <Card className="overflow-hidden">
-          <div className="relative aspect-video bg-muted/50">
+        <Card className="overflow-hidden bg-slate-900 dark:bg-slate-950">
+          <div className="relative aspect-video bg-slate-900 dark:bg-slate-950">
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="text-center">
-                <div className="mb-1 text-2xl">📹</div>
-                <p className="text-xs text-muted-foreground">
+                <div className="mb-1 text-2xl text-white">📹</div>
+                <p className="text-xs text-white/70">
                   Video in conversation
                 </p>
               </div>
@@ -33,19 +25,27 @@ export function PeerLearningPanel({ className = "" }: PeerLearningPanelProps) {
         </Card>
       </div>
 
-      <Separator />
+      {/* Add Comments Section */}
+      <div className="px-4 py-2">
+        <div className="flex items-center justify-between">
+          <p className="font-medium text-sm text-foreground">
+            Add Comments |
+          </p>
+          <Send className="h-5 w-5 text-foreground" />
+        </div>
+      </div>
+
+      <Separator className="mx-4" />
 
       {/* Peer Learning Space */}
       <div className="flex-1 p-4">
-        <div className="rounded-lg border bg-background p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Users className="h-4 w-4" />
-            <span className="text-sm font-medium">Peer Learning Space</span>
+        <Card className="h-full">
+          <div className="p-6">
+            <p className="text-sm font-medium text-muted-foreground text-center">
+              Peer Learning Space
+            </p>
           </div>
-          <p className="text-xs text-muted-foreground">
-            Connect with other students taking this course. Share insights and ask questions together.
-          </p>
-        </div>
+        </Card>
       </div>
     </div>
   );
