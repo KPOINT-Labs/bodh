@@ -93,6 +93,10 @@ export default async function Page() {
 3. Prisma Client automatically regenerates (via postinstall hook)
 4. Import and use: `import { prisma } from "@/lib/prisma"`
 
+## Next.js DevTools MCP
+
+**IMPORTANT**: Always call `mcp__next-devtools__init` first when starting work on this project to establish proper documentation context.
+
 ## LiveKit Documentation
 
 LiveKit Agents is a fast-evolving project, and the documentation is updated frequently. You should always refer to the latest documentation when working with this project. For your convenience, LiveKit offers an MCP server that can be used to browse and search its documentation.
