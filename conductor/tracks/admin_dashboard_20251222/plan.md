@@ -15,10 +15,10 @@
 - [x] Task: Implement Course List Page 4f54db0
     - [x] Subtask: Write tests for fetching and displaying courses
     - [x] Subtask: Create `app/(dashboard)/(routes)/teacher/courses/page.tsx` with a data table (shadcn)
-- [ ] Task: Implement Course Creation
-    - [ ] Subtask: Write tests for course creation logic
-    - [ ] Subtask: Create `app/(dashboard)/(routes)/teacher/create/page.tsx` with a form (react-hook-form + zod)
-    - [ ] Subtask: Implement Server Action for creating a course
+- [x] Task: Implement Course Creation
+    - [x] Subtask: Write tests for course creation logic
+    - [x] Subtask: Create `app/(dashboard)/(routes)/teacher/create/page.tsx` with a form (react-hook-form + zod)
+    - [x] Subtask: Implement Server Action for creating a course
 - [ ] Task: Implement Course Editing (Details & Resources)
     - [ ] Subtask: Write tests for course update logic
     - [ ] Subtask: Create `app/(dashboard)/(routes)/teacher/courses/[courseId]/page.tsx`
