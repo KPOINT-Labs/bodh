@@ -1,16 +1,11 @@
-"use client";
-
 import { ReactNode } from "react";
-import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
-import { CourseSidebar } from "@/components/navigation/course-sidebar";
+import { LearningLayoutClient } from "./_components/learning-layout-client";
+import { CourseSidebarWrapper } from "@/components/navigation/course-sidebar-wrapper";
 
 export default function LearningLayout({ children }: { children: ReactNode }) {
   return (
-    <SidebarProvider>
-      <CourseSidebar />
-      <SidebarInset className="flex flex-1 flex-col overflow-hidden">
-        {children}
-      </SidebarInset>
-    </SidebarProvider>
+    <LearningLayoutClient sidebar={<CourseSidebarWrapper />}>
+      {children}
+    </LearningLayoutClient>
   );
 }
