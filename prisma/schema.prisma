@@ -9,12 +9,242 @@ datasource db {
   provider = "postgresql"
 }
 
-// Add your data models here
-// Example:
-// model User {
-//   id        Int      @id @default(autoincrement())
-//   email     String   @unique
-//   name      String?
-//   createdAt DateTime @default(now())
-//   updatedAt DateTime @updatedAt
-// }
+// ============================================
+// PHASE 1: Core Learning Interface
+// ============================================
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  phone        String?   @unique
+  passwordHash String
+  name         String
+  avatar       String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  lastLoginAt  DateTime?
+
+  learningProfile   LearningProfile?
+  enrollments       Enrollment[]
+  lessonProgress    LessonProgress[]
+  threads           Thread[]
+  confidenceRatings ConfidenceRating[]
+  messageFeedbacks  MessageFeedback[]
+}
+
+model LearningProfile {
+  id                     String   @id @default(cuid())
+  userId                 String   @unique
+  user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  preferredLearningStyle String   @default("mixed") // visual, auditory, kinesthetic, mixed
+  learningPace           String   @default("moderate") // slow, moderate, fast
+  interests              String[] @default([])
+  strengths              String[] @default([])
+  improvementAreas       String[] @default([])
+
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+}
+
+model Course {
+  id                 String   @id @default(cuid())
+  title              String
+  description        String?
+  thumbnail          String?
+  difficulty         String   @default("beginner") // beginner, intermediate, advanced
+  estimatedDuration  Int      @default(0) // in minutes
+  learningObjectives String[] @default([])
+  isPublished        Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  modules     Module[]
+  enrollments Enrollment[]
+  threads     Thread[]
+}
+
+model Module {
+  id          String   @id @default(cuid())
+  courseId    String
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  title       String
+  description String?
+  orderIndex  Int      @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lessons Lesson[]
+
+  @@index([courseId])
+}
+
+model Lesson {
+  id          String  @id @default(cuid())
+  moduleId    String
+  module      Module  @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  title       String
+  description String?
+  type        String  @default("lecture") // lecture, quiz, flashcards
+  orderIndex  Int     @default(0)
+
+  // External video reference (KPOINT)
+  videoUrl String?
+  videoId  String? // KPOINT video ID for API calls
+  duration Int     @default(0) // in seconds
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  progress          LessonProgress[]
+  conversations     Conversation[]
+  confidenceRatings ConfidenceRating[]
+
+  @@index([moduleId])
+}
+
+model Enrollment {
+  id       String @id @default(cuid())
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  enrolledAt DateTime @default(now())
+  status     String   @default("active") // active, completed, paused
+
+  @@unique([userId, courseId])
+  @@index([userId])
+  @@index([courseId])
+}
+
+model LessonProgress {
+  id       String @id @default(cuid())
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lessonId String
+  lesson   Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  status               String   @default("not_started") // not_started, in_progress, seen, attempted, completed
+  watchTime            Int      @default(0) // seconds watched
+  completionPercentage Float    @default(0) // 0-100
+  lastPosition         Int      @default(0) // resume position in seconds
+
+  lastAccessedAt DateTime  @default(now())
+  completedAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([userId, lessonId])
+  @@index([userId])
+  @@index([lessonId])
+}
+
+// ============================================
+// PHASE 2: AI Integration & Conversation Engine
+// ============================================
+
+// Thread: One per user per course - contains full learning journey
+model Thread {
+  id       String @id @default(cuid())
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  conversations Conversation[]
+
+  @@unique([userId, courseId])
+  @@index([userId])
+  @@index([courseId])
+}
+
+// Conversation: Segment within a thread (per lesson/context type)
+model Conversation {
+  id       String  @id @default(cuid())
+  threadId String
+  thread   Thread  @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  lessonId String?
+  lesson   Lesson? @relation(fields: [lessonId], references: [id], onDelete: SetNull)
+
+  // Context tracking
+  contextType  String  @default("general") // warmup, in_lesson, concept_completion, hint_request, general
+  currentTopic String?
+  summary      String? // AI-generated summary when conversation ends
+  status       String  @default("active") // active, completed
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  messages Message[]
+
+  @@index([threadId])
+  @@index([lessonId])
+}
+
+// Message: Individual chat messages with voice support
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  role    String // user, ai
+  content String // Text content (or transcription for voice)
+
+  // Voice/Audio fields for real-time conversation
+  inputType     String  @default("text") // text, voice
+  audioUrl      String? // URL to stored audio file (if saved)
+  audioDuration Int?    // Duration in seconds
+
+  // Video context
+  videoTimestamp Int? // Seconds into video when message was sent
+
+  // Optional metadata
+  emotions   Json? // Emotional context if detected
+  references Json? // Content references (topics, etc.)
+
+  createdAt DateTime @default(now())
+
+  feedback MessageFeedback?
+
+  @@index([conversationId])
+}
+
+// MessageFeedback: User feedback on AI messages (like/dislike + reason)
+model MessageFeedback {
+  id        String  @id @default(cuid())
+  messageId String  @unique
+  message   Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  rating String  // like, dislike
+  reason String? // Optional explanation for feedback
+
+  createdAt DateTime @default(now())
+
+  @@index([messageId])
+  @@index([userId])
+}
+
+// ConfidenceRating: Track user's self-assessed understanding per lesson
+model ConfidenceRating {
+  id       String @id @default(cuid())
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lessonId String
+  lesson   Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  rating    Int      // 1-5 scale (emoji: very confused to very confident)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([lessonId])
+}
