@@ -18,6 +18,10 @@ This document outlines the core technologies and frameworks used in the Bodh pro
 ## AI & Real-time Communication
 - **Conversational AI:** [LiveKit Agents](https://livekit.io/) (for voice-enabled chatbot capabilities)
 
+## Authentication & Security
+- **Auth Library:** [Auth.js (NextAuth.js) v5](https://authjs.dev/)
+- **Hashing:** [bcryptjs](https://www.npmjs.com/package/bcryptjs)
+
 ## Testing
 - **Unit Testing:** [Vitest](https://vitest.dev/)
 - **Component Testing:** [React Testing Library](https://testing-library.com/docs/react-testing-library/intro/)
