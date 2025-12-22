@@ -2,7 +2,7 @@
 
 ## Phase 1: Auth.js Setup & Foundation
 - [x] Task: Install Auth.js and dependencies (next-auth@beta, bcryptjs) db452a8
-- [ ] Task: Configure Auth.js (auth.ts) with Prisma Adapter and Credentials Provider
+- [x] Task: Configure Auth.js (auth.ts) with Prisma Adapter and Credentials Provider 0034e13
 - [ ] Task: Set up Next.js Middleware for route protection
 - [ ] Task: Create Auth API route handler (app/api/auth/[...nextauth]/route.ts)
 - [ ] Task: Conductor - User Manual Verification 'Auth.js Setup & Foundation' (Protocol in workflow.md)
