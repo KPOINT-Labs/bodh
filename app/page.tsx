@@ -8,7 +8,7 @@ export default function Home() {
         <h1 className="text-4xl font-semibold tracking-tight text-black dark:text-zinc-50 mb-8">
           Welcome to Bodh
         </h1>
-        <Link href="/course/computational-thinking/lesson/lesson-1">
+        <Link href="/courses">
           <Button size="lg">
             Start Learning
           </Button>
