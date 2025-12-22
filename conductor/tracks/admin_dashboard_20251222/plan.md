@@ -27,7 +27,7 @@
 - [ ] Task: Conductor - User Manual Verification 'Admin Layout & Course Management' (Protocol in workflow.md)
 
 ## Phase 3: Module & Lesson Management
-- [x] Task: Implement Module Management
+- [x] Task: Implement Module Management 103249c
     - [x] Subtask: Write tests for module CRUD operations
     - [x] Subtask: Create Module List component within the Course Edit page
     - [x] Subtask: Implement Module creation/reordering/publishing logic
