@@ -29,6 +29,18 @@ export const columns: ColumnDef<Course>[] = [
         </Button>
       )
     },
+    cell: ({ row }) => {
+      const { id, title } = row.original;
+
+      return (
+        <Link 
+          href={`/teacher/courses/${id}`}
+          className="hover:underline hover:text-sky-700 transition"
+        >
+          {title}
+        </Link>
+      )
+    }
   },
   {
     accessorKey: "price",
