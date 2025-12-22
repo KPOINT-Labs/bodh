@@ -26,7 +26,7 @@
     - [x] Subtask: Implement Attachment upload form
 - [ ] Task: Conductor - User Manual Verification 'Admin Layout & Course Management' (Protocol in workflow.md)
 
-## Phase 3: Module & Lesson Management
+## Phase 3: Module & Lesson Management [checkpoint: 0070c7c]
 - [x] Task: Implement Module Management 103249c
     - [x] Subtask: Write tests for module CRUD operations
     - [x] Subtask: Create Module List component within the Course Edit page
@@ -35,4 +35,4 @@
     - [x] Subtask: Write tests for lesson CRUD operations
     - [x] Subtask: Create Lesson List component within Module view (or nested)
     - [x] Subtask: Implement Lesson creation/reordering/publishing logic
-- [ ] Task: Conductor - User Manual Verification 'Module & Lesson Management' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Module & Lesson Management' (Protocol in workflow.md) 0070c7c
