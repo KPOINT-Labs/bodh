@@ -31,7 +31,7 @@
     - [x] Subtask: Write tests for module CRUD operations
     - [x] Subtask: Create Module List component within the Course Edit page
     - [x] Subtask: Implement Module creation/reordering/publishing logic
-- [x] Task: Implement Lesson Management
+- [x] Task: Implement Lesson Management dcc3c95
     - [x] Subtask: Write tests for lesson CRUD operations
     - [x] Subtask: Create Lesson List component within Module view (or nested)
     - [x] Subtask: Implement Lesson creation/reordering/publishing logic
