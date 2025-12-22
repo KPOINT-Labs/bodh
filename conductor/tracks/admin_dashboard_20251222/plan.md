@@ -12,9 +12,9 @@
 - [x] Task: Create Admin Layout 5b80cd6
     - [x] Subtask: Create `app/(dashboard)/layout.tsx` for admin-specific structure
     - [x] Subtask: Create `app/(dashboard)/_components/sidebar.tsx` with navigation links
-- [ ] Task: Implement Course List Page
-    - [ ] Subtask: Write tests for fetching and displaying courses
-    - [ ] Subtask: Create `app/(dashboard)/(routes)/teacher/courses/page.tsx` with a data table (shadcn)
+- [x] Task: Implement Course List Page 5b80cd6
+    - [x] Subtask: Write tests for fetching and displaying courses
+    - [x] Subtask: Create `app/(dashboard)/(routes)/teacher/courses/page.tsx` with a data table (shadcn)
 - [ ] Task: Implement Course Creation
     - [ ] Subtask: Write tests for course creation logic
     - [ ] Subtask: Create `app/(dashboard)/(routes)/teacher/create/page.tsx` with a form (react-hook-form + zod)

@@ -17,7 +17,10 @@ This document outlines the core technologies and frameworks used in the Bodh pro
 ## AI & Real-time Communication
 - **Conversational AI:** [LiveKit Agents](https://livekit.io/) (for voice-enabled chatbot capabilities)
 
-## Infrastructure & Tooling
+## Testing
+- **Unit Testing:** [Vitest](https://vitest.dev/)
+- **Component Testing:** [React Testing Library](https://testing-library.com/docs/react-testing-library/intro/)
+
 - **Package Manager:** [Bun](https://bun.sh/)
 - **Linting:** [ESLint](https://eslint.org/)
 - **Version Control:** Git
