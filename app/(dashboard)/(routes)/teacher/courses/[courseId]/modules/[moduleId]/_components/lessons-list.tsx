@@ -90,7 +90,12 @@ export const LessonsList = ({
                     >
                       <Grip className="h-5 w-5" />
                     </div>
-                    {lesson.title}
+                    <span 
+                      onClick={() => onEdit(lesson.id)}
+                      className="cursor-pointer hover:text-sky-700 transition"
+                    >
+                      {lesson.title}
+                    </span>
                     <div className="ml-auto pr-2 flex items-center gap-x-2">
                       {lesson.isPublished ? (
                         <Badge className="bg-sky-700">Published</Badge>

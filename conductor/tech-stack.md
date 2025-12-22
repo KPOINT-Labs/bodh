@@ -13,6 +13,7 @@ This document outlines the core technologies and frameworks used in the Bodh pro
 - **Runtime:** [Node.js](https://nodejs.org/) (via Next.js)
 - **Database:** [PostgreSQL](https://www.postgresql.org/)
 - **ORM:** [Prisma](https://www.prisma.io/)
+- **API Patterns:** Next.js Server Actions
 
 ## AI & Real-time Communication
 - **Conversational AI:** [LiveKit Agents](https://livekit.io/) (for voice-enabled chatbot capabilities)
@@ -21,6 +22,8 @@ This document outlines the core technologies and frameworks used in the Bodh pro
 - **Unit Testing:** [Vitest](https://vitest.dev/)
 - **Component Testing:** [React Testing Library](https://testing-library.com/docs/react-testing-library/intro/)
 
+## Infrastructure & Tooling
 - **Package Manager:** [Bun](https://bun.sh/)
+- **Forms & Validation:** [React Hook Form](https://react-hook-form.com/), [Zod](https://zod.dev/)
 - **Linting:** [ESLint](https://eslint.org/)
 - **Version Control:** Git

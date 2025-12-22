@@ -90,7 +90,12 @@ export const ModulesList = ({
                     >
                       <Grip className="h-5 w-5" />
                     </div>
-                    {module.title}
+                    <span 
+                      onClick={() => onEdit(module.id)}
+                      className="cursor-pointer hover:text-sky-700 transition"
+                    >
+                      {module.title}
+                    </span>
                     <div className="ml-auto pr-2 flex items-center gap-x-2">
                       {module.isPublished ? (
                         <Badge className="bg-sky-700">Published</Badge>
