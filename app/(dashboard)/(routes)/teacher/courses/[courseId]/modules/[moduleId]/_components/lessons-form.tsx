@@ -19,19 +19,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { createLesson, reorderLessons } from "@/actions/lesson";
+import { createLesson, reorderLessons, deleteLesson } from "@/actions/lesson";
 import { LessonsList } from "./lessons-list";
 
 interface LessonsFormProps {
   initialData: Module & { lessons: Lesson[] };
-  courseId: string; // Passed for navigation? Or just moduleId is enough? 
-  // We need moduleId to create lesson. 
-  // We navigate to /teacher/courses/[courseId]/modules/[moduleId]/lessons/[lessonId] or similar?
-  // Or just edit modal?
-  // The plan says "Create Lesson List component within Module view (or nested)"
-  // "Implement Lesson creation/reordering/publishing logic"
-  // For editing lesson details (video url), we need a Lesson Edit Page.
   moduleId: string;
+  courseId: string;
+  courseUrlParam?: string; // Add optional params for navigation
+  moduleUrlParam?: string;
 }
 
 const formSchema = z.object({
@@ -41,7 +37,9 @@ const formSchema = z.object({
 export const LessonsForm = ({
   initialData,
   moduleId,
-  courseId
+  courseId,
+  courseUrlParam,
+  moduleUrlParam
 }: LessonsFormProps) => {
   const [isCreating, setIsCreating] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -84,10 +82,24 @@ export const LessonsForm = ({
     }
   }
 
-  const onEdit = (id: string) => {
-    // Navigate to Lesson Edit Page
-    // /teacher/courses/[courseId]/modules/[moduleId]/lessons/[lessonId]
-    router.push(`/teacher/courses/${courseId}/modules/${moduleId}/lessons/${id}`);
+  const onEdit = (idOrSlug: string) => {
+    // Use params if available, otherwise fallback to IDs
+    const cParam = courseUrlParam || courseId;
+    const mParam = moduleUrlParam || moduleId;
+    router.push(`/teacher/courses/${cParam}/modules/${mParam}/lessons/${idOrSlug}`);
+  }
+
+  const onDelete = async (id: string) => {
+    try {
+      setIsUpdating(true);
+      await deleteLesson(id, moduleId);
+      toast.success("Lesson deleted");
+      router.refresh();
+    } catch {
+      toast.error("Something went wrong");
+    } finally {
+      setIsUpdating(false);
+    }
   }
 
   return (
@@ -150,6 +162,7 @@ export const LessonsForm = ({
           <LessonsList
             onEdit={onEdit}
             onReorder={onReorder}
+            onDelete={onDelete}
             items={initialData.lessons || []}
           />
         </div>

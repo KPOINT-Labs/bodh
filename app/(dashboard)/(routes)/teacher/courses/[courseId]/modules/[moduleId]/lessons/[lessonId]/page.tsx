@@ -6,6 +6,8 @@ import { ArrowLeft } from "lucide-react";
 import { LessonTitleForm } from "./_components/lesson-title-form";
 import { LessonDescriptionForm } from "./_components/lesson-description-form";
 import { LessonVideoForm } from "./_components/lesson-video-form";
+import { LessonSlugForm } from "./_components/lesson-slug-form";
+import { LessonActions } from "./_components/lesson-actions";
 
 const LessonIdPage = async ({
   params
@@ -14,12 +16,62 @@ const LessonIdPage = async ({
 }) => {
   const { courseId, moduleId, lessonId } = await params;
 
-  const lesson = await prisma.lesson.findUnique({
-    where: {
-      id: lessonId,
-      moduleId: moduleId, // Ensure it belongs to module
-    },
+  // 1. Resolve Course (Slug first, then ID)
+  let course = await prisma.course.findUnique({
+    where: { slug: courseId },
+    select: { id: true, slug: true }
   });
+
+  if (!course) {
+    course = await prisma.course.findUnique({
+      where: { id: courseId },
+      select: { id: true, slug: true }
+    });
+  }
+
+  if (!course) {
+    return redirect("/");
+  }
+
+  // 2. Resolve Module (Slug first, then ID) - scoped to Course
+  let moduleData = await prisma.module.findFirst({
+    where: {
+      slug: moduleId,
+      courseId: course.id,
+    },
+    select: { id: true, slug: true }
+  });
+
+  if (!moduleData) {
+    moduleData = await prisma.module.findFirst({
+      where: {
+        id: moduleId,
+        courseId: course.id,
+      },
+      select: { id: true, slug: true }
+    });
+  }
+
+  if (!moduleData) {
+    return redirect("/");
+  }
+
+  // 3. Resolve Lesson (Slug first, then ID) - scoped to Module
+  let lesson = await prisma.lesson.findFirst({
+    where: {
+      slug: lessonId,
+      moduleId: moduleData.id,
+    }
+  });
+
+  if (!lesson) {
+    lesson = await prisma.lesson.findFirst({
+      where: {
+        id: lessonId,
+        moduleId: moduleData.id,
+      }
+    });
+  }
 
   if (!lesson) {
     return redirect("/");
@@ -27,8 +79,8 @@ const LessonIdPage = async ({
 
   const requiredFields = [
     lesson.title,
-    lesson.description,
-    lesson.videoUrl,
+    // lesson.description, // Optional for publish
+    // lesson.kpointVideoId, // Optional for publish
   ];
 
   const totalFields = requiredFields.length;
@@ -36,12 +88,22 @@ const LessonIdPage = async ({
 
   const completionText = `(${completedFields}/${totalFields})`;
 
+  const isComplete = requiredFields.every(Boolean);
+
+  const courseUrlParam = course.slug || course.id;
+  const moduleUrlParam = moduleData.slug || moduleData.id;
+
   return (
     <div className="p-6">
+      {!lesson.isPublished && (
+        <div className="bg-yellow-100 border-yellow-200 border text-yellow-800 px-4 py-2 rounded-md mb-6 text-sm font-medium">
+          This lesson is unpublished. It will not be visible in the course.
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <div className="w-full">
           <Link
-            href={`/teacher/courses/${courseId}/modules/${moduleId}`}
+            href={`/teacher/courses/${courseUrlParam}/modules/${moduleUrlParam}`}
             className="flex items-center text-sm hover:opacity-75 transition mb-6"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
@@ -56,6 +118,13 @@ const LessonIdPage = async ({
                 Complete all fields {completionText}
               </span>
             </div>
+            <LessonActions
+              disabled={!isComplete}
+              courseId={course.id}
+              moduleId={moduleData.id}
+              lessonId={lesson.id}
+              isPublished={lesson.isPublished}
+            />
           </div>
         </div>
       </div>
@@ -69,14 +138,20 @@ const LessonIdPage = async ({
             </div>
             <LessonTitleForm
               initialData={lesson}
-              courseId={courseId}
-              moduleId={moduleId}
+              courseId={course.id}
+              moduleId={moduleData.id}
               lessonId={lesson.id}
             />
             <LessonDescriptionForm
               initialData={lesson}
-              courseId={courseId}
-              moduleId={moduleId}
+              courseId={course.id}
+              moduleId={moduleData.id}
+              lessonId={lesson.id}
+            />
+            <LessonSlugForm
+              initialData={lesson}
+              courseId={course.id}
+              moduleId={moduleData.id}
               lessonId={lesson.id}
             />
           </div>
@@ -89,8 +164,8 @@ const LessonIdPage = async ({
           </div>
           <LessonVideoForm
             initialData={lesson}
-            courseId={courseId}
-            moduleId={moduleId}
+            courseId={course.id}
+            moduleId={moduleData.id}
             lessonId={lesson.id}
           />
         </div>

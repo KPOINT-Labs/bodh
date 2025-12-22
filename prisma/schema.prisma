@@ -39,7 +39,9 @@ model LearningProfile {
 
 model Course {
   id                 String       @id @default(cuid())
+  course_id          String?      @unique // Custom user-defined ID
   title              String
+  slug               String?      @unique
   description        String?
   thumbnail          String?
   price              Float?
@@ -54,6 +56,7 @@ model Course {
   category           Category?    @relation(fields: [categoryId], references: [id])
   enrollments        Enrollment[]
   modules            Module[]
+  lessons            Lesson[]     @relation("CourseToLesson")
   threads            Thread[]
 
   @@index([categoryId])
@@ -81,6 +84,7 @@ model Module {
   id          String   @id @default(cuid())
   courseId    String
   title       String
+  slug        String?
   description String?
   orderIndex  Int      @default(0)
   isPublished Boolean  @default(false)
@@ -95,22 +99,26 @@ model Module {
 model Lesson {
   id                String             @id @default(cuid())
   moduleId          String
+  courseId          String
   title             String
+  slug              String?
   description       String?
   type              String             @default("lecture")
   orderIndex        Int                @default(0)
   isPublished       Boolean            @default(false)
-  videoUrl          String?
-  videoId           String?
+  kpointVideoId     String?
+  youtubeVideoId    String?
   duration          Int                @default(0)
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
   confidenceRatings ConfidenceRating[]
   conversations     Conversation[]
   module            Module             @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  course            Course             @relation("CourseToLesson", fields: [courseId], references: [id], onDelete: Cascade)
   progress          LessonProgress[]
 
   @@index([moduleId])
+  @@index([courseId])
 }
 
 model Enrollment {

@@ -13,6 +13,7 @@ import {
   FormControl,
   FormField,
   FormItem,
+  FormLabel,
   FormMessage,
 } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
@@ -21,7 +22,8 @@ import { updateLesson } from "@/actions/lesson";
 
 interface LessonVideoFormProps {
   initialData: {
-    videoUrl: string | null;
+    kpointVideoId: string | null;
+    youtubeVideoId: string | null;
   };
   courseId: string;
   moduleId: string;
@@ -29,9 +31,8 @@ interface LessonVideoFormProps {
 }
 
 const formSchema = z.object({
-  videoUrl: z.string().min(1, {
-    message: "Video URL is required",
-  }),
+  kpointVideoId: z.string().optional(),
+  youtubeVideoId: z.string().optional(),
 });
 
 export const LessonVideoForm = ({
@@ -48,7 +49,8 @@ export const LessonVideoForm = ({
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      videoUrl: initialData.videoUrl || "",
+      kpointVideoId: initialData.kpointVideoId || "",
+      youtubeVideoId: initialData.youtubeVideoId || "",
     },
   });
 
@@ -65,6 +67,8 @@ export const LessonVideoForm = ({
     }
   }
 
+  const hasVideo = initialData.kpointVideoId || initialData.youtubeVideoId;
+
   return (
     <div className="mt-6 border bg-slate-100 rounded-md p-4">
       <div className="font-medium flex items-center justify-between">
@@ -73,13 +77,13 @@ export const LessonVideoForm = ({
           {isEditing && (
             <>Cancel</>
           )}
-          {!isEditing && !initialData.videoUrl && (
+          {!isEditing && !hasVideo && (
             <>
               <PlusCircle className="h-4 w-4 mr-2" />
               Add a video
             </>
           )}
-          {!isEditing && initialData.videoUrl && (
+          {!isEditing && hasVideo && (
             <>
               <Pencil className="h-4 w-4 mr-2" />
               Edit video
@@ -88,14 +92,22 @@ export const LessonVideoForm = ({
         </Button>
       </div>
       {!isEditing && (
-        !initialData.videoUrl ? (
+        !hasVideo ? (
           <div className="flex items-center justify-center h-60 bg-slate-200 rounded-md">
             <Video className="h-10 w-10 text-slate-500" />
           </div>
         ) : (
-          <div className="relative aspect-video mt-2">
-             Video URL: {initialData.videoUrl}
-             {/* We can embed a player here later */}
+          <div className="mt-2 space-y-2">
+             {initialData.kpointVideoId && (
+               <div className="text-sm">
+                 <span className="font-semibold text-sky-700">KPOINT ID:</span> {initialData.kpointVideoId}
+               </div>
+             )}
+             {initialData.youtubeVideoId && (
+               <div className="text-sm">
+                 <span className="font-semibold text-red-600">YouTube ID:</span> {initialData.youtubeVideoId}
+               </div>
+             )}
           </div>
         )
       )}
@@ -107,13 +119,31 @@ export const LessonVideoForm = ({
           >
             <FormField
               control={form.control}
-              name="videoUrl"
+              name="kpointVideoId"
               render={({ field }) => (
                 <FormItem>
+                  <FormLabel>KPOINT Video ID</FormLabel>
                   <FormControl>
                     <Input
                       disabled={isSubmitting}
-                      placeholder="e.g. 'https://youtube.com/...'"
+                      placeholder="e.g. 'kp_12345'"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="youtubeVideoId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>YouTube Video ID</FormLabel>
+                  <FormControl>
+                    <Input
+                      disabled={isSubmitting}
+                      placeholder="e.g. 'dQw4w9WgXcQ'"
                       {...field}
                     />
                   </FormControl>
@@ -122,7 +152,7 @@ export const LessonVideoForm = ({
               )}
             />
             <div className="text-xs text-muted-foreground">
-              Enter a URL for the video (e.g. YouTube, Vimeo, or MP4 link).
+              Provide at least one video ID for the lesson.
             </div>
             <div className="flex items-center gap-x-2">
               <Button

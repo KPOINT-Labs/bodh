@@ -15,35 +15,42 @@ import {
   FormItem,
   FormMessage,
 } from "@/components/ui/form";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { updateCourse } from "@/actions/update-course";
-import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { updateLesson } from "@/actions/lesson";
 
-interface PriceFormProps {
+interface LessonSlugFormProps {
   initialData: {
-    price: number | null;
+    slug: string | null;
   };
   courseId: string;
+  moduleId: string;
+  lessonId: string;
 }
 
 const formSchema = z.object({
-  price: z.coerce.number(),
+  slug: z.string().min(1, {
+    message: "Slug is required",
+  }).regex(/^[a-z0-9-]+$/, {
+    message: "Slug must only contain lowercase letters, numbers, and hyphens",
+  }),
 });
 
-export const PriceForm = ({
+export const LessonSlugForm = ({
   initialData,
-  courseId
-}: PriceFormProps) => {
+  courseId,
+  moduleId,
+  lessonId
+}: LessonSlugFormProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const router = useRouter();
 
   const toggleEdit = () => setIsEditing((current) => !current);
 
   const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema) as any,
+    resolver: zodResolver(formSchema),
     defaultValues: {
-      price: initialData.price ?? undefined,
+      slug: initialData.slug || "",
     },
   });
 
@@ -51,8 +58,8 @@ export const PriceForm = ({
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
-      await updateCourse(courseId, values);
-      toast.success("Course updated");
+      await updateLesson(lessonId, moduleId, values);
+      toast.success("Lesson updated");
       toggleEdit();
       router.refresh();
     } catch {
@@ -60,34 +67,24 @@ export const PriceForm = ({
     }
   }
 
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(price);
-  }
-
   return (
     <div className="mt-6 border bg-slate-100 rounded-md p-4">
       <div className="font-medium flex items-center justify-between">
-        Course price
+        Lesson URL Slug
         <Button onClick={toggleEdit} variant="ghost">
           {isEditing ? (
             <>Cancel</>
           ) : (
             <>
               <Pencil className="h-4 w-4 mr-2" />
-              Edit price
+              Edit slug
             </>
           )}
         </Button>
       </div>
       {!isEditing && (
-        <p className={cn(
-          "text-sm mt-2",
-          !initialData.price && "text-slate-500 italic"
-        )}>
-          {initialData.price ? formatPrice(initialData.price) : "No price"}
+        <p className="text-sm mt-2 font-mono text-slate-600">
+          {initialData.slug || "No slug defined"}
         </p>
       )}
       {isEditing && (
@@ -98,15 +95,13 @@ export const PriceForm = ({
           >
             <FormField
               control={form.control}
-              name="price"
+              name="slug"
               render={({ field }) => (
                 <FormItem>
                   <FormControl>
                     <Input
-                      type="number"
-                      step="0.01"
                       disabled={isSubmitting}
-                      placeholder="Set a price for your course"
+                      placeholder="e.g. 'lesson-one'"
                       {...field}
                     />
                   </FormControl>

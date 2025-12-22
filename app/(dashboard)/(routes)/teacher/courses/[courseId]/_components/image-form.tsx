@@ -22,13 +22,13 @@ import { updateCourse } from "@/actions/update-course";
 
 interface ImageFormProps {
   initialData: {
-    imageUrl: string | null;
+    thumbnail: string | null;
   };
   courseId: string;
 }
 
 const formSchema = z.object({
-  imageUrl: z.string().min(1, {
+  thumbnail: z.string().min(1, {
     message: "Image is required",
   }),
 });
@@ -45,7 +45,7 @@ export const ImageForm = ({
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      imageUrl: initialData.imageUrl || "",
+      thumbnail: initialData.thumbnail || "",
     },
   });
 
@@ -70,13 +70,13 @@ export const ImageForm = ({
           {isEditing && (
             <>Cancel</>
           )}
-          {!isEditing && !initialData.imageUrl && (
+          {!isEditing && !initialData.thumbnail && (
             <>
               <PlusCircle className="h-4 w-4 mr-2" />
               Add an image
             </>
           )}
-          {!isEditing && initialData.imageUrl && (
+          {!isEditing && initialData.thumbnail && (
             <>
               <Pencil className="h-4 w-4 mr-2" />
               Edit image
@@ -85,7 +85,7 @@ export const ImageForm = ({
         </Button>
       </div>
       {!isEditing && (
-        !initialData.imageUrl ? (
+        !initialData.thumbnail ? (
           <div className="flex items-center justify-center h-60 bg-slate-200 rounded-md">
             <ImageIcon className="h-10 w-10 text-slate-500" />
           </div>
@@ -95,7 +95,7 @@ export const ImageForm = ({
             <img 
               alt="Upload" 
               className="object-cover rounded-md w-full h-full" 
-              src={initialData.imageUrl} 
+              src={initialData.thumbnail} 
             />
           </div>
         )
@@ -108,7 +108,7 @@ export const ImageForm = ({
           >
             <FormField
               control={form.control}
-              name="imageUrl"
+              name="thumbnail"
               render={({ field }) => (
                 <FormItem>
                   <FormControl>

@@ -91,7 +91,7 @@ export const ModulesList = ({
                       <Grip className="h-5 w-5" />
                     </div>
                     <span 
-                      onClick={() => onEdit(module.id)}
+                      onClick={() => onEdit(module.slug || module.id)}
                       className="cursor-pointer hover:text-sky-700 transition"
                     >
                       {module.title}
@@ -103,7 +103,7 @@ export const ModulesList = ({
                         <Badge className="bg-slate-500">Draft</Badge>
                       )}
                       <Pencil
-                        onClick={() => onEdit(module.id)}
+                        onClick={() => onEdit(module.slug || module.id)}
                         className="w-4 h-4 cursor-pointer hover:opacity-75 transition"
                       />
                     </div>

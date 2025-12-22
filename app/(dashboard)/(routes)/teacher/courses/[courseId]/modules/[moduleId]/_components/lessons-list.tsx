@@ -7,22 +7,25 @@ import {
   Draggable,
   DropResult,
 } from "@hello-pangea/dnd";
-import { Grip, Pencil } from "lucide-react";
+import { Grip, Pencil, Trash } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Lesson } from "@prisma/client";
+import { ConfirmModal } from "@/components/modals/confirm-modal";
 
 interface LessonsListProps {
   items: Lesson[];
   onReorder: (updateData: { id: string; orderIndex: number }[]) => void;
   onEdit: (id: string) => void;
+  onDelete: (id: string) => void;
 }
 
 export const LessonsList = ({
   items,
   onReorder,
-  onEdit
+  onEdit,
+  onDelete
 }: LessonsListProps) => {
   const [isMounted, setIsMounted] = useState(false);
   const [lessons, setLessons] = useState(items);
@@ -91,7 +94,7 @@ export const LessonsList = ({
                       <Grip className="h-5 w-5" />
                     </div>
                     <span 
-                      onClick={() => onEdit(lesson.id)}
+                      onClick={() => onEdit(lesson.slug || lesson.id)}
                       className="cursor-pointer hover:text-sky-700 transition"
                     >
                       {lesson.title}
@@ -103,9 +106,12 @@ export const LessonsList = ({
                         <Badge className="bg-slate-500">Draft</Badge>
                       )}
                       <Pencil
-                        onClick={() => onEdit(lesson.id)}
+                        onClick={() => onEdit(lesson.slug || lesson.id)}
                         className="w-4 h-4 cursor-pointer hover:opacity-75 transition"
                       />
+                      <ConfirmModal onConfirm={() => onDelete(lesson.id)}>
+                        <Trash className="w-4 h-4 cursor-pointer hover:opacity-75 transition text-red-500" />
+                      </ConfirmModal>
                     </div>
                   </div>
                 )}

@@ -3,8 +3,24 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
+function generateSlug(title: string) {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)+/g, "");
+}
+
 export async function createLesson(moduleId: string, title: string) {
   try {
+    const module = await prisma.module.findUnique({
+      where: { id: moduleId },
+      select: { courseId: true }
+    });
+
+    if (!module) {
+      throw new Error("Module not found");
+    }
+
     const lastLesson = await prisma.lesson.findFirst({
       where: {
         moduleId: moduleId,
@@ -15,22 +31,19 @@ export async function createLesson(moduleId: string, title: string) {
     });
 
     const newOrderIndex = lastLesson ? lastLesson.orderIndex + 1 : 1;
+    const slug = generateSlug(title);
 
     const lesson = await prisma.lesson.create({
       data: {
         title,
+        slug,
         moduleId,
+        courseId: module.courseId,
         orderIndex: newOrderIndex,
       },
     });
 
-    // Revalidate the module page
-    // We don't have the courseId here easily unless we fetch it or pass it.
-    // Fetching it:
-    const module = await prisma.module.findUnique({ where: { id: moduleId } });
-    if (module) {
-        revalidatePath(`/teacher/courses/${module.courseId}/modules/${moduleId}`);
-    }
+    revalidatePath(`/teacher/courses/${module.courseId}/modules/${moduleId}`);
     return lesson;
   } catch (error) {
     console.log("[LESSON_CREATE]", error);
@@ -38,7 +51,7 @@ export async function createLesson(moduleId: string, title: string) {
   }
 }
 
-export async function updateLesson(lessonId: string, moduleId: string, values: { title?: string; description?: string; isPublished?: boolean; orderIndex?: number; videoUrl?: string }) {
+export async function updateLesson(lessonId: string, moduleId: string, values: { title?: string; description?: string; isPublished?: boolean; orderIndex?: number; kpointVideoId?: string; youtubeVideoId?: string; slug?: string }) {
   try {
     const lesson = await prisma.lesson.update({
       where: {
@@ -53,6 +66,7 @@ export async function updateLesson(lessonId: string, moduleId: string, values: {
     const module = await prisma.module.findUnique({ where: { id: moduleId } });
     if (module) {
         revalidatePath(`/teacher/courses/${module.courseId}/modules/${moduleId}`);
+        revalidatePath(`/teacher/courses/${module.courseId}/modules/${moduleId}/lessons/${lessonId}`);
     }
     return lesson;
   } catch (error) {

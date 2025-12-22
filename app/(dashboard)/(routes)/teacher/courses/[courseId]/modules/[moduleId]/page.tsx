@@ -6,6 +6,8 @@ import { ArrowLeft } from "lucide-react";
 import { ModuleTitleForm } from "./_components/module-title-form";
 import { ModuleDescriptionForm } from "./_components/module-description-form";
 import { LessonsForm } from "./_components/lessons-form";
+import { ModuleSlugForm } from "./_components/module-slug-form";
+import { ModuleActions } from "./_components/module-actions";
 
 const ModuleIdPage = async ({
   params
@@ -14,10 +16,28 @@ const ModuleIdPage = async ({
 }) => {
   const { courseId, moduleId } = await params;
 
-  const moduleData = await prisma.module.findUnique({
+  // Resolve Course (Slug first, then ID)
+  let course = await prisma.course.findUnique({
+    where: { slug: courseId },
+    select: { id: true, slug: true }
+  });
+
+  if (!course) {
+    course = await prisma.course.findUnique({
+      where: { id: courseId },
+      select: { id: true, slug: true }
+    });
+  }
+
+  if (!course) {
+    return redirect("/");
+  }
+
+  // Resolve Module (Slug first, then ID)
+  let moduleData = await prisma.module.findFirst({
     where: {
-      id: moduleId,
-      courseId: courseId,
+      slug: moduleId,
+      courseId: course.id,
     },
     include: {
       lessons: {
@@ -29,12 +49,28 @@ const ModuleIdPage = async ({
   });
 
   if (!moduleData) {
+    moduleData = await prisma.module.findFirst({
+      where: {
+        id: moduleId,
+        courseId: course.id,
+      },
+      include: {
+        lessons: {
+          orderBy: {
+            orderIndex: "asc",
+          },
+        },
+      },
+    });
+  }
+
+  if (!moduleData) {
     return redirect("/");
   }
 
   const requiredFields = [
     moduleData.title,
-    moduleData.description,
+    // moduleData.description, // Optional for publish
     moduleData.lessons.some(lesson => lesson.isPublished), // At least one published lesson
   ];
 
@@ -43,12 +79,22 @@ const ModuleIdPage = async ({
 
   const completionText = `(${completedFields}/${totalFields})`;
 
+  const isComplete = requiredFields.every(Boolean);
+
+  const courseUrlParam = course.slug || course.id;
+  const moduleUrlParam = moduleData.slug || moduleData.id;
+
   return (
     <div className="p-6">
+      {!moduleData.isPublished && (
+        <div className="bg-yellow-100 border-yellow-200 border text-yellow-800 px-4 py-2 rounded-md mb-6 text-sm font-medium">
+          This module is unpublished. It will not be visible in the course.
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <div className="w-full">
           <Link
-            href={`/teacher/courses/${courseId}`}
+            href={`/teacher/courses/${courseUrlParam}`}
             className="flex items-center text-sm hover:opacity-75 transition mb-6"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
@@ -63,6 +109,12 @@ const ModuleIdPage = async ({
                 Complete all fields {completionText}
               </span>
             </div>
+            <ModuleActions
+              disabled={!isComplete}
+              courseId={courseUrlParam} // Pass slug/id for navigation
+              moduleId={moduleData.id} // ID needed for server action
+              isPublished={moduleData.isPublished}
+            />
           </div>
         </div>
       </div>
@@ -76,12 +128,17 @@ const ModuleIdPage = async ({
             </div>
             <ModuleTitleForm
               initialData={moduleData}
-              courseId={courseId}
+              courseId={course.id} // Actions need real ID
               moduleId={moduleData.id}
             />
             <ModuleDescriptionForm
               initialData={moduleData}
-              courseId={courseId}
+              courseId={course.id}
+              moduleId={moduleData.id}
+            />
+            <ModuleSlugForm
+              initialData={moduleData}
+              courseId={course.id}
               moduleId={moduleData.id}
             />
           </div>
@@ -95,7 +152,10 @@ const ModuleIdPage = async ({
           <LessonsForm
             initialData={moduleData}
             moduleId={moduleData.id}
-            courseId={courseId}
+            courseId={course.id} 
+            // We need to pass the URL params for navigation inside the form
+            courseUrlParam={courseUrlParam}
+            moduleUrlParam={moduleUrlParam}
           />
         </div>
       </div>

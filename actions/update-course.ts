@@ -3,7 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
-export async function updateCourse(courseId: string, values: { title?: string; description?: string; price?: number; isPublished?: boolean; categoryId?: string; imageUrl?: string }) {
+export async function updateCourse(courseId: string, values: { title?: string; description?: string; price?: number; isPublished?: boolean; categoryId?: string; thumbnail?: string; slug?: string; course_id?: string }) {
   try {
     const course = await prisma.course.update({
       where: {

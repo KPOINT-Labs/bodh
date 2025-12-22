@@ -19,9 +19,9 @@ This document describes the database schema for Bodh, an AI-powered educational 
    - UI can group messages by lesson for better visualization
 
 2. **External Video Storage**
-   - Videos are hosted on KPOINT domain (external)
-   - We only store `videoUrl` and `videoId` references
-   - Reduces database size and leverages KPOINT's video infrastructure
+   - Videos are hosted on KPOINT or YouTube (external)
+   - We only store `kpointVideoId`, `youtubeVideoId` and `videoId` references
+   - Reduces database size and leverages external video infrastructure
 
 3. **Single Tenant**
    - No multi-organization support needed for initial launch
@@ -156,8 +156,9 @@ Individual learning units (video lectures, quizzes, flashcards).
 | description | String? | Lesson overview |
 | type | String | lecture, quiz, flashcards |
 | orderIndex | Int | Display order (0-based) |
-| videoUrl | String? | External video URL (KPOINT) |
-| videoId | String? | KPOINT video ID for API calls |
+| kpointVideoId | String? | External video ID (KPOINT) |
+| youtubeVideoId | String? | External video ID (YouTube) |
+| videoId | String? | Unified video ID for API calls |
 | duration | Int | Video length in seconds |
 
 **Relations**: LessonProgress[], Conversation[], ConfidenceRating[]

@@ -25,6 +25,7 @@ import { ModulesList } from "./modules-list";
 interface ModulesFormProps {
   initialData: Course & { modules: Module[] };
   courseId: string;
+  courseUrlParam?: string;
 }
 
 const formSchema = z.object({
@@ -33,7 +34,8 @@ const formSchema = z.object({
 
 export const ModulesForm = ({
   initialData,
-  courseId
+  courseId,
+  courseUrlParam
 }: ModulesFormProps) => {
   const [isCreating, setIsCreating] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -76,16 +78,10 @@ export const ModulesForm = ({
     }
   }
 
-  const onEdit = (id: string) => {
-    // For now, no edit page for module. Wait, plan says "Module Management"
-    // "Phase 3: Module & Lesson Management"
-    // Task: Implement Module Management
-    //   - Create Module List component within the Course Edit page (Done)
-    //   - Implement Module creation/reordering logic (Done)
-    //
-    // But I also need to EDIT a module (add lessons to it).
-    // So I need a route /teacher/courses/[courseId]/modules/[moduleId]
-    router.push(`/teacher/courses/${courseId}/modules/${id}`);
+  const onEdit = (idOrSlug: string) => {
+    // Navigate to Module Edit Page
+    const cParam = courseUrlParam || courseId;
+    router.push(`/teacher/courses/${cParam}/modules/${idOrSlug}`);
   }
 
   return (

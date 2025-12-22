@@ -6,7 +6,7 @@ import * as z from "zod";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { useTransition } from "react";
+import { useTransition, useEffect } from "react";
 
 import {
   Form,
@@ -25,6 +25,14 @@ const formSchema = z.object({
   title: z.string().min(1, {
     message: "Title is required",
   }),
+  slug: z.string().min(1, {
+    message: "Slug is required",
+  }).regex(/^[a-z0-9-]+$/, {
+    message: "Slug must only contain lowercase letters, numbers, and hyphens",
+  }),
+  course_id: z.string().min(1, {
+    message: "Course ID is required",
+  }),
 });
 
 const CreatePage = () => {
@@ -35,32 +43,47 @@ const CreatePage = () => {
     resolver: zodResolver(formSchema),
     defaultValues: {
       title: "",
+      slug: "",
+      course_id: "",
     },
   });
 
+  const { watch, setValue } = form;
+  const title = watch("title");
+
+  // Auto-generate slug from title
+  useEffect(() => {
+    if (title) {
+      const slug = title
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/(^-|-$)+/g, "");
+      setValue("slug", slug, { shouldValidate: true });
+    }
+  }, [title, setValue]);
+
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    // We need to wrap the server action in a FormData object or modify the action to take JSON.
-    // The action I wrote takes FormData. Let's adapt.
     const formData = new FormData();
     formData.append("title", values.title);
+    formData.append("slug", values.slug);
+    formData.append("course_id", values.course_id);
 
     startTransition(async () => {
-      // We are calling the server action directly.
-      // Note: In a real app, we might handle the state returned by the action.
-      // Since the action redirects on success, we just need to handle errors if it returns.
-      // However, redirect() throws, so we need to be careful.
-      // A better pattern with RHF is often just calling the function if it's bound.
-      
-      // Let's modify the action slightly to be more RHF friendly or use it as a mutation.
-      // For now, I'll try invoking it.
       try {
-         await createCourse(null, formData);
+         const result = await createCourse(null, formData);
+         if (result?.errors) {
+            // Handle validation errors from server
+            if (result.errors.slug) {
+                form.setError("slug", { message: result.errors.slug[0] });
+            }
+            if (result.errors.course_id) {
+                form.setError("course_id", { message: result.errors.course_id[0] });
+            }
+            toast.error(result.message || "Validation failed");
+         } else if (result?.message) {
+             toast.error(result.message);
+         }
       } catch (error) {
-        // Redirect throws an error "NEXT_REDIRECT", we should ignore it or let it bubble?
-        // Actually, if we call it like a function, the redirect happens on the server response.
-        // But since we are in a client component, `createCourse` is an RPC call.
-        // If it redirects, the client router should handle it.
-        // If it fails, it returns an object.
         toast.error("Something went wrong");
       }
     });
@@ -99,6 +122,51 @@ const CreatePage = () => {
                 </FormItem>
               )}
             />
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="slug"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>URL Slug</FormLabel>
+                      <FormControl>
+                        <Input
+                          disabled={isPending}
+                          placeholder="e.g. 'advanced-web-dev'"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Friendly URL identifier.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="course_id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Course ID</FormLabel>
+                      <FormControl>
+                        <Input
+                          disabled={isPending}
+                          placeholder="e.g. 'CS-101'"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Internal or Catalog ID.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+            </div>
+
             <div className="flex items-center gap-x-2">
               <Link href="/teacher/courses">
                 <Button type="button" variant="ghost">

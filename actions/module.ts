@@ -3,6 +3,13 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
+function generateSlug(title: string) {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)+/g, "");
+}
+
 export async function createModule(courseId: string, title: string) {
   try {
     const lastModule = await prisma.module.findFirst({
@@ -15,10 +22,12 @@ export async function createModule(courseId: string, title: string) {
     });
 
     const newOrderIndex = lastModule ? lastModule.orderIndex + 1 : 1;
+    const slug = generateSlug(title);
 
     const module = await prisma.module.create({
       data: {
         title,
+        slug,
         courseId,
         orderIndex: newOrderIndex,
       },
@@ -32,8 +41,12 @@ export async function createModule(courseId: string, title: string) {
   }
 }
 
-export async function updateModule(moduleId: string, courseId: string, values: { title?: string; description?: string; isPublished?: boolean; orderIndex?: number }) {
+export async function updateModule(moduleId: string, courseId: string, values: { title?: string; description?: string; isPublished?: boolean; orderIndex?: number; slug?: string }) {
   try {
+    // If title is updated, we might want to update slug too, but usually slugs are permanent.
+    // We'll let slug be updated explicitly or not at all.
+    // If user provides slug in values, use it.
+    
     const module = await prisma.module.update({
       where: {
         id: moduleId,

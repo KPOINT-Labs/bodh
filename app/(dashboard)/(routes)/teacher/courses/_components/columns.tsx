@@ -30,11 +30,11 @@ export const columns: ColumnDef<Course>[] = [
       )
     },
     cell: ({ row }) => {
-      const { id, title } = row.original;
+      const { id, title, slug } = row.original;
 
       return (
         <Link 
-          href={`/teacher/courses/${id}`}
+          href={`/teacher/courses/${slug || id}`}
           className="hover:underline hover:text-sky-700 transition"
         >
           {title}
@@ -94,7 +94,7 @@ export const columns: ColumnDef<Course>[] = [
   {
     id: "actions",
     cell: ({ row }) => {
-      const { id } = row.original
+      const { id, slug } = row.original
 
       return (
         <DropdownMenu>
@@ -105,7 +105,7 @@ export const columns: ColumnDef<Course>[] = [
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <Link href={`/teacher/courses/${id}`}>
+            <Link href={`/teacher/courses/${slug || id}`}>
               <DropdownMenuItem>
                 <Pencil className="h-4 w-4 mr-2" />
                 Edit
