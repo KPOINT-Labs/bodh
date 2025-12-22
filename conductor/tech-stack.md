@@ -20,6 +20,7 @@ This document outlines the core technologies and frameworks used in the Bodh pro
 
 ## Authentication & Security
 - **Auth Library:** [Auth.js (NextAuth.js) v5](https://authjs.dev/)
+- **Adapter:** [@auth/prisma-adapter](https://authjs.dev/getting-started/adapters/prisma)
 - **Hashing:** [bcryptjs](https://www.npmjs.com/package/bcryptjs)
 
 ## Testing

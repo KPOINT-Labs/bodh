@@ -1,6 +1,6 @@
 "use client";
 
-import { Layout, List } from "lucide-react";
+import { Layout, List, User } from "lucide-react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 
@@ -10,6 +10,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
+import { LogoutButton } from "@/components/logout-button";
 
 const guestRoutes = [
   {
@@ -21,6 +22,11 @@ const guestRoutes = [
     icon: List,
     label: "Courses",
     href: "/teacher/courses",
+  },
+  {
+    icon: User,
+    label: "Profile",
+    href: "/profile",
   },
 ];
 
@@ -59,6 +65,11 @@ export const SidebarRoutes = () => {
           </SidebarMenuItem>
         );
       })}
+      <SidebarMenuItem>
+        <div className="pl-6">
+          <LogoutButton />
+        </div>
+      </SidebarMenuItem>
     </SidebarMenu>
   );
 };

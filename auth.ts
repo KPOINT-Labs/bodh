@@ -5,7 +5,9 @@ import bcrypt from "bcryptjs"
 import { prisma } from "@/lib/prisma"
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  adapter: PrismaAdapter(prisma),
+  // Remove adapter for credentials-only provider (edge runtime compatible)
+  // adapter: PrismaAdapter(prisma),
+  secret: process.env.AUTH_SECRET,
   providers: [
     Credentials({
       credentials: {
@@ -38,6 +40,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!passwordsMatch) {
           return null
         }
+
+        // Update lastLoginAt
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { lastLoginAt: new Date() },
+        })
 
         return user
       },
