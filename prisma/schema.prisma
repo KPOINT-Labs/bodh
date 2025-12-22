@@ -52,10 +52,14 @@ model Course {
   title              String
   description        String?
   thumbnail          String?
+  price              Float?
   difficulty         String   @default("beginner") // beginner, intermediate, advanced
   estimatedDuration  Int      @default(0) // in minutes
   learningObjectives String[] @default([])
   isPublished        Boolean  @default(false)
+
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -63,6 +67,29 @@ model Course {
   modules     Module[]
   enrollments Enrollment[]
   threads     Thread[]
+  attachments Attachment[]
+
+  @@index([categoryId])
+}
+
+model Category {
+  id      String   @id @default(cuid())
+  name    String   @unique
+  courses Course[]
+}
+
+model Attachment {
+  id   String @id @default(cuid())
+  name String
+  url  String
+
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([courseId])
 }
 
 model Module {
@@ -73,6 +100,7 @@ model Module {
   title       String
   description String?
   orderIndex  Int      @default(0)
+  isPublished Boolean  @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -91,6 +119,7 @@ model Lesson {
   description String?
   type        String  @default("lecture") // lecture, quiz, flashcards
   orderIndex  Int     @default(0)
+  isPublished Boolean @default(false)
 
   // External video reference (KPOINT)
   videoUrl String?
