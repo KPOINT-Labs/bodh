@@ -1,12 +1,12 @@
 # Track Plan: Create Admin Dashboard for Course Management
 
-## Phase 1: Foundation & Database Schema
+## Phase 1: Foundation & Database Schema [checkpoint: c229c96]
 - [x] Task: Update Prisma Schema for Course, Module, and Lesson models [db push]
     - [x] Subtask: Define `Course` model (id, title, description, imageUrl, price, isPublished, etc.)
     - [x] Subtask: Define `Module` model (id, title, courseId, position, isPublished)
     - [x] Subtask: Define `Lesson` model (id, title, moduleId, videoUrl, position, isPublished, etc.)
     - [x] Subtask: Create and run database migration (Executed `db push` due to permissions)
-- [ ] Task: Conductor - User Manual Verification 'Foundation & Database Schema' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Foundation & Database Schema' (Protocol in workflow.md) c229c96
 
 ## Phase 2: Admin Layout & Course Management
 - [ ] Task: Create Admin Layout
