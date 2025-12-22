@@ -15,7 +15,7 @@ const guestRoutes = [
   {
     icon: Layout,
     label: "Dashboard",
-    href: "/teacher/courses", // Defaulting to courses for now
+    href: "/teacher/analytics", // Changed to analytics for now to distinguish
   },
   {
     icon: List,

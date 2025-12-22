@@ -6,6 +6,7 @@ import { ImageForm } from "./_components/image-form";
 import { CategoryForm } from "./_components/category-form";
 import { PriceForm } from "./_components/price-form";
 import { AttachmentForm } from "./_components/attachment-form";
+import { ModulesForm } from "./_components/modules-form";
 
 const CourseIdPage = async ({
   params
@@ -22,6 +23,11 @@ const CourseIdPage = async ({
       attachments: {
         orderBy: {
           createdAt: "desc",
+        },
+      },
+      modules: {
+        orderBy: {
+          orderIndex: "asc",
         },
       },
     },
@@ -42,7 +48,8 @@ const CourseIdPage = async ({
     course.description,
     course.imageUrl,
     course.price,
-    course.categoryId
+    course.categoryId,
+    course.modules.some(module => module.isPublished), // At least one published module
   ];
 
   const totalFields = requiredFields.length;
@@ -91,6 +98,17 @@ const CourseIdPage = async ({
           />
         </div>
         <div className="space-y-6">
+           <div>
+             <div className="flex items-center gap-x-2">
+               <h2 className="text-xl">
+                 Course modules
+               </h2>
+             </div>
+             <ModulesForm
+               initialData={course}
+               courseId={course.id}
+             />
+           </div>
            <div>
              <div className="flex items-center gap-x-2">
                <h2 className="text-xl">
