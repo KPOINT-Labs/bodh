@@ -1,0 +1,140 @@
+  
+  Module ID	Epic/Feature	Module Name	Description	Dependencies	Priority	Owner	Estimated Effort	User Story	Acceptance Criteria	Backend task
+M000		Setup course	"Setup course on the KPOINT domain. 
+Indexing of the videos on prism"		P0	SA	DONE	-	1. All the courses are avaialable on the KPOINT domain and are indexed in the prism server.	"1. Index course in Prism server
+2. Set up video metadata properties
+3. Configure video chapters/segments
+4. Set up transcript indexing
+5. Create course-level embeddings"
+M001	Platform Foundation	User Authentication	Login/signup system with session management	None	P0			As a student, I want to log in securely so that my learning progress is saved	"1. User can sign up with email/phone
+2. User can log in
+3. Session persists across refreshes
+4. Password reset works"	"1. User table schema setup
+2. JWT token generation/validation
+3. Session management API
+4. Password hashing service"
+M002	Platform Foundation	Main Dashboard Shell	Primary layout with sidebar navigation and chat area	M001	P0			As a student, I want a clean interface to navigate between courses and chat	"1. Sidebar shows 'New Course' button
+2. 'My Courses' section visible
+3. Main chat area loads
+4. Responsive on mobile"	"1. Dashboard layout API
+2. User preferences storage
+3. Session state management"
+M003	Platform Foundation	Course List Display	"Show enrolled courses with progress indicators
+
+Separate this out"	M002	P1			As a student, I want to see my courses and their progress status	"1. Courses show title and duration
+2. Progress bar visible (In Progress/Yet to start)
+3. Clickable to enter course"	
+M004 -A	AI Companion	Welcome System | Course Discovery Context	Welcome messages for users browsing/exploring courses (not yet inside a course)	M002	P0	PS		As a student exploring courses, I want helpful guidance to find the right course for me	"1. Displays appropriate welcome based on user state (new/returning/post-completion)
+2. Offers relevant suggested actions (Explore/Recommend/Search)
+3. Audio playback option available
+4. Message dismissible, doesn't block navigation"	
+M004 -B		Welcome System | Course Level Context	Welcome messages when student enters a specific course		P0	PS		As a student entering a course, I want to understand what I'll learn and where to start	"1. Shows course name, objectives, and current progress status
+2. Offers recap option if returning after >3 days gap
+3. Suggested actions shown (Start/Continue/Outline)
+4. Audio playback option available"	
+M004 -C		Welcome System | Topic Level Context	Welcome messages when student enters or resumes a specific topic		P0	PS		As a student entering a topic, I want acknowledgment of my progress and guidance on what's next	"1. Acknowledges previous topic completion or current resume position
+2. Offers recap option if resuming after gap
+3. Suggested actions shown (Continue/Restart/Recap/Practice)
+4. Audio playback option available"	
+M005	AI Companion	Text Chat Interface	ChatGPT-style conversational UI for text interactions	M002	P1			As a student, I want to type questions and get AI responses	"1. Text input field at bottom
+2. Messages display in conversation flow
+3. AI responses render properly
+4. Scroll behavior works"	
+M006-A	AI Companion	Voice Input (Tap to Talk)	Voice-based conversational interaction	M005	P0	AP		As a student, I want to speak my questions for hands-free learning	"1. Tap to talk button activates mic
+2. Audio captured and transcribed.
+3. Text transcript is also shown in the conversational space.
+4. Visual feedback during recording.
+"	
+M006-B		 Voice Commands | Command Handlers	Voice commands to control video playback (play, pause, resume, stop)		P1			As a student, I want to say "start playing", "continue to video", or "sure" and have the action performed	"1. Video, navigation, and prompt voice commands execute correctly (English + Hindi)
+2. Visual confirmation shown on command recognition
+3. Error feedback if action fails"	
+M007	AI Companion	Text-to-Speech Playback	AI responses can be played as audio	M005	P1			As a student, I want to hear AI responses spoken aloud	"1. Speaker icon on each AI message
+2. Click plays audio of message
+3. Audio stops when clicked again"	
+M008-A	Course Management	Sidebar - Course Navigation 	Expandable module/lesson tree in sidebar	M008	P0			As a student, I want to navigate between modules and lessons easily	"1. Modules expand/collapse
+2. Lessons show status (Completed/In Progress/Seen/Attempted)
+3. Progress percentage per module
+4. Lesson types identified (Lecture/Quiz/Flashcards)"	
+M008-B		Sidebar - New Course Button	Ability to add/explore new courses	M002	P0			As a student, I want to discover and enroll in new courses	"1. '+ New Course' button in sidebar
+2. Opens course catalog/exploration
+3. Shows 'Explore New Course' tooltip"	
+M009	Course Management	Lesson Progress Tracking	Track and persist completion status of each lesson	M009	P0			As a student, I want my progress saved so I can resume later	"1. Completed lessons marked green
+2. In-progress marked yellow
+3. Progress syncs to backend
+4. Resume from last position"	
+M010	Video Learning	Video Player Component	Embedded video player with standard controls	M008	P0	PS		As a student, I want to watch lecture videos within the platform	"1. Play/pause functionality
+2. Skip forward/back
+3. Volume control
+4. Fullscreen option
+5. Progress bar with seek"	
+M011	Video Learning	Video Timeline Markers	Colored dots on timeline indicating key moments(Highlight)	M011	P1	SA		As a student, I want to see important points on the video timeline	"1. Green/Yellow/Red/Blue dots on scrubber
+2. Dots clickable to jump to moment
+3. Tooltip shows context on hover"	
+M012	Video Learning	AI Monitoring Badge	Visual indicator that AI is monitoring video content	M011	P2			As a student, I want to know when AI can help me with current content	"1. 'AI Monitoring' badge visible during playback
+2. Badge is green/active state
+3. Positioned on video player"	
+M013	Video Learning	Video Comments	Add comments section below video	M011	P2			As a student, I want to leave comments or notes on videos	"1. 'Add Comments' input field
+2. Submit button (paper plane icon)
+3. Comments display below video"	
+M014	Retrieval Practice	Lesson Transition Prompt	AI prompts warm-up before new lesson	M010	P1			As a student, I want a quick recap before diving into new content	"1. AI message after lesson completion
+2. Offers 20-second warm-up option
+3. 'Sure' / 'Continue to video' buttons"	
+M015	Retrieval Practice	Post lesson completion quiz(Formative Assessment)	Quick MCQ to activate prior knowledge	M015	P1	PS		As a student, I want quick questions to refresh my memory	"1. Student pause the video and types/asks a question 
+2. Question displayed clearly
+3. Multiple choice options (A, B, C)
+4. Submit button
+5. Can include 'I don't remember' option"	
+M016	Retrieval Practice	Immediate Feedback on Answer	AI confirms correct/incorrect with explanation	M016	P1	PS		As a student, I want to know immediately if my answer was right	"1. Correct answer highlighted
+2. AI explains why answer is correct
+3. Transition prompt to continue video"	
+M017	In-Lesson AI	Visual Reels/Clips/Some timestamp of the lesson	"AI shows short clips to explain concepts,
+Timestamps refering to the topic"	M018	P1	RS(Reels)/JG(Video Summaries)		As a student, I want visual explanations when text isn't enough	"1. AI suggests visual reels
+2. Thumbnail previews shown
+3. Click to play in overlay
+4. 'Reel is Playing' indicator
+5. Click on the timestamp and that portion of the lesson starts playing"	
+M018	In-Lesson AI	Professor Question Detection	AI detects when professor asks question in video	M011, M005	P1			As a student, I want to be prompted to think when professor asks questions	"1. Video auto-pauses on detected question
+2. AI asks 'Want to think through it?'
+3. 'Yes, I'll Try' / 'No, continue video' options"	
+M019	In-Lesson AI	"Concept Completion Quiz (when highlight/topic ends)
+(Formative Assessment)"	End-of-concept MCQ assessment	M020	P0	PS		As a student, I want to test my understanding after learning a concept	"1. Multi-choice question format 
+2. Submit button
+3. Immediate feedback"	
+M020	In-Lesson AI	Hint System	AI provides hints without giving full answer	M020	P1	PS		As a student, I want hints when I'm stuck so I can figure it out myself	"1. 'Give me a hint' button available
+2. AI provides scaffolded hint
+3. Can request multiple hints
+4. 'Continue to Video' option after"	
+M021	In-Lesson AI	Peer Learning Space	Section showing other students' activity (future feature placeholder)	M011	P3			As a student, I want to see what other students are discussing	"1. 'Peer Learning Space' section visible
+2. Placeholder for future emoji annotations
+3. Community engagement area"	
+M022	Assessment	Confidence Rating & Adaptive Revision Paths	"Student rates their confidence level (emoji scale)
+AI suggests personalized revision options based on confidence"	M024	P1			As a student, I want to rate how confident I feel about a topic,  I want revision options suited to my needs	"1. 5-point emoji scale displayed
+2. 'Not confident' to 'Very confident' labels
+3. Submit Confidence button
+4. Rating saved for analytics
+5. AI acknowledges confidence rating
+6. Shows revision options: Quick Reel, Smart Summary, Full Video, Practice Questions
+7. Each option clearly described"	
+M023	Course Admin	Course Search	Search functionality within platform	M002	P2			As a student, I want to search for specific content	"1. Search icon in header area
+2. Opens search modal/dropdown
+3. Returns relevant courses/lessons"	
+M024	Study Tools	Quiz Module	Standalone quiz lessons with attempt tracking	M009	P1			As a student, I want to take quizzes to test my knowledge	"1. Quiz interface with multiple questions
+2. 'Attempted' status tracking
+3. Score display after completion"	
+M025	Analytics	Learning Analytics Dashboard	Track student progress, time spent, performance	M010, M025	P2			As a platform admin, I want to see student engagement metrics	"1. Time spent per lesson
+2. Quiz scores
+3. Confidence ratings over time
+4. Completion rates"	
+M026	Backend	RAG Pipeline Integration	Video content indexed for semantic search	M018	P1	AP	DONE	As a student, I want AI to find relevant video moments for my questions	"1. Video transcripts indexed
+2. Semantic search returns relevant timestamps
+3. AI references specific video moments"	
+M027	Backend	LiveKit Voice Pipeline	STT → LLM → TTS real-time voice conversation	M006, M007	P1	AP		As a student, I want seamless voice conversations with the AI	"1. Low-latency STT transcription
+2. LLM processes and responds
+3. TTS speaks response
+4. < 2 second end-to-end latency"	
+M028	Localization	Hindi Language Support	UI and AI responses in Hindi	M005, M006, M007	P3			As a Hindi-speaking student, I want to learn in my native language	"1. UI labels in Hindi
+2. AI responds in Hindi when asked
+3. Hindi voice input/output"	
+M029	Localization	Regional Language Framework	Framework for adding Tamil, Telugu, Bengali, etc.	M034	P3			As a regional language speaker, I want content in my language	"1. Language selection in settings
+2. Scalable translation framework
+3. Regional TTS/STT support"	

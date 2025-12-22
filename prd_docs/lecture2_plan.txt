@@ -1,0 +1,240 @@
+Warmup Questions:-
+
+
+Question 1: What are some types of data you encounter in everyday life?
+
+
+Options: (A) Shopping bills (B) Report cards (C) Paragraphs of text (D) All of the above
+
+
+Correct: D
+
+
+Question 2: If you wanted to compare students’ marks, which information would be most important?
+
+
+Options: (A) Student’s favorite color (B) Marks in subjects (C) Date of birth (D) Serial number
+
+
+Correct: B
+
+
+Question 3: On a shopping bill, what does the “total cost” represent?
+
+
+Options: (A) Sum of item quantities (B) Sum of item prices multiplied by quantities (C) Number of items bought (D) Tax only
+
+
+Correct: B
+
+
+Question 4 (Optional / Easy): Why do we assign serial numbers to words or items in our datasets?
+
+
+Options: (A) To make them look nice (B) To uniquely identify each item (C) To calculate taxes (D) To sort alphabetically
+
+
+Correct: B
+
+In lecture interruptions:-
+
+ 01:15 
+Quiz: Why are unique card numbers important?
+(A) Avoid confusion
+(B) Track attendance
+(C) Identify top scorer
+(D) Calculate total marks
+Correct Answer: A
+
+05:00
+Quiz: Which of the following is not part of the simplified report card used in the lecture?
+A. Name
+B. Gender
+C. Serial number
+D. Shopping items
+Answer: D
+
+
+08:30 
+Quiz: If a customer buys 4 soaps at ₹32 each, the total cost in the bill is:
+A. ₹96
+B. ₹128
+C. ₹64
+D. ₹32
+Answer: B
+
+13:00
+Quiz: Which of the following tasks can we perform with the paragraph dataset?
+A. Calculate total marks in report cards
+B. Determine the number of verbs and nouns
+C. Find best-selling shop
+D. Determine shopping tax
+Answer: B
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+SAMPLE JSON FOR GENERATION WHICH CAN HAVE VARIOUS TYPES
+
+{
+  "lecture_id": "lecture_data_intro_01",
+  "version": "1.0",
+  "language": "en",
+  "quiz_blocks": [
+    {
+      "block_id": "warmup",
+      "trigger": {
+        "type": "lecture_start"
+      },
+      "purpose": "Activate prior knowledge",
+      "questions": [
+        {
+          "question_id": "WU_Q1",
+          "type": "mcq",
+          "difficulty": "easy",
+          "question_text": "What are some types of data you encounter in everyday life?",
+          "options": [
+            { "id": "A", "text": "Shopping bills" },
+            { "id": "B", "text": "Report cards" },
+            { "id": "C", "text": "Paragraphs of text" },
+            { "id": "D", "text": "All of the above" }
+          ],
+          "correct_answer": "D"
+        },
+        {
+          "question_id": "WU_Q2",
+          "type": "mcq",
+          "difficulty": "easy",
+          "question_text": "If you wanted to compare students’ marks, which information would be most important?",
+          "options": [
+            { "id": "A", "text": "Student’s favorite color" },
+            { "id": "B", "text": "Marks in subjects" },
+            { "id": "C", "text": "Date of birth" },
+            { "id": "D", "text": "Serial number" }
+          ],
+          "correct_answer": "B"
+        },
+        {
+          "question_id": "WU_Q3",
+          "type": "mcq",
+          "difficulty": "easy",
+          "question_text": "On a shopping bill, what does the total cost represent?",
+          "options": [
+            { "id": "A", "text": "Sum of item quantities" },
+            { "id": "B", "text": "Sum of item prices multiplied by quantities" },
+            { "id": "C", "text": "Number of items bought" },
+            { "id": "D", "text": "Tax only" }
+          ],
+          "correct_answer": "B"
+        },
+        {
+          "question_id": "WU_Q4",
+          "type": "mcq",
+          "difficulty": "very_easy",
+          "optional": true,
+          "question_text": "Why do we assign serial numbers to words or items in our datasets?",
+          "options": [
+            { "id": "A", "text": "To make them look nice" },
+            { "id": "B", "text": "To uniquely identify each item" },
+            { "id": "C", "text": "To calculate taxes" },
+            { "id": "D", "text": "To sort alphabetically" }
+          ],
+          "correct_answer": "B"
+        }
+      ]
+    },
+    {
+      "block_id": "in_lecture_quizzes",
+      "trigger": {
+        "type": "timestamp_based"
+      },
+      "questions": [
+        {
+          "question_id": "IL_Q1",
+          "timestamp": "00:01:15",
+          "concept_completed": "Unique identifiers",
+          "type": "mcq",
+          "question_text": "Why are unique card numbers important?",
+          "options": [
+            { "id": "A", "text": "Avoid confusion" },
+            { "id": "B", "text": "Track attendance" },
+            { "id": "C", "text": "Identify top scorer" },
+            { "id": "D", "text": "Calculate total marks" }
+          ],
+          "correct_answer": "A"
+        },
+        {
+          "question_id": "IL_Q2",
+          "timestamp": "00:05:00",
+          "concept_completed": "Report card structure",
+          "type": "mcq",
+          "question_text": "Which of the following is not part of the simplified report card used in the lecture?",
+          "options": [
+            { "id": "A", "text": "Name" },
+            { "id": "B", "text": "Gender" },
+            { "id": "C", "text": "Serial number" },
+            { "id": "D", "text": "Shopping items" }
+          ],
+          "correct_answer": "D"
+        },
+        {
+          "question_id": "IL_Q3",
+          "timestamp": "00:08:30",
+          "concept_completed": "Shopping bill calculation",
+          "type": "mcq",
+          "question_text": "If a customer buys 4 soaps at ₹32 each, the total cost in the bill is:",
+          "options": [
+            { "id": "A", "text": "₹96" },
+            { "id": "B", "text": "₹128" },
+            { "id": "C", "text": "₹64" },
+            { "id": "D", "text": "₹32" }
+          ],
+          "correct_answer": "B"
+        },
+        {
+          "question_id": "IL_Q4",
+          "timestamp": "00:13:00",
+          "concept_completed": "Paragraph dataset analysis",
+          "type": "mcq",
+          "question_text": "Which of the following tasks can we perform with the paragraph dataset?",
+          "options": [
+            { "id": "A", "text": "Calculate total marks in report cards" },
+            { "id": "B", "text": "Determine the number of verbs and nouns" },
+            { "id": "C", "text": "Find best-selling shop" },
+            { "id": "D", "text": "Determine shopping tax" }
+          ],
+          "correct_answer": "B"
+        }
+      ]
+    }
+  ]
+}
+
+
