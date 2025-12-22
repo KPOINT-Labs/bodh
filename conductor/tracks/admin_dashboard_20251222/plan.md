@@ -19,11 +19,11 @@
     - [x] Subtask: Write tests for course creation logic
     - [x] Subtask: Create `app/(dashboard)/(routes)/teacher/create/page.tsx` with a form (react-hook-form + zod)
     - [x] Subtask: Implement Server Action for creating a course
-- [ ] Task: Implement Course Editing (Details & Resources)
-    - [ ] Subtask: Write tests for course update logic
-    - [ ] Subtask: Create `app/(dashboard)/(routes)/teacher/courses/[courseId]/page.tsx`
-    - [ ] Subtask: Implement Title, Description, Image, Price, and Category forms
-    - [ ] Subtask: Implement Attachment upload form
+- [x] Task: Implement Course Editing (Details & Resources)
+    - [x] Subtask: Write tests for course update logic
+    - [x] Subtask: Create `app/(dashboard)/(routes)/teacher/courses/[courseId]/page.tsx`
+    - [x] Subtask: Implement Title, Description, Image, Price, and Category forms
+    - [x] Subtask: Implement Attachment upload form
 - [ ] Task: Conductor - User Manual Verification 'Admin Layout & Course Management' (Protocol in workflow.md)
 
 ## Phase 3: Module & Lesson Management
