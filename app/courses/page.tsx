@@ -41,11 +41,11 @@ export default async function CoursesPage() {
     },
   });
 
-  // Helper function to get the first lesson of a course
-  const getFirstLesson = (course: (typeof courses)[0]) => {
+  // Helper function to get the first module with lessons
+  const getFirstModule = (course: (typeof courses)[0]) => {
     for (const module of course.modules) {
       if (module.lessons.length > 0) {
-        return module.lessons[0];
+        return module;
       }
     }
     return null;
@@ -90,10 +90,10 @@ export default async function CoursesPage() {
         ) : (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {courses.map((course) => {
-              const firstLesson = getFirstLesson(course);
+              const firstModule = getFirstModule(course);
               const totalLessons = getTotalLessons(course);
-              const courseUrl = firstLesson
-                ? `/course/${course.id}/lesson/${firstLesson.id}`
+              const courseUrl = firstModule
+                ? `/course/${course.id}/module/${firstModule.id}`
                 : "#";
 
               return (
@@ -127,8 +127,8 @@ export default async function CoursesPage() {
                     </CardContent>
 
                     <CardFooter>
-                      <Button className="w-full" disabled={!firstLesson}>
-                        {firstLesson ? "Start Course" : "Coming Soon"}
+                      <Button className="w-full" disabled={!firstModule}>
+                        {firstModule ? "Start Course" : "Coming Soon"}
                       </Button>
                     </CardFooter>
                   </Card>
