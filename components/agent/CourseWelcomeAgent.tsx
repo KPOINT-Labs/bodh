@@ -91,7 +91,7 @@ export function CourseWelcomeAgent({
   useEffect(() => {
     if (!isTyping || !summary) return;
 
-    const fullMessage = `Welcome to ${course.title}! ${summary}`;
+    const fullMessage = `Welcome to ${course.title}!\n${summary}`;
     let currentIndex = 0;
 
     const typingInterval = setInterval(() => {
@@ -146,12 +146,36 @@ export function CourseWelcomeAgent({
 
       {/* Welcome Message */}
       <div className="space-y-4">
-        <p className="text-sm leading-relaxed text-foreground">
-          {displayedText}
+        <div className="text-sm leading-relaxed text-foreground">
+          {displayedText.split('\n').map((line, index) => {
+            // Check if line is a bullet point
+            if (line.trim().startsWith('•')) {
+              return (
+                <div key={index} className="flex items-start gap-2 ml-2 my-1">
+                  <span className="text-primary shrink-0">•</span>
+                  <span>{line.trim().substring(1).trim()}</span>
+                </div>
+              );
+            }
+            // Check if line is "You'll learn:" header
+            if (line.trim().toLowerCase().includes("you'll learn")) {
+              return (
+                <p key={index} className="font-medium mt-3 mb-1">
+                  {line}
+                </p>
+              );
+            }
+            // Regular paragraph
+            return line.trim() ? (
+              <p key={index} className={index > 0 ? "mt-2" : ""}>
+                {line}
+              </p>
+            ) : null;
+          })}
           {isTyping && (
             <span className="inline-block w-2 h-4 bg-primary animate-pulse ml-0.5" />
           )}
-        </p>
+        </div>
 
         {/* Lesson Link Section */}
         {!isTyping && firstLesson && (

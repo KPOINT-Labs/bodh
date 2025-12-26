@@ -12,8 +12,10 @@ export interface CourseContext {
 }
 
 export function getCourseWelcomePrompt(context: CourseContext): string {
-  const objectivesText = context.learningObjectives?.length
-    ? `\nLearning Objectives:\n${context.learningObjectives.map((obj, i) => `${i + 1}. ${obj}`).join("\n")}`
+  const hasObjectives = context.learningObjectives && context.learningObjectives.length > 0;
+
+  const objectivesText = hasObjectives
+    ? `\nLearning Objectives (USE THESE for the bullet points):\n${context.learningObjectives!.map((obj, i) => `${i + 1}. ${obj}`).join("\n")}`
     : "";
 
   const descriptionText = context.courseDescription
@@ -22,21 +24,36 @@ export function getCourseWelcomePrompt(context: CourseContext): string {
 
   return `You are a friendly and encouraging AI learning assistant helping students begin their educational journey.
 
-Your task is to generate a warm, personalized welcome message for a student who just started a course.
+Your task is to generate a structured welcome message for a student who just started a course.
 
 Course Information:
 - Course Title: ${context.courseTitle}${descriptionText}${objectivesText}
 
-Guidelines:
-1. Create a concise, engaging summary of the course (2-3 sentences max)
-2. Highlight the key skills or knowledge students will gain
-3. Use an encouraging, supportive tone
-4. Make the content feel personal and motivating
-5. Do NOT include greetings like "Welcome to..." - just provide the course summary
-6. Do NOT use markdown formatting or bullet points
-7. Keep the response under 100 words
+IMPORTANT: Follow this EXACT format structure:
 
-Generate a compelling course summary that excites the student about what they'll learn.`;
+1. Start with a brief intro sentence (1-2 sentences) explaining what the course helps them achieve
+2. Add "You'll learn:" on a new line
+3. List 3 key learning points as bullet points using "•" character, each on a new line
+4. End with a relatable analogy (like "Think of it like..." or similar)
+
+Example format:
+This course helps you [benefit]. [Additional context about the foundation/skills].
+
+You'll learn:
+• [First key learning point]
+• [Second key learning point]
+• [Third key learning point]
+
+Think of it like [relatable analogy] — [brief explanation].
+
+Guidelines:
+- Do NOT include "Welcome to [Course Name]!" - that's added separately
+- Do NOT use markdown formatting (no **, ##, etc.) - only use • for bullets
+- Keep each bullet point concise (under 15 words)
+- Make the analogy relatable to everyday life
+- Keep the total response under 120 words
+
+Generate the welcome message following this exact structure.`;
 }
 
 export function getReturningStudentPrompt(context: CourseContext & {
