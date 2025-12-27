@@ -34,6 +34,8 @@ interface PeerLearningPanelProps {
   activeCourseId?: string;
   activeModuleId?: string;
   activeLessonId?: string;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
 function getStatusColor(status: Lesson["status"]) {
@@ -140,6 +142,8 @@ export function PeerLearningPanel({
   userId: propUserId,
   activeCourseId,
   activeModuleId,
+  isCollapsed = false,
+  onToggleCollapse,
 }: PeerLearningPanelProps) {
   const router = useRouter();
   const [userId, setUserId] = useState<string | null>(propUserId || null);
@@ -261,6 +265,28 @@ export function PeerLearningPanel({
   //   router.push(`/course/${courseSlug}/module/${moduleId}`);
   // };
 
+  // Collapsed view
+  if (isCollapsed) {
+    return (
+      <div className={`flex h-full flex-col bg-white items-center py-4 ${className}`}>
+        <button
+          onClick={onToggleCollapse}
+          className="p-3 hover:bg-gray-100 rounded-lg transition-colors mb-2"
+          title="New Course"
+        >
+          <Plus className="h-5 w-5 text-gray-600" />
+        </button>
+        <button
+          onClick={onToggleCollapse}
+          className="p-3 hover:bg-gray-100 rounded-lg transition-colors"
+          title="My Courses"
+        >
+          <LaptopIcon className="h-5 w-5 text-gray-600" />
+        </button>
+      </div>
+    );
+  }
+
   // Loading state
   if (isLoading) {
     return (
@@ -301,7 +327,11 @@ export function PeerLearningPanel({
             <Plus className="h-4 w-4" />
             New Course
           </Button>
-          <button className="p-2.5 border border-gray-200 hover:bg-gray-50 rounded-lg transition-colors">
+          <button
+            onClick={onToggleCollapse}
+            className="p-2.5 border border-gray-200 hover:bg-gray-50 rounded-lg transition-colors"
+            title="Collapse panel"
+          >
             <MenuDotsIcon className="h-5 w-5 text-gray-400" />
           </button>
         </div>
@@ -330,7 +360,11 @@ export function PeerLearningPanel({
             <Plus className="h-4 w-4" />
             New Course
           </Button>
-          <button className="p-2.5 border border-gray-200 hover:bg-gray-50 rounded-lg transition-colors">
+          <button
+            onClick={onToggleCollapse}
+            className="p-2.5 border border-gray-200 hover:bg-gray-50 rounded-lg transition-colors"
+            title="Collapse panel"
+          >
             <MenuDotsIcon className="h-5 w-5 text-gray-400" />
           </button>
         </div>
@@ -386,7 +420,11 @@ export function PeerLearningPanel({
           <Plus className="h-4 w-4" />
           New Course
         </Button>
-        <button className="p-2.5 border border-gray-200 hover:bg-gray-50 rounded-lg transition-colors">
+        <button
+          onClick={onToggleCollapse}
+          className="p-2.5 border border-gray-200 hover:bg-gray-50 rounded-lg transition-colors"
+          title="Collapse panel"
+        >
           <MenuDotsIcon className="h-5 w-5 text-gray-400" />
         </button>
       </div>
