@@ -24,7 +24,7 @@ export function ResizableContent({ header, content, footer, rightPanel }: Resiza
 
   if (!isMounted) {
     return (
-      <div className="h-screen overflow-hidden bg-[#F4F4F4]">
+      <div className="h-full overflow-hidden bg-[#F4F4F4]">
         <div className="flex h-full">
           {/* Main Content Panel - Static Layout */}
           <div className="flex-1 flex flex-col">
@@ -56,7 +56,7 @@ export function ResizableContent({ header, content, footer, rightPanel }: Resiza
   }
 
   return (
-    <div className="h-screen overflow-hidden bg-[#F4F4F4]">
+    <div className="h-full overflow-hidden bg-[#F4F4F4]">
       <ResizablePanelGroup direction="horizontal" className="h-full">
         {/* Main Content Panel */}
         <ResizablePanel defaultSize={rightPanel ? 75 : 100} minSize={50} className="flex flex-col">

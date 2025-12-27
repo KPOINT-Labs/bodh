@@ -152,7 +152,7 @@ export function ModuleContent({ course, module, userId }: ModuleContentProps) {
   const header = (
     <LessonHeader
       courseTitle={course.title}
-      lessonObjective={selectedLesson ? selectedLesson.title : module.title}
+      moduleTitle={module.title}
     />
   );
 

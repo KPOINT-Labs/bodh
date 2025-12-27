@@ -41,8 +41,8 @@ export function ChatInput({
   const isDisabled = disabled || isLoading;
 
   return (
-    <div className="flex items-center justify-center p-[20px]">
-      <div className="bg-white border border-gray-200 flex h-[58px] items-center justify-between pl-[25px] pr-[8px] py-[7px] relative rounded-full shadow-sm flex-1 max-w-3xl">
+    <div className="flex items-center justify-center px-6 py-4">
+      <div className="bg-white border border-gray-200 flex h-[58px] items-center justify-between pl-[25px] pr-[8px] py-[7px] relative rounded-full shadow-sm w-full">
         <input
           ref={inputRef}
           type="text"
