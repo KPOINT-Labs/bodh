@@ -22,7 +22,7 @@ async function getModuleData(courseId: string, moduleId: string) {
     return null;
   }
 
-  const module = await prisma.module.findUnique({
+  const foundModule = await prisma.module.findUnique({
     where: { id: moduleId },
     include: {
       lessons: {
@@ -32,17 +32,30 @@ async function getModuleData(courseId: string, moduleId: string) {
           title: true,
           orderIndex: true,
           kpointVideoId: true,
+          youtubeVideoId: true,
           description: true,
         },
       },
     },
   });
 
-  if (!module || module.courseId !== courseId) {
+  if (!foundModule || foundModule.courseId !== courseId) {
     return null;
   }
 
-  return { course, module };
+  // TODO: Replace with actual authenticated user when auth is implemented
+  // For now, use the sample user (created via scripts/create-sample-user.ts)
+  const user = await prisma.user.findFirst({
+    where: { email: "learner@bodh.app" },
+  });
+
+  if (!user) {
+    throw new Error(
+      "Sample user not found. Run: bun run scripts/create-sample-user.ts"
+    );
+  }
+
+  return { course, module: foundModule, userId: user.id };
 }
 
 export default async function ModulePage({ params }: ModulePageProps) {
@@ -53,7 +66,7 @@ export default async function ModulePage({ params }: ModulePageProps) {
     notFound();
   }
 
-  const { course, module } = data;
+  const { course, module, userId } = data;
 
   return (
     <Suspense
@@ -69,6 +82,7 @@ export default async function ModulePage({ params }: ModulePageProps) {
       <ModuleContent
         course={course}
         module={module}
+        userId={userId}
       />
     </Suspense>
   );

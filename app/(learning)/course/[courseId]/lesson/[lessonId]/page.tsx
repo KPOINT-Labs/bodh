@@ -24,7 +24,7 @@ export default async function LessonPage({
   );
 
   const content = (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-6 pb-3">
       {/* AI Assistant Message */}
       <Card className="border-l-4 border-l-primary bg-primary/5 p-4">
         <p className="text-sm text-muted-foreground">

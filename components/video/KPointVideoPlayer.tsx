@@ -46,6 +46,8 @@ export function KPointVideoPlayer({
         data-init-dynamic-internal=""
         data-video-host="bodh.kpoint.com"
         data-kvideo-id={kpointVideoId}
+        data-player={kpointVideoId}
+        data-video-params='{"autoplay": true}'
         style={{ width: "100%", borderRadius: "12px", overflow: "hidden" }}
       />
     </div>

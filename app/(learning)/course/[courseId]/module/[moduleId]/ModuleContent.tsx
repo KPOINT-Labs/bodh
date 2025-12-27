@@ -1,22 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import Script from "next/script";
 import { Card } from "@/components/ui/card";
 import { ResizableContent } from "@/components/layout/resizable-content";
 import { LessonHeader } from "@/components/course/LessonHeader";
 import { CourseWelcomeAgent } from "@/components/agent/CourseWelcomeAgent";
 import { ChatInput } from "@/components/chat/ChatInput";
-import { PeerLearningPanel } from "@/components/learning/PeerLearningPanel";
 import { KPointVideoPlayer } from "@/components/video/KPointVideoPlayer";
-import { Button } from "@/components/ui/button";
-import { ArrowLeft, BookOpen } from "lucide-react";
+import { BookOpen } from "lucide-react";
+import { type MessageData } from "@/lib/chat/message-store";
 
 interface Lesson {
   id: string;
   title: string;
   orderIndex: number;
   kpointVideoId?: string | null;
+  youtubeVideoId?: string | null;
   description?: string | null;
 }
 
@@ -36,18 +36,118 @@ interface Course {
 interface ModuleContentProps {
   course: Course;
   module: Module;
+  userId: string;
 }
 
-export function ModuleContent({ course, module }: ModuleContentProps) {
+// Type for KPoint player instance
+interface KPointPlayer {
+  getCurrentTime: () => number;
+}
+
+export function ModuleContent({ course, module, userId }: ModuleContentProps) {
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [chatMessages, setChatMessages] = useState<MessageData[]>([]);
+  const [isSending, setIsSending] = useState(false);
+  const kpointPlayerRef = useRef<KPointPlayer | null>(null);
+
+  // Get the first lesson for fallback
+  const firstLesson = module.lessons.sort((a, b) => a.orderIndex - b.orderIndex)[0];
+
+  // Listen for KPoint player ready event
+  useEffect(() => {
+    const handlePlayerReady = (event: CustomEvent<{ message: string; container: unknown; player: KPointPlayer }>) => {
+      console.log("KPoint player ready:", event.detail.message);
+      kpointPlayerRef.current = event.detail.player;
+    };
+
+    document.addEventListener("kpointPlayerReady", handlePlayerReady as EventListener);
+
+    return () => {
+      document.removeEventListener("kpointPlayerReady", handlePlayerReady as EventListener);
+    };
+  }, []);
 
   const handleLessonSelect = (lesson: Lesson) => {
     setSelectedLesson(lesson);
   };
 
-  const handleBackToWelcome = () => {
-    setSelectedLesson(null);
-  };
+  const handleConversationReady = useCallback((convId: string) => {
+    setConversationId(convId);
+  }, []);
+
+  const handleSendMessage = useCallback(async (message: string) => {
+    if (!conversationId) {
+      console.error("Conversation not ready");
+      return;
+    }
+
+    // Immediately show user message with a temporary ID
+    const tempUserMessage: MessageData = {
+      id: `temp-${Date.now()}`,
+      conversationId,
+      role: "user",
+      content: message,
+      inputType: "text",
+      messageType: "general",
+      createdAt: new Date().toISOString(),
+    };
+
+    // Add user message immediately to show it right away
+    setChatMessages(prev => [...prev, tempUserMessage]);
+    setIsSending(true);
+
+    try {
+      // Build video IDs array - use selected lesson or fallback to first lesson
+      const videoIds: string[] = [];
+      const activeLesson = selectedLesson || firstLesson;
+      if (activeLesson?.youtubeVideoId) {
+        videoIds.push(activeLesson.youtubeVideoId);
+      }
+
+      console.log("Active lesson:", activeLesson?.title, "YouTube ID:", activeLesson?.youtubeVideoId);
+
+      // Get current video timestamp from KPoint player (with safety check)
+      let startTimestamp = 0;
+      if (kpointPlayerRef.current) {
+        try {
+          const currentTime = kpointPlayerRef.current.getCurrentTime();
+          if (typeof currentTime === "number" && !isNaN(currentTime)) {
+            startTimestamp = Math.floor(currentTime); // Convert to integer seconds
+          }
+        } catch (error) {
+          console.warn("Failed to get current time from KPoint player:", error);
+        }
+      }
+
+      console.log("Sending message - videoIds:", videoIds, "startTimestamp:", startTimestamp);
+
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message,
+          conversationId,
+          courseId: course.id,
+          videoIds,
+          startTimestamp,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Add assistant message
+        setChatMessages(prev => [...prev, data.assistantMessage]);
+      } else {
+        console.error("Chat error:", data.error);
+      }
+    } catch (error) {
+      console.error("Failed to send message:", error);
+    } finally {
+      setIsSending(false);
+    }
+  }, [conversationId, course.id, selectedLesson, firstLesson]);
 
   const header = (
     <LessonHeader
@@ -57,12 +157,16 @@ export function ModuleContent({ course, module }: ModuleContentProps) {
   );
 
   const content = (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-6 pb-3">
       {/* AI Welcome Agent */}
       <CourseWelcomeAgent
         course={course}
         module={module}
+        userId={userId}
         onLessonSelect={handleLessonSelect}
+        onConversationReady={handleConversationReady}
+        chatMessages={chatMessages}
+        isWaitingForResponse={isSending}
       />
 
       {/* Module Lessons Overview */}
@@ -143,7 +247,13 @@ export function ModuleContent({ course, module }: ModuleContentProps) {
     </div>
   );
 
-  const footer = <ChatInput placeholder="Ask me anything about this lesson..." />;
+  const footer = (
+    <ChatInput
+      placeholder="Ask me anything about this lesson..."
+      onSend={handleSendMessage}
+      isLoading={isSending}
+    />
+  );
 
   const rightPanel = selectedLesson?.kpointVideoId ? (
     <div className="h-full flex flex-col bg-background">
@@ -157,9 +267,7 @@ export function ModuleContent({ course, module }: ModuleContentProps) {
         <KPointVideoPlayer kpointVideoId={selectedLesson.kpointVideoId} />
       </div>
     </div>
-  ) : (
-    <PeerLearningPanel />
-  );
+  ) : null;
 
   return (
     <>
