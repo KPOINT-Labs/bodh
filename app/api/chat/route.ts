@@ -7,6 +7,13 @@ const SARVAM_SESSION_API_URL = "https://swayam.arya.sarvam.ai/api/chat/session";
 // TODO: Move to environment variable
 const SARVAM_AUTH_COOKIE = `arya-auth-internal.session_token=HGdkdTwRlmMlRVYrPmh8cRXvDVsHjYlF.A8xpYB9jcQOZ2Gr39dWHEqyR%2Bd3TngkjSjbEOLZFbVA%3D; arya-auth=eyJhbGciOiJFZERTQSIsImtpZCI6IndvbDZIVmFNczFvc1BrczlGR3J2d0c3WWdja1pwYlk3In0.eyJpYXQiOjE3NjY0ODYxMDIsInVpZCI6IjlsbWU0c29pampnUVFnbEJ0NkpIeTBYNmFKbjlUQUtGIiwic3ViIjoiOWxtZTRzb2lqamdRUWdsQnQ2Skh5MFg2YUpuOVRBS0YiLCJ1c2VyX2lkIjoiOWxtZTRzb2lqamdRUWdsQnQ2Skh5MFg2YUpuOVRBS0YiLCJvcmdfaWQiOm51bGwsImV4cCI6MTc2NjQ4NzAwMiwiaXNzIjoiIiwiYXVkIjoiIn0.OynAGSo6bI5GMbrv5Rj9QhcOE94vCbRzPZf_CoQ2zKZRdN_768pj041JFcEJFi8AMjMPmt9hZ2YcOfl0qrmvDA`;
 
+// In-memory cache for sessions to avoid repeated DB queries
+// Key format: `${conversationId}:${taskGraphType}`
+const sessionCache = new Map<string, { sessionId: string; taskGraphId: string }>();
+
+// Cache for task graphs by courseId:type
+const taskGraphCache = new Map<string, { id: string; graphId: string }>();
+
 export interface ChatRequest {
   message: string;
   conversationId: string;
@@ -69,25 +76,48 @@ function extractAssistantContent(response: SarvamPromptResponse): string {
 
 /**
  * Helper to get or create a Sarvam session
+ * Uses in-memory caching to avoid repeated DB queries for the same conversation
  */
 async function getOrCreateSarvamSession(
   conversationId: string,
   courseId: string,
   taskGraphType: string = "QnA"
 ) {
-  // Get the task graph for this course
-  const taskGraph = await prisma.taskGraph.findFirst({
-    where: {
-      courseId,
-      type: taskGraphType,
-    },
-  });
+  const sessionCacheKey = `${conversationId}:${taskGraphType}`;
+  const taskGraphCacheKey = `${courseId}:${taskGraphType}`;
 
-  if (!taskGraph) {
-    throw new Error(`No ${taskGraphType} task graph found for this course`);
+  // Check session cache first - if found, return immediately (no DB queries)
+  const cachedSession = sessionCache.get(sessionCacheKey);
+  if (cachedSession) {
+    console.log("Session cache HIT:", sessionCacheKey);
+    return { sessionId: cachedSession.sessionId, taskGraphId: cachedSession.taskGraphId };
   }
 
-  // Check if a session already exists
+  console.log("Session cache MISS:", sessionCacheKey);
+
+  // Get task graph - check cache first
+  let taskGraph = taskGraphCache.get(taskGraphCacheKey);
+  if (!taskGraph) {
+    console.log("TaskGraph cache MISS:", taskGraphCacheKey);
+    const dbTaskGraph = await prisma.taskGraph.findFirst({
+      where: {
+        courseId,
+        type: taskGraphType,
+      },
+      select: { id: true, graphId: true },
+    });
+
+    if (!dbTaskGraph) {
+      throw new Error(`No ${taskGraphType} task graph found for this course`);
+    }
+
+    taskGraph = { id: dbTaskGraph.id, graphId: dbTaskGraph.graphId };
+    taskGraphCache.set(taskGraphCacheKey, taskGraph);
+  } else {
+    console.log("TaskGraph cache HIT:", taskGraphCacheKey);
+  }
+
+  // Check if a session already exists in DB
   const existingSession = await prisma.sarvamSession.findUnique({
     where: {
       conversationId_taskGraphId: {
@@ -95,9 +125,15 @@ async function getOrCreateSarvamSession(
         taskGraphId: taskGraph.id,
       },
     },
+    select: { sessionId: true, taskGraphId: true },
   });
 
   if (existingSession) {
+    // Cache for future requests
+    sessionCache.set(sessionCacheKey, {
+      sessionId: existingSession.sessionId,
+      taskGraphId: existingSession.taskGraphId,
+    });
     return existingSession;
   }
 
@@ -133,8 +169,8 @@ async function getOrCreateSarvamSession(
   console.log("Session ID Created:", cleanSessionId);
   console.log("=== END SESSION CREATE ===");
 
-  // Store the session
-  const sarvamSession = await prisma.sarvamSession.create({
+  // Store the session in DB
+  await prisma.sarvamSession.create({
     data: {
       sessionId: cleanSessionId,
       taskGraphId: taskGraph.id,
@@ -143,7 +179,11 @@ async function getOrCreateSarvamSession(
     },
   });
 
-  return sarvamSession;
+  // Cache the new session
+  const newSession = { sessionId: cleanSessionId, taskGraphId: taskGraph.id };
+  sessionCache.set(sessionCacheKey, newSession);
+
+  return newSession;
 }
 
 /**

@@ -30,7 +30,7 @@ interface Course {
   learningObjectives?: string[];
 }
 
-interface CourseWelcomeAgentProps {
+interface ChatAgentProps {
   course: Course;
   module: Module;
   userId: string;
@@ -40,17 +40,36 @@ interface CourseWelcomeAgentProps {
   isWaitingForResponse?: boolean;
 }
 
+// Helper to parse inline markdown (bold, etc.)
+function parseInlineMarkdown(text: string): React.ReactNode {
+  // Split by **bold** pattern
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith("**") && part.endsWith("**")) {
+      // Bold text
+      return (
+        <strong key={i} className="font-semibold">
+          {part.slice(2, -2)}
+        </strong>
+      );
+    }
+    return part;
+  });
+}
+
 // Helper to render message content with formatting
 function MessageContent({ content }: { content: string }) {
   return (
     <div className="text-sm leading-relaxed">
       {content.split("\n").map((line, index) => {
-        // Check if line is a bullet point
-        if (line.trim().startsWith("•")) {
+        // Check if line is a bullet point (• or - or numbered like 1.)
+        const bulletMatch = line.trim().match(/^(•|-|\d+\.)\s*/);
+        if (bulletMatch) {
+          const bulletText = line.trim().substring(bulletMatch[0].length);
           return (
             <div key={index} className="flex items-start gap-2 ml-2 my-1">
-              <span className="text-blue-500 shrink-0">•</span>
-              <span>{line.trim().substring(1).trim()}</span>
+              <span className="text-blue-500 shrink-0">{bulletMatch[1]}</span>
+              <span>{parseInlineMarkdown(bulletText)}</span>
             </div>
           );
         }
@@ -58,14 +77,14 @@ function MessageContent({ content }: { content: string }) {
         if (line.trim().toLowerCase().includes("you'll learn")) {
           return (
             <p key={index} className="font-semibold text-gray-900 mt-3 mb-1">
-              {line}
+              {parseInlineMarkdown(line)}
             </p>
           );
         }
         // Regular paragraph
         return line.trim() ? (
           <p key={index} className={index > 0 ? "mt-2" : ""}>
-            {line}
+            {parseInlineMarkdown(line)}
           </p>
         ) : null;
       })}
@@ -73,7 +92,7 @@ function MessageContent({ content }: { content: string }) {
   );
 }
 
-export function CourseWelcomeAgent({
+export function ChatAgent({
   course,
   module,
   userId,
@@ -81,7 +100,7 @@ export function CourseWelcomeAgent({
   onConversationReady,
   chatMessages = [],
   isWaitingForResponse = false,
-}: CourseWelcomeAgentProps) {
+}: ChatAgentProps) {
   const [historyMessages, setHistoryMessages] = useState<MessageData[]>([]);
   const [latestMessage, setLatestMessage] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
@@ -329,24 +348,27 @@ export function CourseWelcomeAgent({
           <div className="bg-gray-50 rounded-2xl rounded-tl-sm px-4 py-3 max-w-[85%]">
             <div className="text-sm leading-relaxed text-gray-800">
               {displayedText.split("\n").map((line, index) => {
-                if (line.trim().startsWith("•")) {
+                // Check if line is a bullet point (• or - or numbered like 1.)
+                const bulletMatch = line.trim().match(/^(•|-|\d+\.)\s*/);
+                if (bulletMatch) {
+                  const bulletText = line.trim().substring(bulletMatch[0].length);
                   return (
                     <div key={index} className="flex items-start gap-2 ml-2 my-1">
-                      <span className="text-blue-500 shrink-0">•</span>
-                      <span>{line.trim().substring(1).trim()}</span>
+                      <span className="text-blue-500 shrink-0">{bulletMatch[1]}</span>
+                      <span>{parseInlineMarkdown(bulletText)}</span>
                     </div>
                   );
                 }
                 if (line.trim().toLowerCase().includes("you'll learn")) {
                   return (
                     <p key={index} className="font-semibold text-gray-900 mt-3 mb-1">
-                      {line}
+                      {parseInlineMarkdown(line)}
                     </p>
                   );
                 }
                 return line.trim() ? (
                   <p key={index} className={index > 0 ? "mt-2" : ""}>
-                    {line}
+                    {parseInlineMarkdown(line)}
                   </p>
                 ) : null;
               })}

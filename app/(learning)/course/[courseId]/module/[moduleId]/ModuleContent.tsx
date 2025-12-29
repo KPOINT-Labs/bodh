@@ -5,7 +5,7 @@ import Script from "next/script";
 import { Card } from "@/components/ui/card";
 import { ResizableContent } from "@/components/layout/resizable-content";
 import { LessonHeader } from "@/components/course/LessonHeader";
-import { CourseWelcomeAgent } from "@/components/agent/CourseWelcomeAgent";
+import { ChatAgent } from "@/components/agent/ChatAgent";
 import { ChatInput } from "@/components/chat/ChatInput";
 import { KPointVideoPlayer } from "@/components/video/KPointVideoPlayer";
 import { BookOpen } from "lucide-react";
@@ -159,7 +159,7 @@ export function ModuleContent({ course, module, userId }: ModuleContentProps) {
   const content = (
     <div className="space-y-6 p-6 pb-3">
       {/* AI Welcome Agent */}
-      <CourseWelcomeAgent
+      <ChatAgent
         course={course}
         module={module}
         userId={userId}
