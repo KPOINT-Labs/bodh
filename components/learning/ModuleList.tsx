@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronDown, ChevronRight, Monitor, FileText } from "lucide-react";
 import type { Course, Module, Lesson } from "@/types/learning";
 import {
   getStatusColor,
@@ -7,30 +7,6 @@ import {
   getModuleStatusText,
 } from "@/lib/learning/status";
 import { PanelHeader } from "./PanelHeader";
-
-// Laptop/Monitor icon
-function LaptopIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-      <rect x="3" y="4" width="18" height="12" rx="2" />
-      <path d="M2 20h20" />
-      <path d="M7 16v4" />
-      <path d="M17 16v4" />
-    </svg>
-  );
-}
-
-// Module icon (document/file icon)
-function ModuleIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-      <rect x="4" y="3" width="16" height="18" rx="2" />
-      <path d="M8 7h8" />
-      <path d="M8 11h8" />
-      <path d="M8 15h4" />
-    </svg>
-  );
-}
 
 interface LessonItemProps {
   lesson: Lesson;
@@ -74,7 +50,7 @@ function ModuleItem({ module, isExpanded, onToggle, onLessonClick }: ModuleItemP
         className="w-full text-left p-4 bg-white hover:bg-gray-50 transition-colors"
       >
         <div className="flex items-start gap-3">
-          <ModuleIcon className="h-5 w-5 text-yellow-500 shrink-0 mt-0.5" />
+          <FileText className="h-5 w-5 text-yellow-500 shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
             <h3 className="font-medium text-gray-900 text-sm">{module.title}</h3>
             <div className="flex items-center gap-2 mt-1">
@@ -139,7 +115,7 @@ export function ModuleList({
 
       <div className="flex-1 overflow-auto px-4 pb-4">
         <div className="flex items-center gap-2 mb-4">
-          <LaptopIcon className="h-4 w-4 text-gray-500" />
+          <Monitor className="h-4 w-4 text-gray-500" />
           <h2 className="text-sm font-medium text-gray-700">My Courses</h2>
         </div>
 

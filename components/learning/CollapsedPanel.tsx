@@ -1,16 +1,4 @@
-import { Plus } from "lucide-react";
-
-// Laptop/Monitor icon
-function LaptopIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-      <rect x="3" y="4" width="18" height="12" rx="2" />
-      <path d="M2 20h20" />
-      <path d="M7 16v4" />
-      <path d="M17 16v4" />
-    </svg>
-  );
-}
+import { Plus, Monitor } from "lucide-react";
 
 interface CollapsedPanelProps {
   className?: string;
@@ -35,7 +23,7 @@ export function CollapsedPanel({ className = "", onToggleCollapse }: CollapsedPa
         className="p-3 hover:bg-gray-100 rounded-lg transition-colors"
         title="My Courses"
       >
-        <LaptopIcon className="h-5 w-5 text-gray-600" />
+        <Monitor className="h-5 w-5 text-gray-600" />
       </button>
     </div>
   );

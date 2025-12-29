@@ -1,16 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
-
-// Menu dots icon
-function MenuDotsIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-      <rect x="4" y="5" width="16" height="3" rx="1" />
-      <rect x="4" y="10.5" width="16" height="3" rx="1" />
-      <rect x="4" y="16" width="16" height="3" rx="1" />
-    </svg>
-  );
-}
+import { Plus, Menu } from "lucide-react";
 
 interface PanelHeaderProps {
   onToggleCollapse?: () => void;
@@ -34,7 +23,7 @@ export function PanelHeader({ onToggleCollapse }: PanelHeaderProps) {
         className="p-2.5 border border-gray-200 hover:bg-gray-50 rounded-lg transition-colors"
         title="Collapse panel"
       >
-        <MenuDotsIcon className="h-5 w-5 text-gray-400" />
+        <Menu className="h-5 w-5 text-gray-400" />
       </button>
     </div>
   );
