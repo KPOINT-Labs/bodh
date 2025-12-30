@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const SARVAM_PROMPT_API_URL = "https://swayam.arya.sarvam.ai/api/chat/prompt/prompt";
 const SARVAM_SESSION_API_URL = "https://swayam.arya.sarvam.ai/api/chat/session";
@@ -36,28 +37,85 @@ interface SarvamPromptResponse {
 }
 
 /**
- * Classify message type based on content
+ * Use Gemini LLM to classify ambiguous messages
+ */
+async function classifyWithLLM(message: string): Promise<"QnA" | "FA"> {
+  try {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      console.warn("GEMINI_API_KEY not set, defaulting to QnA");
+      return "QnA";
+    }
+
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({
+      model: "gemini-2.0-flash",
+      systemInstruction: `You are a message intent classifier for an educational platform.
+Classify the user's message into one of two categories:
+
+- QnA: The user is asking questions, seeking explanations, wanting to understand concepts, or requesting information about the topic.
+- FA: The user wants to be tested, quizzed, assessed, or wants practice questions to check their understanding.
+
+Respond with ONLY "QnA" or "FA" - nothing else.`,
+    });
+
+    const result = await model.generateContent(message);
+    const response = result.response.text().trim().toUpperCase();
+
+    if (response === "FA") {
+      return "FA";
+    }
+    return "QnA";
+  } catch (error) {
+    console.error("LLM classification error:", error);
+    return "QnA"; // Default to QnA on error
+  }
+}
+
+/**
+ * Classify message type based on content using hybrid approach
  * QnA: Questions about the content, explanations, clarifications
  * FA: Formative assessment, quizzes, practice questions
+ *
+ * Uses keyword matching for obvious cases, LLM for ambiguous ones
  */
-function classifyMessageType(message: string): "QnA" | "FA" {
+async function classifyMessageType(message: string): Promise<"QnA" | "FA"> {
   const lowerMessage = message.toLowerCase();
 
-  // FA indicators: quiz, test, assess, practice, exercise
-  const faKeywords = [
-    "quiz", "test", "assess", "practice", "exercise",
-    "question me", "ask me", "evaluate", "check my understanding",
-    "give me a question", "formative", "mcq", "multiple choice"
+  // === FAST PATH: Obvious FA patterns (no LLM needed) ===
+  const obviousFaPatterns = [
+    "quiz me", "test me", "assess me", "question me", "challenge me",
+    "ask me question", "ask me a question", "give me a quiz",
+    "check my understanding", "check my knowledge", "test my knowledge",
+    "mcq", "multiple choice", "true or false", "pop quiz",
+    "drill me", "grill me"
   ];
 
-  for (const keyword of faKeywords) {
-    if (lowerMessage.includes(keyword)) {
+  for (const pattern of obviousFaPatterns) {
+    if (lowerMessage.includes(pattern)) {
+      console.log("Classification: FA (obvious pattern match)");
       return "FA";
     }
   }
 
-  // Default to QnA for general questions and explanations
-  return "QnA";
+  // === FAST PATH: Obvious QnA patterns (no LLM needed) ===
+  const obviousQnaPatterns = [
+    "what is", "what's", "what are", "explain", "how does", "how do",
+    "tell me about", "describe", "why is", "why does", "why do",
+    "can you explain", "help me understand", "i don't understand",
+    "what does", "define", "definition", "meaning of"
+  ];
+
+  for (const pattern of obviousQnaPatterns) {
+    if (lowerMessage.includes(pattern)) {
+      console.log("Classification: QnA (obvious pattern match)");
+      return "QnA";
+    }
+  }
+
+  // === SLOW PATH: Ambiguous message - use LLM ===
+  console.log("Classification: Ambiguous message, using LLM");
+  return await classifyWithLLM(message);
 }
 
 /**
@@ -218,7 +276,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Classify message type if not provided
-    const taskGraphType = providedType || classifyMessageType(message);
+    const taskGraphType = providedType || await classifyMessageType(message);
     console.log("Classified Task Graph Type:", taskGraphType);
 
     // Store user message first
