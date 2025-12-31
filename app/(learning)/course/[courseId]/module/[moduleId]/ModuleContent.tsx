@@ -247,6 +247,10 @@ export function ModuleContent({ course, module, userId }: ModuleContentProps) {
     </div>
   );
 
+  // Build videoIds array from selected lesson or first lesson
+  const activeLesson = selectedLesson || firstLesson;
+  const videoIds = activeLesson?.kpointVideoId ? [activeLesson.kpointVideoId] : [];
+
   const footer = (
     <ChatInput
       placeholder="Ask me anything about this lesson..."
@@ -254,6 +258,8 @@ export function ModuleContent({ course, module, userId }: ModuleContentProps) {
       isLoading={isSending}
       conversationId={conversationId || undefined}
       courseId={course.id}
+      userId={userId}
+      videoIds={videoIds}
     />
   );
 

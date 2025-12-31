@@ -15,14 +15,17 @@ interface UseLiveKitProps {
   conversationId: string;
   courseId: string;
   userId?: string;
+  videoIds?: string[];
 }
 
 interface UseLiveKitReturn {
   isConnected: boolean;
   isConnecting: boolean;
+  isMuted: boolean;
   error: string | null;
   connect: () => Promise<void>;
   disconnect: () => Promise<void>;
+  toggleMute: () => Promise<void>;
 }
 
 interface TokenResponse {
@@ -45,9 +48,11 @@ export function useLiveKit({
   conversationId,
   courseId,
   userId = "anonymous",
+  videoIds = [],
 }: UseLiveKitProps): UseLiveKitReturn {
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // References to persist across renders
@@ -73,6 +78,7 @@ export function useLiveKit({
 
       // Get token from Prism backend
       console.log("[LiveKit] Fetching token from:", `${PRISM_API_URL}/api/v1/adi2/token`);
+      console.log("[LiveKit] Request payload:", { roomName, userId, videoIds });
       const response = await fetch(`${PRISM_API_URL}/api/v1/adi2/token`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -81,8 +87,8 @@ export function useLiveKit({
           participant_name: userId,
           user_id: userId,
           agent_type: "qna-agent",
-          video_ids: [],
-          domain: courseId,
+          video_ids: videoIds,
+          domain: "bodh.kpoint.com",
         }),
       });
 
@@ -163,7 +169,7 @@ export function useLiveKit({
     } finally {
       setIsConnecting(false);
     }
-  }, [conversationId, courseId, userId, isConnecting, isConnected]);
+  }, [conversationId, courseId, userId, videoIds, isConnecting, isConnected]);
 
   /**
    * Disconnect from LiveKit room
@@ -186,9 +192,31 @@ export function useLiveKit({
     }
 
     setIsConnected(false);
+    setIsMuted(false);
     setError(null);
     console.log("[LiveKit] Disconnected and cleaned up");
   }, []);
+
+  /**
+   * Toggle microphone mute/unmute
+   */
+  const toggleMute = useCallback(async () => {
+    if (!roomRef.current) {
+      console.warn("[LiveKit] Cannot toggle mute - not connected");
+      return;
+    }
+
+    const newMutedState = !isMuted;
+    console.log("[LiveKit] Toggling mute:", newMutedState ? "muting" : "unmuting");
+
+    try {
+      await roomRef.current.localParticipant.setMicrophoneEnabled(!newMutedState);
+      setIsMuted(newMutedState);
+      console.log("[LiveKit] Microphone", newMutedState ? "muted" : "unmuted");
+    } catch (err) {
+      console.error("[LiveKit] Failed to toggle mute:", err);
+    }
+  }, [isMuted]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -200,8 +228,10 @@ export function useLiveKit({
   return {
     isConnected,
     isConnecting,
+    isMuted,
     error,
     connect,
     disconnect,
+    toggleMute,
   };
 }
