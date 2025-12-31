@@ -1,9 +1,14 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Room, Track, RemoteParticipant } from "livekit-client";
+import {
+  Room,
+  RemoteTrack,
+  RemoteTrackPublication,
+  RemoteParticipant,
+} from "livekit-client";
 
-// Prism API base URL
+// Prism API base URL (must use NEXT_PUBLIC_ prefix for client-side access)
 const PRISM_API_URL = process.env.NEXT_PUBLIC_PRISM_API_URL || "https://prism-prod.kpoint.ai";
 
 interface UseLiveKitProps {
@@ -53,7 +58,10 @@ export function useLiveKit({
    * Connect to LiveKit room
    */
   const connect = useCallback(async () => {
-    if (isConnecting || isConnected) return;
+    if (isConnecting || isConnected) {
+      console.log("[LiveKit] Already connecting or connected, skipping");
+      return;
+    }
 
     try {
       setIsConnecting(true);
@@ -61,10 +69,11 @@ export function useLiveKit({
 
       // Generate unique room name
       const roomName = `voice-${conversationId}-${Date.now()}`;
+      console.log("[LiveKit] Starting connection", { roomName, courseId, userId });
 
       // Get token from Prism backend
-      console.log("Getting voice token...");
-      const response = await fetch(`${PRISM_API_URL}/api/v1/voice-agent/token`, {
+      console.log("[LiveKit] Fetching token from:", `${PRISM_API_URL}/api/v1/adi2/token`);
+      const response = await fetch(`${PRISM_API_URL}/api/v1/adi2/token`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -78,10 +87,13 @@ export function useLiveKit({
       });
 
       if (!response.ok) {
-        throw new Error("Failed to get voice token");
+        const errorText = await response.text();
+        console.error("[LiveKit] Token fetch failed:", response.status, errorText);
+        throw new Error(`Failed to get voice token: ${response.status}`);
       }
 
       const { token, url } = (await response.json()) as TokenResponse;
+      console.log("[LiveKit] Token received, connecting to:", url);
 
       // Create room with good audio settings
       const room = new Room({
@@ -95,12 +107,17 @@ export function useLiveKit({
       });
 
       // Handle incoming audio from agent
-      const handleAgentAudio = (track: Track, participant: RemoteParticipant) => {
+      const handleAgentAudio = (
+        track: RemoteTrack,
+        _publication: RemoteTrackPublication,
+        participant: RemoteParticipant
+      ) => {
         if (track.kind !== "audio" || !participant.isAgent) {
+          console.log("[LiveKit] Track received but skipping:", { kind: track.kind, isAgent: participant.isAgent });
           return;
         }
 
-        console.log("Agent audio received");
+        console.log("[LiveKit] Agent audio track received");
 
         // Remove old audio element
         if (audioRef.current) {
@@ -125,25 +142,23 @@ export function useLiveKit({
       room.on("trackSubscribed", handleAgentAudio);
 
       // Listen for disconnect
-      room.on("disconnected", () => {
-        console.log("Disconnected from room");
+      room.on("disconnected", (reason) => {
+        console.log("[LiveKit] Disconnected from room:", reason);
         setIsConnected(false);
       });
 
       // Connect to room
-      console.log("Connecting to LiveKit room...");
       await room.connect(url, token);
-      console.log("Connected!");
+      console.log("[LiveKit] Connected to room successfully");
 
       // Enable microphone
-      console.log("Enabling microphone...");
       await room.localParticipant.setMicrophoneEnabled(true);
-      console.log("Microphone enabled");
+      console.log("[LiveKit] Microphone enabled");
 
       roomRef.current = room;
       setIsConnected(true);
     } catch (err) {
-      console.error("LiveKit connection error:", err);
+      console.error("[LiveKit] Connection error:", err);
       setError(err instanceof Error ? err.message : "Connection failed");
     } finally {
       setIsConnecting(false);
@@ -154,6 +169,12 @@ export function useLiveKit({
    * Disconnect from LiveKit room
    */
   const disconnect = useCallback(async () => {
+    // Only log and cleanup if there's an active connection
+    if (!roomRef.current && !audioRef.current) {
+      return; // Nothing to disconnect
+    }
+
+    console.log("[LiveKit] Disconnecting...");
     if (roomRef.current) {
       await roomRef.current.disconnect();
       roomRef.current = null;
@@ -166,6 +187,7 @@ export function useLiveKit({
 
     setIsConnected(false);
     setError(null);
+    console.log("[LiveKit] Disconnected and cleaned up");
   }, []);
 
   // Cleanup on unmount

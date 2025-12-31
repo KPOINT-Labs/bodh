@@ -252,6 +252,8 @@ export function ModuleContent({ course, module, userId }: ModuleContentProps) {
       placeholder="Ask me anything about this lesson..."
       onSend={handleSendMessage}
       isLoading={isSending}
+      conversationId={conversationId || undefined}
+      courseId={course.id}
     />
   );
 

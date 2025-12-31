@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { Loader2, Send, Mic, MicOff } from "lucide-react";
 import { useLiveKit } from "@/hooks/useLiveKit";
 
@@ -25,10 +25,17 @@ export function ChatInput({
   const [inputValue, setInputValue] = useState("");
 
   // LiveKit voice hook - connects to Prism backend
-  const { isConnected, isConnecting, connect, disconnect } = useLiveKit({
+  const { isConnected, isConnecting, error: voiceError, connect, disconnect } = useLiveKit({
     conversationId: conversationId || "",
     courseId: courseId || "",
   });
+
+  // Log voice errors when they occur
+  useEffect(() => {
+    if (voiceError) {
+      console.error("[Voice] Error:", voiceError);
+    }
+  }, [voiceError]);
 
   // Handle text message submit
   const handleSubmit = async () => {
@@ -41,16 +48,18 @@ export function ChatInput({
 
   // Handle voice button click
   const handleVoiceClick = async () => {
+    console.log("[Voice] Button clicked", { conversationId, courseId, isConnected });
+
     if (!conversationId || !courseId) {
-      console.warn("conversationId and courseId required for voice");
+      console.warn("[Voice] Missing required props:", { conversationId, courseId });
       return;
     }
 
     if (isConnected) {
-      // Stop voice session
+      console.log("[Voice] Stopping session...");
       await disconnect();
     } else {
-      // Start voice session
+      console.log("[Voice] Starting session...");
       await connect();
     }
   };
