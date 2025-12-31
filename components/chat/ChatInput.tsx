@@ -30,7 +30,7 @@ export function ChatInput({
   const [inputValue, setInputValue] = useState("");
 
   // LiveKit voice hook - connects to Prism backend
-  const { isConnected, isConnecting, isMuted, error: voiceError, connect, disconnect, toggleMute } = useLiveKit({
+  const { isConnected, isConnecting, isMuted, audioLevel, error: voiceError, connect, disconnect, toggleMute } = useLiveKit({
     conversationId: conversationId || "",
     courseId: courseId || "",
     userId: userId,
@@ -54,10 +54,11 @@ export function ChatInput({
       // Just connected
       toast.success("Voice session started", {
         description: "You can now speak to the AI assistant",
+        duration: 2000,
       });
     } else if (!isConnected && prevConnectedRef.current) {
       // Just disconnected
-      toast.info("Voice session ended");
+      toast.info("Voice session ended", { duration: 2000 });
     }
     prevConnectedRef.current = isConnected;
   }, [isConnected]);
@@ -117,16 +118,44 @@ export function ChatInput({
   return (
     <div className="flex items-center justify-center px-6 py-4">
       <div className="bg-white border border-gray-200 flex h-[58px] items-center justify-between pl-[25px] pr-[8px] py-[7px] relative rounded-full shadow-sm w-full">
-        <input
-          ref={inputRef}
-          type="text"
-          value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
-          placeholder={getPlaceholder()}
-          disabled={isDisabled || isConnected}
-          onKeyDown={handleKeyDown}
-          className="flex-1 bg-transparent border-none outline-none font-normal text-[16px] text-gray-900 placeholder-[#99a1af] tracking-[-0.3125px] leading-[24px] disabled:opacity-50"
-        />
+        {/* Show animated listening indicator when connected and not muted */}
+        {isConnected && !isMuted ? (
+          <div className="flex-1 flex items-center justify-center h-full relative overflow-hidden">
+            {/* Full width audio visualization - bars respond to audio level */}
+            <div className="absolute inset-0 flex items-end justify-center gap-1 px-4 py-2">
+              {Array.from({ length: 24 }).map((_, i) => {
+                // Create wave pattern with different multipliers for each bar
+                const offset = [0.3, 0.7, 1.0, 0.8, 0.5, 0.9, 0.4, 0.6, 1.0, 0.7, 0.5, 0.8, 0.6, 0.9, 0.4, 1.0, 0.7, 0.5, 0.8, 0.3, 0.9, 0.6, 0.4, 0.7][i];
+                // Bars height based on audio level (always visible, grows with voice)
+                const baseHeight = Math.max(4, audioLevel * 40 * offset);
+                return (
+                  <span
+                    key={i}
+                    className="flex-1 max-w-1.5 rounded-full sound-wave-bar transition-all duration-75"
+                    style={{
+                      height: `${baseHeight}px`,
+                      opacity: audioLevel > 0.1 ? 0.85 : 0.4,
+                    }}
+                  />
+                );
+              })}
+            </div>
+            <span className="text-[#C27AFF] font-medium text-[15px] tracking-[-0.3px] z-10 bg-white/90 px-3 py-1 rounded-full shadow-sm">
+              Listening...
+            </span>
+          </div>
+        ) : (
+          <input
+            ref={inputRef}
+            type="text"
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            placeholder={getPlaceholder()}
+            disabled={isDisabled || isConnected}
+            onKeyDown={handleKeyDown}
+            className="flex-1 bg-transparent border-none outline-none font-normal text-[16px] text-gray-900 placeholder-[#99a1af] tracking-[-0.3125px] leading-[24px] disabled:opacity-50"
+          />
+        )}
         <div className="flex items-center gap-2">
           {/* End session button - only shown when connected */}
           {isConnected && (

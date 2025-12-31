@@ -6,6 +6,7 @@ import {
   RemoteTrack,
   RemoteTrackPublication,
   RemoteParticipant,
+  Track,
 } from "livekit-client";
 
 // Prism API base URL (must use NEXT_PUBLIC_ prefix for client-side access)
@@ -22,6 +23,8 @@ interface UseLiveKitReturn {
   isConnected: boolean;
   isConnecting: boolean;
   isMuted: boolean;
+  isSpeaking: boolean;
+  audioLevel: number;
   error: string | null;
   connect: () => Promise<void>;
   disconnect: () => Promise<void>;
@@ -53,11 +56,17 @@ export function useLiveKit({
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [audioLevel, setAudioLevel] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
   // References to persist across renders
   const roomRef = useRef<Room | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
+  const speakingCounterRef = useRef(0); // Debounce counter for speaking detection
 
   /**
    * Connect to LiveKit room
@@ -161,6 +170,51 @@ export function useLiveKit({
       await room.localParticipant.setMicrophoneEnabled(true);
       console.log("[LiveKit] Microphone enabled");
 
+      // Set up audio level monitoring
+      const micTrack = room.localParticipant.getTrackPublication(Track.Source.Microphone);
+      if (micTrack?.track) {
+        const mediaStream = new MediaStream([micTrack.track.mediaStreamTrack]);
+        const audioContext = new AudioContext();
+        const source = audioContext.createMediaStreamSource(mediaStream);
+        const analyser = audioContext.createAnalyser();
+        analyser.fftSize = 256;
+        analyser.smoothingTimeConstant = 0.5;
+        source.connect(analyser);
+
+        audioContextRef.current = audioContext;
+        analyserRef.current = analyser;
+
+        // Start monitoring audio levels
+        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+        const SPEAKING_THRESHOLD = 0.15; // Higher threshold to filter noise
+        const DEBOUNCE_FRAMES = 5; // Require consistent signal for N frames
+
+        const monitorAudio = () => {
+          if (!analyserRef.current) return;
+
+          analyserRef.current.getByteFrequencyData(dataArray);
+          const average = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
+          const normalizedLevel = Math.min(average / 128, 1); // Normalize to 0-1
+
+          setAudioLevel(normalizedLevel);
+
+          // Debounced speaking detection to prevent rapid toggling
+          if (normalizedLevel > SPEAKING_THRESHOLD) {
+            speakingCounterRef.current = Math.min(speakingCounterRef.current + 1, DEBOUNCE_FRAMES + 1);
+          } else {
+            speakingCounterRef.current = Math.max(speakingCounterRef.current - 1, 0);
+          }
+
+          // Only change state after consistent readings
+          const shouldBeSpeaking = speakingCounterRef.current >= DEBOUNCE_FRAMES;
+          setIsSpeaking(shouldBeSpeaking);
+
+          animationFrameRef.current = requestAnimationFrame(monitorAudio);
+        };
+        monitorAudio();
+        console.log("[LiveKit] Audio level monitoring started");
+      }
+
       roomRef.current = room;
       setIsConnected(true);
     } catch (err) {
@@ -181,6 +235,18 @@ export function useLiveKit({
     }
 
     console.log("[LiveKit] Disconnecting...");
+
+    // Stop audio level monitoring
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+    if (audioContextRef.current) {
+      await audioContextRef.current.close();
+      audioContextRef.current = null;
+    }
+    analyserRef.current = null;
+
     if (roomRef.current) {
       await roomRef.current.disconnect();
       roomRef.current = null;
@@ -193,6 +259,8 @@ export function useLiveKit({
 
     setIsConnected(false);
     setIsMuted(false);
+    setIsSpeaking(false);
+    setAudioLevel(0);
     setError(null);
     console.log("[LiveKit] Disconnected and cleaned up");
   }, []);
@@ -229,6 +297,8 @@ export function useLiveKit({
     isConnected,
     isConnecting,
     isMuted,
+    isSpeaking,
+    audioLevel,
     error,
     connect,
     disconnect,
