@@ -12,7 +12,7 @@ interface ResizableContentProps {
   header: ReactNode;
   content: ReactNode;
   footer: ReactNode;
-  rightPanel: ReactNode;
+  rightPanel?: ReactNode | null;
 }
 
 export function ResizableContent({ header, content, footer, rightPanel }: ResizableContentProps) {
@@ -24,7 +24,7 @@ export function ResizableContent({ header, content, footer, rightPanel }: Resiza
 
   if (!isMounted) {
     return (
-      <div className="h-screen overflow-hidden bg-[#F4F4F4]">
+      <div className="h-full overflow-hidden bg-[#F4F4F4]">
         <div className="flex h-full">
           {/* Main Content Panel - Static Layout */}
           <div className="flex-1 flex flex-col">
@@ -44,20 +44,22 @@ export function ResizableContent({ header, content, footer, rightPanel }: Resiza
             </div>
           </div>
 
-          {/* Right Panel - Hidden on mobile */}
-          <div className="hidden lg:block w-1/4 min-w-[20%] max-w-[60%]">
-            {rightPanel}
-          </div>
+          {/* Right Panel - Only rendered when there's content */}
+          {rightPanel && (
+            <div className="hidden lg:block w-1/4 min-w-[20%] max-w-[60%]">
+              {rightPanel}
+            </div>
+          )}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="h-screen overflow-hidden bg-[#F4F4F4]">
+    <div className="h-full overflow-hidden bg-[#F4F4F4]">
       <ResizablePanelGroup direction="horizontal" className="h-full">
         {/* Main Content Panel */}
-        <ResizablePanel defaultSize={75} minSize={50} className="flex flex-col">
+        <ResizablePanel defaultSize={rightPanel ? 50 : 100} minSize={50} className="flex flex-col">
           {/* Fixed Header */}
           <div className="shrink-0">
             {header}
@@ -74,17 +76,20 @@ export function ResizableContent({ header, content, footer, rightPanel }: Resiza
           </div>
         </ResizablePanel>
 
-        <ResizableHandle className="hidden lg:block" />
-
-        {/* Right Panel */}
-        <ResizablePanel
-          defaultSize={25}
-          minSize={20}
-          maxSize={60}
-          className="hidden lg:block"
-        >
-          {rightPanel}
-        </ResizablePanel>
+        {/* Right Panel - Only rendered when there's content */}
+        {rightPanel && (
+          <>
+            <ResizableHandle className="hidden lg:block" />
+            <ResizablePanel
+              defaultSize={25}
+              minSize={20}
+              maxSize={60}
+              className="hidden lg:block"
+            >
+              {rightPanel}
+            </ResizablePanel>
+          </>
+        )}
       </ResizablePanelGroup>
     </div>
   );

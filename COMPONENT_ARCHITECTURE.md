@@ -68,17 +68,17 @@ interface CourseSidebarProps {
 - State persistence via cookies
 ```
 
-### 3. Lesson Page with Resizable Panels
+### 3. Module Page with Resizable Panels
 ```typescript
-// app/(learning)/course/[courseId]/lesson/[lessonId]/page.tsx
-interface LessonPageProps {
-  params: { courseId: string; lessonId: string };
+// app/(learning)/course/[courseId]/module/[moduleId]/page.tsx
+interface ModulePageProps {
+  params: { courseId: string; moduleId: string };
 }
 
 // Features:
-- ResizablePanelGroup for main content and right panel
-- Left: Course content with SidebarTrigger
-- Right: Comments/peer learning panel
+- ResizablePanelGroup for main content and video panel
+- Left: Course content with AI chat assistant
+- Right: Video player panel (when lesson selected)
 - Resizable handle between panels
 - Mobile-responsive (right panel hidden on small screens)
 ```

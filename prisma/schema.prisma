@@ -39,9 +39,7 @@ model LearningProfile {
 
 model Course {
   id                 String       @id @default(cuid())
-  course_id          String?      @unique // Custom user-defined ID
   title              String
-  slug               String?      @unique
   description        String?
   thumbnail          String?
   price              Float?
@@ -52,12 +50,14 @@ model Course {
   categoryId         String?
   createdAt          DateTime     @default(now())
   updatedAt          DateTime     @updatedAt
+  course_id          String?
+  slug               String?      @unique
   attachments        Attachment[]
   category           Category?    @relation(fields: [categoryId], references: [id])
   enrollments        Enrollment[]
   modules            Module[]
-  lessons            Lesson[]     @relation("CourseToLesson")
-  threads            Thread[]
+  lessons            Lesson[]
+  taskGraphs         TaskGraph[]
 
   @@index([categoryId])
 }
@@ -84,13 +84,14 @@ model Module {
   id          String   @id @default(cuid())
   courseId    String
   title       String
-  slug        String?
   description String?
   orderIndex  Int      @default(0)
   isPublished Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  slug        String?
   lessons     Lesson[]
+  threads     Thread[]
   course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
 
   @@index([courseId])
@@ -101,7 +102,6 @@ model Lesson {
   moduleId          String
   courseId          String
   title             String
-  slug              String?
   description       String?
   type              String             @default("lecture")
   orderIndex        Int                @default(0)
@@ -111,10 +111,11 @@ model Lesson {
   duration          Int                @default(0)
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
+  slug              String?
   confidenceRatings ConfidenceRating[]
   conversations     Conversation[]
   module            Module             @relation(fields: [moduleId], references: [id], onDelete: Cascade)
-  course            Course             @relation("CourseToLesson", fields: [courseId], references: [id], onDelete: Cascade)
+  course            Course             @relation(fields: [courseId], references: [id], onDelete: Cascade)
   progress          LessonProgress[]
 
   @@index([moduleId])
@@ -158,31 +159,35 @@ model LessonProgress {
 model Thread {
   id            String         @id @default(cuid())
   userId        String
-  courseId      String
+  moduleId      String
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   conversations Conversation[]
-  course        Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  module        Module         @relation(fields: [moduleId], references: [id], onDelete: Cascade)
   user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, courseId])
+  @@unique([userId, moduleId])
   @@index([userId])
-  @@index([courseId])
+  @@index([moduleId])
 }
 
 model Conversation {
-  id           String    @id @default(cuid())
-  threadId     String
-  lessonId     String?
-  contextType  String    @default("general")
-  currentTopic String?
-  summary      String?
-  status       String    @default("active")
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  lesson       Lesson?   @relation(fields: [lessonId], references: [id])
-  thread       Thread    @relation(fields: [threadId], references: [id], onDelete: Cascade)
-  messages     Message[]
+  id                    String          @id @default(cuid())
+  threadId              String
+  lessonId              String?
+  contextType           String          @default("general")
+  currentTopic          String?
+  summary               String?
+  status                String          @default("active")
+  pendingAssessmentType String?         // 'warmup' | 'in_lesson' | 'concept_check'
+  awaitingResponse      Boolean         @default(false)
+  lastActivityType      String?         // 'qna' | 'fa' | 'general'
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+  lesson                Lesson?         @relation(fields: [lessonId], references: [id])
+  thread                Thread          @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  messages              Message[]
+  sarvamSessions        SarvamSession[]
 
   @@index([threadId])
   @@index([lessonId])
@@ -191,9 +196,10 @@ model Conversation {
 model Message {
   id             String           @id @default(cuid())
   conversationId String
-  role           String
+  role           String           // 'user' | 'assistant' | 'system'
   content        String
   inputType      String           @default("text")
+  messageType    String           @default("general") // 'general' | 'qna' | 'fa'
   audioUrl       String?
   audioDuration  Int?
   videoTimestamp Int?
@@ -231,4 +237,34 @@ model ConfidenceRating {
 
   @@index([userId])
   @@index([lessonId])
+}
+
+model TaskGraph {
+  id             String          @id @default(cuid())
+  courseId       String
+  type           String          // QnA, FA, etc.
+  graphId        String          // External graph ID
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  course         Course          @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  sarvamSessions SarvamSession[]
+
+  @@unique([courseId, type])
+  @@index([courseId])
+}
+
+model SarvamSession {
+  id             String       @id @default(cuid())
+  sessionId      String       @unique // Session ID from Sarvam API
+  taskGraphId    String
+  conversationId String
+  status         String       @default("active")
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  taskGraph      TaskGraph    @relation(fields: [taskGraphId], references: [id], onDelete: Cascade)
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, taskGraphId])
+  @@index([taskGraphId])
+  @@index([conversationId])
 }
