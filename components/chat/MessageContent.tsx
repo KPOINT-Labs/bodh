@@ -1,5 +1,5 @@
 import {
-  parseInlineMarkdown,
+  parseInlineMarkdownWithTimestamps,
   parseBulletPoint,
   isLearningHeader,
   parseHeader,
@@ -12,6 +12,7 @@ interface MessageContentProps {
   content: string;
   messageType?: string;
   onQuestionAnswer?: (questionNumber: number, answer: string) => void;
+  onTimestampClick?: (seconds: number, youtubeVideoId?: string | null) => void;
 }
 
 /**
@@ -22,7 +23,7 @@ interface MessageContentProps {
  * - Learning headers ("You'll learn:")
  * - Assessment questions (FA messages)
  */
-export function MessageContent({ content, messageType, onQuestionAnswer }: MessageContentProps) {
+export function MessageContent({ content, messageType, onQuestionAnswer, onTimestampClick }: MessageContentProps) {
   // Check if this is an assessment message with questions
   if (messageType === "fa" && isAssessmentContent(content)) {
     const parsed = parseAssessmentContent(content);
@@ -32,10 +33,10 @@ export function MessageContent({ content, messageType, onQuestionAnswer }: Messa
         {/* Render intro text */}
         {parsed.introText && (
           <div className="text-sm leading-relaxed">
-            <p>{parseInlineMarkdown(parsed.introText)}</p>
+            <p>{parseInlineMarkdownWithTimestamps(parsed.introText, onTimestampClick)}</p>
           </div>
         )}
-        
+
         {/* Render questions */}
         {parsed.questions.map((question) => (
           <AssessmentQuestion
@@ -46,11 +47,11 @@ export function MessageContent({ content, messageType, onQuestionAnswer }: Messa
             onAnswer={(answer) => onQuestionAnswer?.(question.questionNumber, answer)}
           />
         ))}
-        
+
         {/* Render other content */}
         {parsed.otherContent.map((text, index) => (
           <div key={index} className="text-sm leading-relaxed">
-            <p>{parseInlineMarkdown(text)}</p>
+            <p>{parseInlineMarkdownWithTimestamps(text, onTimestampClick)}</p>
           </div>
         ))}
       </div>
@@ -79,7 +80,7 @@ export function MessageContent({ content, messageType, onQuestionAnswer }: Messa
           };
           return (
             <p key={index} className={headerStyles[headerMatch.level]}>
-              {parseInlineMarkdown(headerMatch.text)}
+              {parseInlineMarkdownWithTimestamps(headerMatch.text, onTimestampClick)}
             </p>
           );
         }
@@ -91,7 +92,7 @@ export function MessageContent({ content, messageType, onQuestionAnswer }: Messa
           return (
             <div key={index} className="flex items-start gap-2 ml-2 my-1">
               <span className="text-blue-500 shrink-0">•</span>
-              <span>{parseInlineMarkdown(bulletText)}</span>
+              <span>{parseInlineMarkdownWithTimestamps(bulletText, onTimestampClick)}</span>
             </div>
           );
         }
@@ -99,14 +100,14 @@ export function MessageContent({ content, messageType, onQuestionAnswer }: Messa
         if (isLearningHeader(line)) {
           return (
             <p key={index} className="font-semibold text-gray-900 mt-3 mb-1">
-              {parseInlineMarkdown(line)}
+              {parseInlineMarkdownWithTimestamps(line, onTimestampClick)}
             </p>
           );
         }
 
         return line.trim() ? (
           <p key={index} className={index > 0 ? "mt-2" : ""}>
-            {parseInlineMarkdown(line)}
+            {parseInlineMarkdownWithTimestamps(line, onTimestampClick)}
           </p>
         ) : null;
       })}

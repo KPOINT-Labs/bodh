@@ -25,6 +25,7 @@ interface ChatAgentProps {
   onLessonSelect: (lesson: Lesson) => void;
   onConversationReady?: (conversationId: string) => void;
   onSendMessage?: (message: string, taskGraphType?: "QnA" | "FA") => void;
+  onTimestampClick?: (seconds: number, youtubeVideoId?: string | null) => void;
   chatMessages?: MessageData[];
   isWaitingForResponse?: boolean;
 }
@@ -44,6 +45,7 @@ export function ChatAgent({
   userId,
   onLessonSelect,
   onConversationReady,
+  onTimestampClick,
   chatMessages = [],
   isWaitingForResponse = false,
 }: ChatAgentProps) {
@@ -128,7 +130,7 @@ export function ChatAgent({
         {historyMessages.length > 0 && (
           <div className="space-y-4">
             {historyMessages.map((msg) => (
-              <ChatMessage key={msg.id} message={msg} onQuestionAnswer={handleQuestionAnswer} />
+              <ChatMessage key={msg.id} message={msg} onQuestionAnswer={handleQuestionAnswer} onTimestampClick={onTimestampClick} />
             ))}
           </div>
         )}
@@ -140,7 +142,7 @@ export function ChatAgent({
           </div>
           <div className="bg-gray-50 rounded-2xl rounded-tl-sm px-4 py-3 max-w-[85%]">
             <div className="text-sm leading-relaxed text-gray-800">
-              <MessageContent content={displayedText} />
+              <MessageContent content={displayedText} onTimestampClick={onTimestampClick} />
               {isTyping && (
                 <span className="inline-block w-2 h-4 bg-blue-500 animate-pulse ml-0.5" />
               )}
@@ -163,7 +165,7 @@ export function ChatAgent({
         {chatMessages.length > 0 && (
           <div className="space-y-4 pt-4 mt-4 border-t border-gray-100">
             {chatMessages.map((msg) => (
-              <ChatMessage key={msg.id} message={msg} onQuestionAnswer={handleQuestionAnswer} />
+              <ChatMessage key={msg.id} message={msg} onQuestionAnswer={handleQuestionAnswer} onTimestampClick={onTimestampClick} />
             ))}
           </div>
         )}

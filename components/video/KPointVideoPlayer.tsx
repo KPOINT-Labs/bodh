@@ -5,13 +5,21 @@ import { useEffect, useRef } from "react";
 interface KPointVideoPlayerProps {
   kpointVideoId: string;
   className?: string;
+  startOffset?: number | null; // Start offset in seconds
 }
 
 export function KPointVideoPlayer({
   kpointVideoId,
   className = "",
+  startOffset,
 }: KPointVideoPlayerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Build video params with optional start offset
+  const videoParams = JSON.stringify({
+    autoplay: true,
+    ...(startOffset ? { start: startOffset } : {}),
+  });
 
   useEffect(() => {
     // Re-initialize the player when the video ID changes
@@ -23,7 +31,7 @@ export function KPointVideoPlayer({
         kpointPlayer.init();
       }
     }
-  }, [kpointVideoId]);
+  }, [kpointVideoId, startOffset]);
 
   return (
     <div
@@ -47,7 +55,7 @@ export function KPointVideoPlayer({
         data-video-host="bodh.kpoint.com"
         data-kvideo-id={kpointVideoId}
         data-player={kpointVideoId}
-        data-video-params='{"autoplay": true}'
+        data-video-params={videoParams}
         style={{ width: "100%", borderRadius: "12px", overflow: "hidden" }}
       />
     </div>

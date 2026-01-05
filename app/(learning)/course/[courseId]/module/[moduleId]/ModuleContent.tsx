@@ -39,9 +39,26 @@ interface ModuleContentProps {
   userId: string;
 }
 
+// KPoint player state constants
+const PLAYER_STATE = {
+  UNSTARTED: -1,
+  ENDED: 0,
+  PLAYING: 1,
+  PAUSED: 2,
+  BUFFERING: 3,
+  REPLAYING: 5,
+} as const;
+
+type PlayerState = (typeof PLAYER_STATE)[keyof typeof PLAYER_STATE];
+
 // Type for KPoint player instance
 interface KPointPlayer {
   getCurrentTime: () => number;
+  getPlayState: () => PlayerState;
+  seekTo: (timeInMs: number) => void;
+  info: {
+    kvideoId: string;
+  };
   events: {
     onStateChange: string;
     timeUpdate: string;
@@ -55,26 +72,36 @@ export function ModuleContent({ course, module, userId }: ModuleContentProps) {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [chatMessages, setChatMessages] = useState<MessageData[]>([]);
   const [isSending, setIsSending] = useState(false);
+  const [videoStartOffset, setVideoStartOffset] = useState<number | null>(null);
   const kpointPlayerRef = useRef<KPointPlayer | null>(null);
   const eventHandlersRef = useRef<Map<string, (data: unknown) => void>>(new Map());
+  const kpointVideoIdRef = useRef<string | null>(null);
 
-  // KPoint player event handlers
-  const handlePlayerStateChange = useCallback((data: unknown) => {
-    console.log("KPoint player state change:", data);
-    // Add your state change logic here
-  }, []);
-
-  const handlePlayerTimeUpdate = useCallback((data: unknown) => {
-    console.log("KPoint player time update:", data);
-    // Add your time update logic here
-  }, []);
+  // Store kpointVideoId in ref for cleanup
+  useEffect(() => {
+    kpointVideoIdRef.current = selectedLesson?.kpointVideoId ?? null;
+  }, [selectedLesson?.kpointVideoId]);
 
   // Listen for KPoint player ready event
   useEffect(() => {
+    // Define event handlers inside useEffect to avoid dependency issues
+    const handlePlayerStateChange = (data: unknown) => {
+      console.log("KPoint player state change:", data);
+      // Add your state change logic here
+    };
+
+    const handlePlayerTimeUpdate = (data: unknown) => {
+      console.log("KPoint player time update:", data);
+      // Add your time update logic here
+    };
+
     const handlePlayerReady = (event: CustomEvent<{ message: string; container: unknown; player: KPointPlayer }>) => {
       console.log("KPoint player ready:", event.detail.message);
       const player = event.detail.player;
       kpointPlayerRef.current = player;
+
+      // Clear start offset after player is ready (it was already used in data-video-params)
+      setVideoStartOffset(null);
 
       // Define event handlers
       const handlers: Record<string, (data: unknown) => void> = {
@@ -103,13 +130,13 @@ export function ModuleContent({ course, module, userId }: ModuleContentProps) {
       eventHandlersRef.current.clear();
 
       // Delete player instance from window
-      if (selectedLesson?.kpointVideoId) {
-        delete (window as unknown as Record<string, unknown>)[selectedLesson.kpointVideoId];
+      if (kpointVideoIdRef.current) {
+        delete (window as unknown as Record<string, unknown>)[kpointVideoIdRef.current];
       }
 
       kpointPlayerRef.current = null;
     };
-  }, [selectedLesson?.kpointVideoId, handlePlayerStateChange, handlePlayerTimeUpdate]);
+  }, []);
 
   const handleLessonSelect = (lesson: Lesson) => {
     setSelectedLesson(lesson);
@@ -118,6 +145,35 @@ export function ModuleContent({ course, module, userId }: ModuleContentProps) {
   const handleConversationReady = useCallback((convId: string) => {
     setConversationId(convId);
   }, []);
+
+  // Handle timestamp link clicks - seek to the specified time in the video
+  const handleTimestampClick = useCallback((seconds: number, youtubeVideoId?: string | null) => {
+    const player = kpointPlayerRef.current;
+    if (player) {
+      // Player is ready, seek to the timestamp (convert seconds to milliseconds)
+      player.seekTo(seconds * 1000);
+      console.log(`Seeking to ${seconds} seconds`);
+    } else {
+      // Player not ready - find the lesson by youtubeVideoId and select it
+      if (youtubeVideoId) {
+        const matchingLesson = module.lessons.find(
+          (lesson) => lesson.youtubeVideoId === youtubeVideoId
+        );
+        if (matchingLesson) {
+          console.log(`Found matching lesson: ${matchingLesson.title}, selecting with offset ${seconds}s`);
+          setVideoStartOffset(seconds);
+          setSelectedLesson(matchingLesson);
+        } else {
+          console.warn(`No lesson found with youtubeVideoId: ${youtubeVideoId}`);
+          setVideoStartOffset(seconds);
+        }
+      } else {
+        // No youtubeVideoId provided, just store the offset
+        setVideoStartOffset(seconds);
+        console.log(`Player not ready. Stored ${seconds} seconds as start offset.`);
+      }
+    }
+  }, [module.lessons]);
 
   const handleSendMessage = useCallback(async (message: string, taskGraphType?: "QnA" | "FA") => {
     if (!conversationId) {
@@ -216,6 +272,7 @@ export function ModuleContent({ course, module, userId }: ModuleContentProps) {
         onLessonSelect={handleLessonSelect}
         onConversationReady={handleConversationReady}
         onSendMessage={handleSendMessage}
+        onTimestampClick={handleTimestampClick}
         chatMessages={chatMessages}
         isWaitingForResponse={isSending}
       />
@@ -323,7 +380,7 @@ export function ModuleContent({ course, module, userId }: ModuleContentProps) {
         </p>
       </div>
       <div className="flex-1 p-4">
-        <KPointVideoPlayer kpointVideoId={selectedLesson.kpointVideoId} />
+        <KPointVideoPlayer kpointVideoId={selectedLesson.kpointVideoId} startOffset={videoStartOffset} />
       </div>
     </div>
   ) : null;
