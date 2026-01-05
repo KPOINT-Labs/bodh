@@ -42,6 +42,12 @@ interface ModuleContentProps {
 // Type for KPoint player instance
 interface KPointPlayer {
   getCurrentTime: () => number;
+  events: {
+    onStateChange: string;
+    timeUpdate: string;
+  };
+  addEventListener: (event: string, callback: (data: unknown) => void) => void;
+  removeEventListener: (event: string, callback: (data: unknown) => void) => void;
 }
 
 export function ModuleContent({ course, module, userId }: ModuleContentProps) {
@@ -50,22 +56,60 @@ export function ModuleContent({ course, module, userId }: ModuleContentProps) {
   const [chatMessages, setChatMessages] = useState<MessageData[]>([]);
   const [isSending, setIsSending] = useState(false);
   const kpointPlayerRef = useRef<KPointPlayer | null>(null);
+  const eventHandlersRef = useRef<Map<string, (data: unknown) => void>>(new Map());
 
+  // KPoint player event handlers
+  const handlePlayerStateChange = useCallback((data: unknown) => {
+    console.log("KPoint player state change:", data);
+    // Add your state change logic here
+  }, []);
 
+  const handlePlayerTimeUpdate = useCallback((data: unknown) => {
+    console.log("KPoint player time update:", data);
+    // Add your time update logic here
+  }, []);
 
   // Listen for KPoint player ready event
   useEffect(() => {
     const handlePlayerReady = (event: CustomEvent<{ message: string; container: unknown; player: KPointPlayer }>) => {
       console.log("KPoint player ready:", event.detail.message);
-      kpointPlayerRef.current = event.detail.player;
+      const player = event.detail.player;
+      kpointPlayerRef.current = player;
+
+      // Define event handlers
+      const handlers: Record<string, (data: unknown) => void> = {
+        [player.events.onStateChange]: handlePlayerStateChange,
+        [player.events.timeUpdate]: handlePlayerTimeUpdate,
+      };
+
+      // Subscribe to all events
+      Object.entries(handlers).forEach(([event, handler]) => {
+        player.addEventListener(event, handler);
+        eventHandlersRef.current.set(event, handler);
+      });
     };
 
     document.addEventListener("kpointPlayerReady", handlePlayerReady as EventListener);
 
     return () => {
       document.removeEventListener("kpointPlayerReady", handlePlayerReady as EventListener);
+
+      // Unsubscribe from all events
+      if (kpointPlayerRef.current) {
+        eventHandlersRef.current.forEach((handler, event) => {
+          kpointPlayerRef.current?.removeEventListener(event, handler);
+        });
+      }
+      eventHandlersRef.current.clear();
+
+      // Delete player instance from window
+      if (selectedLesson?.kpointVideoId) {
+        delete (window as unknown as Record<string, unknown>)[selectedLesson.kpointVideoId];
+      }
+
+      kpointPlayerRef.current = null;
     };
-  }, []);
+  }, [selectedLesson?.kpointVideoId, handlePlayerStateChange, handlePlayerTimeUpdate]);
 
   const handleLessonSelect = (lesson: Lesson) => {
     setSelectedLesson(lesson);

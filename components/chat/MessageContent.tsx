@@ -2,6 +2,8 @@ import {
   parseInlineMarkdown,
   parseBulletPoint,
   isLearningHeader,
+  parseHeader,
+  isHorizontalRule,
 } from "@/lib/chat/markdown";
 import { parseAssessmentContent, isAssessmentContent } from "@/lib/chat/assessment";
 import { AssessmentQuestion } from "./AssessmentQuestion";
@@ -59,13 +61,36 @@ export function MessageContent({ content, messageType, onQuestionAnswer }: Messa
   return (
     <div className="text-sm leading-relaxed">
       {content.split("\n").map((line, index) => {
-        const bulletMatch = parseBulletPoint(line);
+        // Check for horizontal rule first (---, ***, ___)
+        if (isHorizontalRule(line)) {
+          return <hr key={index} className="my-3 border-gray-200" />;
+        }
 
+        // Check for markdown headers (# ## ### etc.)
+        const headerMatch = parseHeader(line);
+        if (headerMatch) {
+          const headerStyles: Record<number, string> = {
+            1: "text-lg font-bold text-gray-900 mt-4 mb-2",
+            2: "text-base font-bold text-gray-900 mt-3 mb-2",
+            3: "text-sm font-semibold text-gray-900 mt-3 mb-1",
+            4: "text-sm font-semibold text-gray-800 mt-2 mb-1",
+            5: "text-sm font-medium text-gray-800 mt-2 mb-1",
+            6: "text-sm font-medium text-gray-700 mt-2 mb-1",
+          };
+          return (
+            <p key={index} className={headerStyles[headerMatch.level]}>
+              {parseInlineMarkdown(headerMatch.text)}
+            </p>
+          );
+        }
+
+        // Check for bullet points
+        const bulletMatch = parseBulletPoint(line);
         if (bulletMatch) {
-          const bulletText = line.trim().substring(bulletMatch[0].length);
+          const bulletText = bulletMatch[2] || line.trim().substring(bulletMatch[0].length);
           return (
             <div key={index} className="flex items-start gap-2 ml-2 my-1">
-              <span className="text-blue-500 shrink-0">{bulletMatch[1]}</span>
+              <span className="text-blue-500 shrink-0">•</span>
               <span>{parseInlineMarkdown(bulletText)}</span>
             </div>
           );
