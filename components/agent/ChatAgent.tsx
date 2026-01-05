@@ -24,6 +24,7 @@ interface ChatAgentProps {
   userId: string;
   onLessonSelect: (lesson: Lesson) => void;
   onConversationReady?: (conversationId: string) => void;
+  onSendMessage?: (message: string, taskGraphType?: "QnA" | "FA") => void;
   chatMessages?: MessageData[];
   isWaitingForResponse?: boolean;
 }
@@ -46,6 +47,13 @@ export function ChatAgent({
   chatMessages = [],
   isWaitingForResponse = false,
 }: ChatAgentProps) {
+  // Handler for assessment question answers
+  const handleQuestionAnswer = (questionNumber: number, answer: string) => {
+    console.log(`Question ${questionNumber} answered:`, answer);
+    // TODO: Send answer back to the chat API or handle assessment logic
+    // This could trigger a new message to continue the assessment
+  };
+
   // Get the first lesson from the module
   const firstLesson = module.lessons.sort(
     (a, b) => a.orderIndex - b.orderIndex
@@ -120,7 +128,7 @@ export function ChatAgent({
         {historyMessages.length > 0 && (
           <div className="space-y-4">
             {historyMessages.map((msg) => (
-              <ChatMessage key={msg.id} message={msg} />
+              <ChatMessage key={msg.id} message={msg} onQuestionAnswer={handleQuestionAnswer} />
             ))}
           </div>
         )}
@@ -155,7 +163,7 @@ export function ChatAgent({
         {chatMessages.length > 0 && (
           <div className="space-y-4 pt-4 mt-4 border-t border-gray-100">
             {chatMessages.map((msg) => (
-              <ChatMessage key={msg.id} message={msg} />
+              <ChatMessage key={msg.id} message={msg} onQuestionAnswer={handleQuestionAnswer} />
             ))}
           </div>
         )}

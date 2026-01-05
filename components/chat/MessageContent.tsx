@@ -3,9 +3,13 @@ import {
   parseBulletPoint,
   isLearningHeader,
 } from "@/lib/chat/markdown";
+import { parseAssessmentContent, isAssessmentContent } from "@/lib/chat/assessment";
+import { AssessmentQuestion } from "./AssessmentQuestion";
 
 interface MessageContentProps {
   content: string;
+  messageType?: string;
+  onQuestionAnswer?: (questionNumber: number, answer: string) => void;
 }
 
 /**
@@ -14,8 +18,44 @@ interface MessageContentProps {
  * - Bold text (**text**)
  * - Bullet points (•, -, 1.)
  * - Learning headers ("You'll learn:")
+ * - Assessment questions (FA messages)
  */
-export function MessageContent({ content }: MessageContentProps) {
+export function MessageContent({ content, messageType, onQuestionAnswer }: MessageContentProps) {
+  // Check if this is an assessment message with questions
+  if (messageType === "fa" && isAssessmentContent(content)) {
+    const parsed = parseAssessmentContent(content);
+    
+    return (
+      <div className="space-y-4">
+        {/* Render intro text */}
+        {parsed.introText && (
+          <div className="text-sm leading-relaxed">
+            <p>{parseInlineMarkdown(parsed.introText)}</p>
+          </div>
+        )}
+        
+        {/* Render questions */}
+        {parsed.questions.map((question) => (
+          <AssessmentQuestion
+            key={question.questionNumber}
+            question={question.questionText}
+            options={question.options}
+            questionNumber={question.questionNumber}
+            onAnswer={(answer) => onQuestionAnswer?.(question.questionNumber, answer)}
+          />
+        ))}
+        
+        {/* Render other content */}
+        {parsed.otherContent.map((text, index) => (
+          <div key={index} className="text-sm leading-relaxed">
+            <p>{parseInlineMarkdown(text)}</p>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // Regular message content rendering
   return (
     <div className="text-sm leading-relaxed">
       {content.split("\n").map((line, index) => {

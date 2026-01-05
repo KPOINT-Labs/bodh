@@ -297,6 +297,11 @@ export async function POST(request: NextRequest) {
     );
 
     // Build the request body for Sarvam prompt API
+    // For FA (Formative Assessment), prepend assessment instructions
+    const finalPrompt = taskGraphType === "FA" 
+      ? `Be in assessment mode. Generate EXACTLY 5 questions (use mixed question types if needed). Ask questions one by one. If the user answers 3 or more questions correctly, stop the assessment and provide feedback.\n\nUser request: ${message}`
+      : message;
+
     const promptRequestBody: {
       sessionUid: string;
       prompt: string;
@@ -306,7 +311,7 @@ export async function POST(request: NextRequest) {
       };
     } = {
       sessionUid: session.sessionId,
-      prompt: message,
+      prompt: finalPrompt,
     };
 
     // Only include ledger_init if video IDs are provided

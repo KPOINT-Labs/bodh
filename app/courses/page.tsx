@@ -53,7 +53,7 @@ export default async function CoursesPage() {
 
   // Helper function to count total lessons
   const getTotalLessons = (course: (typeof courses)[0]) => {
-    return course.modules.reduce((total, module) => total + module.lessons.length, 0);
+    return course.modules.reduce((total: number, module: any) => total + module.lessons.length, 0);
   };
 
   return (

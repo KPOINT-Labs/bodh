@@ -4,13 +4,15 @@ import type { MessageData } from "@/types/chat";
 
 interface ChatMessageProps {
   message: MessageData;
+  onQuestionAnswer?: (questionNumber: number, answer: string) => void;
 }
 
 /**
  * Renders a single chat message bubble
  * Handles both user and assistant messages with appropriate styling
+ * Supports special rendering for FA (formative assessment) messages
  */
-export function ChatMessage({ message }: ChatMessageProps) {
+export function ChatMessage({ message, onQuestionAnswer }: ChatMessageProps) {
   const isUser = message.role === "user";
 
   return (
@@ -32,7 +34,11 @@ export function ChatMessage({ message }: ChatMessageProps) {
             : "bg-gray-50 rounded-2xl rounded-tl-sm px-4 py-3 max-w-[85%] text-gray-800"
         }
       >
-        <MessageContent content={message.content} />
+        <MessageContent 
+          content={message.content} 
+          messageType={message.messageType}
+          onQuestionAnswer={onQuestionAnswer}
+        />
       </div>
 
       {/* User Avatar */}
