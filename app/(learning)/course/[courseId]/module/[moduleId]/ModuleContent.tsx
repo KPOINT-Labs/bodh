@@ -51,8 +51,7 @@ export function ModuleContent({ course, module, userId }: ModuleContentProps) {
   const [isSending, setIsSending] = useState(false);
   const kpointPlayerRef = useRef<KPointPlayer | null>(null);
 
-  // Get the first lesson for fallback
-  const firstLesson = module.lessons.sort((a, b) => a.orderIndex - b.orderIndex)[0];
+
 
   // Listen for KPoint player ready event
   useEffect(() => {
@@ -76,31 +75,37 @@ export function ModuleContent({ course, module, userId }: ModuleContentProps) {
     setConversationId(convId);
   }, []);
 
-  const handleSendMessage = useCallback(async (message: string) => {
+  const handleSendMessage = useCallback(async (message: string, taskGraphType?: "QnA" | "FA") => {
     if (!conversationId) {
       console.error("Conversation not ready");
       return;
     }
 
-    // Immediately show user message with a temporary ID
-    const tempUserMessage: MessageData = {
-      id: `temp-${Date.now()}`,
-      conversationId,
-      role: "user",
-      content: message,
-      inputType: "text",
-      messageType: "general",
-      createdAt: new Date().toISOString(),
-    };
+    // For FA answers (just the letter), don't show as user message in chat
+    const isQuizAnswer = taskGraphType === "FA" && message.length <= 2;
 
-    // Add user message immediately to show it right away
-    setChatMessages(prev => [...prev, tempUserMessage]);
+    // Immediately show user message with a temporary ID (unless it's a quiz answer)
+    if (!isQuizAnswer) {
+      const tempUserMessage: MessageData = {
+        id: `temp-${Date.now()}`,
+        conversationId,
+        role: "user",
+        content: message,
+        inputType: "text",
+        messageType: taskGraphType?.toLowerCase() || "general",
+        createdAt: new Date().toISOString(),
+      };
+
+      // Add user message immediately to show it right away
+      setChatMessages(prev => [...prev, tempUserMessage]);
+    }
+
     setIsSending(true);
 
     try {
       // Build video IDs array - use selected lesson or fallback to first lesson
       const videoIds: string[] = [];
-      const activeLesson = selectedLesson || firstLesson;
+      const activeLesson = selectedLesson || module.lessons.sort((a, b) => a.orderIndex - b.orderIndex)[0];
       if (activeLesson?.youtubeVideoId) {
         videoIds.push(activeLesson.youtubeVideoId);
       }
@@ -120,7 +125,7 @@ export function ModuleContent({ course, module, userId }: ModuleContentProps) {
         }
       }
 
-      console.log("Sending message - videoIds:", videoIds, "startTimestamp:", startTimestamp);
+      console.log("Sending message - videoIds:", videoIds, "startTimestamp:", startTimestamp, "taskGraphType:", taskGraphType);
 
       const response = await fetch("/api/chat", {
         method: "POST",
@@ -129,6 +134,7 @@ export function ModuleContent({ course, module, userId }: ModuleContentProps) {
           message,
           conversationId,
           courseId: course.id,
+          taskGraphType, // Pass the task graph type to force FA for quiz answers
           videoIds,
           startTimestamp,
         }),
@@ -147,7 +153,7 @@ export function ModuleContent({ course, module, userId }: ModuleContentProps) {
     } finally {
       setIsSending(false);
     }
-  }, [conversationId, course.id, selectedLesson, firstLesson]);
+  }, [conversationId, course.id, selectedLesson]);
 
   const header = (
     <LessonHeader
@@ -165,6 +171,7 @@ export function ModuleContent({ course, module, userId }: ModuleContentProps) {
         userId={userId}
         onLessonSelect={handleLessonSelect}
         onConversationReady={handleConversationReady}
+        onSendMessage={handleSendMessage}
         chatMessages={chatMessages}
         isWaitingForResponse={isSending}
       />
@@ -248,7 +255,7 @@ export function ModuleContent({ course, module, userId }: ModuleContentProps) {
   );
 
   // Build videoIds array from selected lesson or first lesson
-  const activeLesson = selectedLesson || firstLesson;
+  const activeLesson = selectedLesson || module.lessons.sort((a, b) => a.orderIndex - b.orderIndex)[0];
   const videoIds = activeLesson?.kpointVideoId ? [activeLesson.kpointVideoId] : [];
 
   const footer = (

@@ -57,9 +57,15 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    // Transform the response to use lowercase field names for frontend compatibility
+    const transformedConversation = {
+      ...conversation,
+      messages: conversation.messages || [],
+    };
+
     return NextResponse.json({
       success: true,
-      conversation,
+      conversation: transformedConversation,
     });
   } catch (error) {
     console.error("Conversation API error:", error);
@@ -102,9 +108,15 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Transform the response to use lowercase field names for frontend compatibility
+    const transformedConversation = {
+      ...conversation,
+      messages: conversation.messages || [],
+    };
+
     return NextResponse.json({
       success: true,
-      conversation,
+      conversation: transformedConversation,
     });
   } catch (error) {
     console.error("Conversation API error:", error);

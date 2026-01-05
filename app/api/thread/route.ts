@@ -9,6 +9,7 @@ export interface ThreadRequest {
 /**
  * GET /api/thread?userId=xxx&moduleId=xxx
  * Get or create a thread for a user in a specific module
+ * Updated to use capitalized relation names
  */
 export async function GET(request: NextRequest) {
   try {
@@ -24,6 +25,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Find or create thread for this user + module combination
+    console.log("Finding thread for:", { userId, moduleId });
     let thread = await prisma.thread.findUnique({
       where: {
         userId_moduleId: {
@@ -63,9 +65,18 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    // Transform the response to use lowercase field names for frontend compatibility
+    const transformedThread = {
+      ...thread,
+      conversations: thread.conversations.map((conv: any) => ({
+        ...conv,
+        messages: conv.messages,
+      })),
+    };
+
     return NextResponse.json({
       success: true,
-      thread,
+      thread: transformedThread,
     });
   } catch (error) {
     console.error("Thread API error:", error);
@@ -115,9 +126,18 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Transform the response to use lowercase field names for frontend compatibility
+    const transformedThread = {
+      ...thread,
+      conversations: thread.conversations.map((conv: any) => ({
+        ...conv,
+        messages: conv.messages,
+      })),
+    };
+
     return NextResponse.json({
       success: true,
-      thread,
+      thread: transformedThread,
     });
   } catch (error) {
     console.error("Thread API error:", error);
