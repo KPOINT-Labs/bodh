@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 
 interface AssessmentQuestionProps {
   question: string;
@@ -9,6 +11,8 @@ interface AssessmentQuestionProps {
   questionNumber?: number;
   onAnswer: (answer: string) => void;
   isAnswered?: boolean;
+  answerType?: 'multiple_choice' | 'short_answer' | 'numerical' | 'long_answer';
+  placeholder?: string;
 }
 
 export function AssessmentQuestion({
@@ -16,14 +20,18 @@ export function AssessmentQuestion({
   options,
   questionNumber,
   onAnswer,
-  isAnswered = false
+  isAnswered = false,
+  answerType = 'multiple_choice',
+  placeholder
 }: AssessmentQuestionProps) {
   const [selectedAnswer, setSelectedAnswer] = useState<string>("");
+  const [textAnswer, setTextAnswer] = useState<string>("");
   const [hasSubmitted, setHasSubmitted] = useState(false);
 
   const handleSubmit = () => {
-    if (selectedAnswer) {
-      onAnswer(selectedAnswer);
+    const answer = answerType === 'multiple_choice' ? selectedAnswer : textAnswer;
+    if (answer.trim()) {
+      onAnswer(answer);
       setHasSubmitted(true);
     }
   };
@@ -34,7 +42,8 @@ export function AssessmentQuestion({
     }
   };
 
-  const isMultipleChoice = options && options.length > 0;
+  const isMultipleChoice = answerType === 'multiple_choice' && options && options.length > 0;
+  const isTextInput = ['short_answer', 'numerical', 'long_answer'].includes(answerType);
 
   return (
     <div className="w-full max-w-xl bg-white rounded-xl border border-gray-200 shadow-sm p-5">
@@ -105,13 +114,48 @@ export function AssessmentQuestion({
             </div>
           )}
         </div>
-      ) : (
-        <div className="mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
-          <p className="text-sm text-gray-600">
-            Type your answer in the chat input below.
-          </p>
+      ) : isTextInput ? (
+        <div className="space-y-4">
+          {/* Text Input Field */}
+          {answerType === 'long_answer' ? (
+            <Textarea
+              value={textAnswer}
+              onChange={(e) => setTextAnswer(e.target.value)}
+              placeholder={placeholder || "Type your answer here..."}
+              disabled={hasSubmitted || isAnswered}
+              className="w-full min-h-[100px] p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+              rows={4}
+            />
+          ) : (
+            <Input
+              type={answerType === 'numerical' ? 'number' : 'text'}
+              value={textAnswer}
+              onChange={(e) => setTextAnswer(e.target.value)}
+              placeholder={placeholder || (answerType === 'numerical' ? "Enter a number..." : "Type your answer here...")}
+              disabled={hasSubmitted || isAnswered}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          )}
+
+          {/* Submit Button */}
+          {!hasSubmitted && !isAnswered && (
+            <Button
+              onClick={handleSubmit}
+              disabled={!textAnswer.trim()}
+              className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Submit
+            </Button>
+          )}
+
+          {/* Submitted State */}
+          {(hasSubmitted || isAnswered) && (
+            <div className="text-sm text-green-600 font-medium">
+              Answer submitted
+            </div>
+          )}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

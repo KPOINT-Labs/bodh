@@ -46,14 +46,17 @@ export function ChatAgent({
   onLessonSelect,
   onConversationReady,
   onTimestampClick,
+  onSendMessage,
   chatMessages = [],
   isWaitingForResponse = false,
 }: ChatAgentProps) {
   // Handler for assessment question answers
   const handleQuestionAnswer = (questionNumber: number, answer: string) => {
     console.log(`Question ${questionNumber} answered:`, answer);
-    // TODO: Send answer back to the chat API or handle assessment logic
-    // This could trigger a new message to continue the assessment
+    // Send the answer to the FA API without adding to the prompt
+    if (onSendMessage) {
+      onSendMessage(answer, "FA");
+    }
   };
 
   // Get the first lesson from the module

@@ -44,6 +44,8 @@ export function MessageContent({ content, messageType, onQuestionAnswer, onTimes
             question={question.questionText}
             options={question.options}
             questionNumber={question.questionNumber}
+            answerType={question.answerType}
+            placeholder={question.placeholder}
             onAnswer={(answer) => onQuestionAnswer?.(question.questionNumber, answer)}
           />
         ))}

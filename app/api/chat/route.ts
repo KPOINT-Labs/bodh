@@ -297,9 +297,11 @@ export async function POST(request: NextRequest) {
     );
 
     // Build the request body for Sarvam prompt API
-    // For FA (Formative Assessment), prepend assessment instructions
-    const finalPrompt = taskGraphType === "FA" 
-      ? `Be in assessment mode. Generate EXACTLY 5 questions (use mixed question types if needed). Ask questions one by one. If the user answers 3 or more questions correctly, stop the assessment and provide feedback.\n\nUser request: ${message}`
+    // For FA (Formative Assessment), check if this is just an answer or a new assessment request
+    // If the message is very short (likely an answer), don't add the assessment prompt
+    const isAnswer = taskGraphType === "FA" && message.trim().length <= 100;
+    const finalPrompt = taskGraphType === "FA" && !isAnswer
+      ? `Be in assessment mode. Generate EXACTLY 5 questions (use mixed question types if needed). Ask questions one by one. If the user answers 3 or more questions correctly, stop the assessment and provide feedback. IMPORTANT: Do NOT tell the user about the 5 question limit or the 3 correct answers threshold. Do NOT mention "I will ask 5 questions" or similar. Just start with the first question naturally.\n\nUser request: ${message}`
       : message;
 
     const promptRequestBody: {

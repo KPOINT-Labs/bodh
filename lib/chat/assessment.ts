@@ -7,6 +7,8 @@ export interface ParsedQuestion {
   questionText: string;
   options?: string[];
   isMultipleChoice: boolean;
+  answerType: 'multiple_choice' | 'short_answer' | 'numerical' | 'long_answer';
+  placeholder?: string;
   rawText: string;
 }
 
@@ -30,6 +32,56 @@ function stripMarkdown(text: string): string {
     .replace(/^#+\s*/gm, '')           // Headers ###
     .replace(/^---+$/gm, '')           // Horizontal rules
     .trim();
+}
+
+/**
+ * Detects the answer type based on question content and type indicators
+ */
+function detectAnswerType(questionText: string, hasOptions: boolean): {
+  answerType: 'multiple_choice' | 'short_answer' | 'numerical' | 'long_answer';
+  placeholder?: string;
+} {
+  const lowerText = questionText.toLowerCase();
+  
+  // If has options, it's multiple choice
+  if (hasOptions) {
+    return { answerType: 'multiple_choice' };
+  }
+  
+  // Check for numerical indicators
+  const numericalIndicators = [
+    'calculate', 'compute', 'how many', 'how much', 'what number',
+    'percentage', 'percent', 'ratio', 'value', 'result', 'answer in numbers',
+    'numeric', 'numerical', 'digit', 'integer', 'decimal', 'formula'
+  ];
+  
+  if (numericalIndicators.some(indicator => lowerText.includes(indicator))) {
+    return { 
+      answerType: 'numerical',
+      placeholder: 'Enter a number...'
+    };
+  }
+  
+  // Check for long answer indicators
+  const longAnswerIndicators = [
+    'explain', 'describe', 'discuss', 'elaborate', 'analyze', 'compare',
+    'contrast', 'justify', 'argue', 'why do you think', 'in your opinion',
+    'what are the reasons', 'provide an example', 'give an example',
+    'write a paragraph', 'essay', 'detailed', 'comprehensive'
+  ];
+  
+  if (longAnswerIndicators.some(indicator => lowerText.includes(indicator))) {
+    return { 
+      answerType: 'long_answer',
+      placeholder: 'Type your detailed answer here...'
+    };
+  }
+  
+  // Default to short answer
+  return { 
+    answerType: 'short_answer',
+    placeholder: 'Type your answer here...'
+  };
 }
 
 /**
@@ -79,6 +131,11 @@ export function parseAssessmentContent(content: string): ParsedAssessment {
     if (questionMatch) {
       // Save the previous question if it exists
       if (currentQuestion && currentQuestion.questionText) {
+        // Finalize answer type before pushing
+        const answerTypeInfo = detectAnswerType(currentQuestion.questionText, currentQuestion.isMultipleChoice);
+        currentQuestion.answerType = answerTypeInfo.answerType;
+        currentQuestion.placeholder = answerTypeInfo.placeholder;
+        
         questions.push(currentQuestion);
       }
 
@@ -116,6 +173,7 @@ export function parseAssessmentContent(content: string): ParsedAssessment {
         questionText: questionText,
         options: [],
         isMultipleChoice: false,
+        answerType: 'short_answer', // Will be updated later based on options
         rawText: line
       };
 
@@ -139,6 +197,11 @@ export function parseAssessmentContent(content: string): ParsedAssessment {
         line.toLowerCase().includes("what is your answer") ||
         line.toLowerCase().includes("your answer")) {
       if (currentQuestion && currentQuestion.questionText) {
+        // Finalize answer type before pushing
+        const answerTypeInfo = detectAnswerType(currentQuestion.questionText, currentQuestion.isMultipleChoice);
+        currentQuestion.answerType = answerTypeInfo.answerType;
+        currentQuestion.placeholder = answerTypeInfo.placeholder;
+        
         questions.push(currentQuestion);
         currentQuestion = null;
         isInQuestion = false;
@@ -185,6 +248,11 @@ export function parseAssessmentContent(content: string): ParsedAssessment {
 
   // Don't forget to add the last question
   if (currentQuestion && currentQuestion.questionText) {
+    // Finalize answer type before pushing
+    const answerTypeInfo = detectAnswerType(currentQuestion.questionText, currentQuestion.isMultipleChoice);
+    currentQuestion.answerType = answerTypeInfo.answerType;
+    currentQuestion.placeholder = answerTypeInfo.placeholder;
+    
     questions.push(currentQuestion);
   }
 
