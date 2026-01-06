@@ -59,9 +59,11 @@ interface KPointPlayer {
   info: {
     kvideoId: string;
   };
+  getBookmarks: () => Array<Record<string, unknown>>;
   events: {
     onStateChange: string;
     timeUpdate: string;
+    started: string;
   };
   addEventListener: (event: string, callback: (data: unknown) => void) => void;
   removeEventListener: (event: string, callback: (data: unknown) => void) => void;
@@ -95,6 +97,26 @@ export function ModuleContent({ course, module, userId }: ModuleContentProps) {
       // Add your time update logic here
     };
 
+    const handlePlayerStarted = (data: unknown) => {
+      console.log("KPoint player started:", data);
+      
+      // Add delay before getting bookmarks to ensure player is fully initialized
+      setTimeout(() => {
+        const playerBookmarks = kpointPlayerRef.current?.getBookmarks();
+        console.log("KPoint player bookmarks:", playerBookmarks);
+        
+        if (playerBookmarks && Array.isArray(playerBookmarks)) {
+          // Filter bookmarks with VISMARK artifact_type and store them
+          const vismarkBookmarks = playerBookmarks.filter(
+            (bookmark: any) => bookmark.artifact_type === 'VISMARK' && bookmark.rel_offset
+          );
+          
+          console.log("VISMARK bookmarks for FA triggering:", vismarkBookmarks);
+          // Trigger FA with the filtered bookmarks
+        }
+      }, 1000); // 1 second delay
+    };
+
     const handlePlayerReady = (event: CustomEvent<{ message: string; container: unknown; player: KPointPlayer }>) => {
       console.log("KPoint player ready:", event.detail.message);
       const player = event.detail.player;
@@ -107,6 +129,7 @@ export function ModuleContent({ course, module, userId }: ModuleContentProps) {
       const handlers: Record<string, (data: unknown) => void> = {
         [player.events.onStateChange]: handlePlayerStateChange,
         [player.events.timeUpdate]: handlePlayerTimeUpdate,
+        [player.events.started]: handlePlayerStarted,
       };
 
       // Subscribe to all events
@@ -388,7 +411,8 @@ export function ModuleContent({ course, module, userId }: ModuleContentProps) {
   return (
     <>
       <Script
-        src="https://assets.kpoint.com/orca/media/embed/videofront-vega.js"
+        src="https://assets.zencite.in/orca/media/embed/player-silk.js"
+        //src="https://assets.kpoint.com/orca/media/embed/videofront-vega.js"
         strategy="afterInteractive"
       />
       <ResizableContent
