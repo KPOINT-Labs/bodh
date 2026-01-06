@@ -86,9 +86,9 @@ export function useLiveKit({
       console.log("[LiveKit] Starting connection", { roomName, courseId, userId });
 
       // Get token from Prism backend
-      console.log("[LiveKit] Fetching token from:", `${PRISM_API_URL}/api/v1/adi2/token`);
+      console.log("[LiveKit] Fetching token from:", `${PRISM_API_URL}/api/v1/bodh/token`);
       console.log("[LiveKit] Request payload:", { roomName, userId, videoIds });
-      const response = await fetch(`${PRISM_API_URL}/api/v1/adi2/token`, {
+      const response = await fetch(`${PRISM_API_URL}/api/v1/bodh/token`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -43,6 +43,7 @@ export function ChatInput({
       console.error("[Voice] Error:", voiceError);
       toast.error("Voice connection failed", {
         description: voiceError,
+        duration: 2000
       });
     }
   }, [voiceError]);
@@ -54,7 +55,7 @@ export function ChatInput({
       // Just connected
       toast.success("Voice session started", {
         description: "You can now speak to the AI assistant",
-        duration: 2000,
+        duration: 2000
       });
     } else if (!isConnected && prevConnectedRef.current) {
       // Just disconnected
