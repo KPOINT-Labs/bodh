@@ -13,6 +13,7 @@ interface MessageContentProps {
   messageType?: string;
   onQuestionAnswer?: (questionNumber: number, answer: string) => void;
   onTimestampClick?: (seconds: number, youtubeVideoId?: string | null) => void;
+  isFromHistory?: boolean;
 }
 
 /**
@@ -23,7 +24,7 @@ interface MessageContentProps {
  * - Learning headers ("You'll learn:")
  * - Assessment questions (FA messages)
  */
-export function MessageContent({ content, messageType, onQuestionAnswer, onTimestampClick }: MessageContentProps) {
+export function MessageContent({ content, messageType, onQuestionAnswer, onTimestampClick, isFromHistory = false }: MessageContentProps) {
   // Check if this is an assessment message with questions
   if (messageType === "fa" && isAssessmentContent(content)) {
     const parsed = parseAssessmentContent(content);
@@ -47,6 +48,7 @@ export function MessageContent({ content, messageType, onQuestionAnswer, onTimes
             answerType={question.answerType}
             placeholder={question.placeholder}
             onAnswer={(answer) => onQuestionAnswer?.(question.questionNumber, answer)}
+            isFromHistory={isFromHistory}
           />
         ))}
 

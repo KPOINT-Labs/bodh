@@ -133,7 +133,7 @@ export function ChatAgent({
         {historyMessages.length > 0 && (
           <div className="space-y-4">
             {historyMessages.map((msg) => (
-              <ChatMessage key={msg.id} message={msg} onQuestionAnswer={handleQuestionAnswer} onTimestampClick={onTimestampClick} />
+              <ChatMessage key={msg.id} message={msg} onQuestionAnswer={handleQuestionAnswer} onTimestampClick={onTimestampClick} isFromHistory={true} />
             ))}
           </div>
         )}
@@ -168,7 +168,7 @@ export function ChatAgent({
         {chatMessages.length > 0 && (
           <div className="space-y-4 pt-4 mt-4 border-t border-gray-100">
             {chatMessages.map((msg) => (
-              <ChatMessage key={msg.id} message={msg} onQuestionAnswer={handleQuestionAnswer} onTimestampClick={onTimestampClick} />
+              <ChatMessage key={msg.id} message={msg} onQuestionAnswer={handleQuestionAnswer} onTimestampClick={onTimestampClick} isFromHistory={false} />
             ))}
           </div>
         )}

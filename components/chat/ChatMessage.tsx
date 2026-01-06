@@ -6,6 +6,7 @@ interface ChatMessageProps {
   message: MessageData;
   onQuestionAnswer?: (questionNumber: number, answer: string) => void;
   onTimestampClick?: (seconds: number, youtubeVideoId?: string | null) => void;
+  isFromHistory?: boolean;
 }
 
 /**
@@ -13,7 +14,7 @@ interface ChatMessageProps {
  * Handles both user and assistant messages with appropriate styling
  * Supports special rendering for FA (formative assessment) messages
  */
-export function ChatMessage({ message, onQuestionAnswer, onTimestampClick }: ChatMessageProps) {
+export function ChatMessage({ message, onQuestionAnswer, onTimestampClick, isFromHistory = false }: ChatMessageProps) {
   const isUser = message.role === "user";
 
   return (
@@ -40,6 +41,7 @@ export function ChatMessage({ message, onQuestionAnswer, onTimestampClick }: Cha
           messageType={message.messageType}
           onQuestionAnswer={onQuestionAnswer}
           onTimestampClick={onTimestampClick}
+          isFromHistory={isFromHistory}
         />
       </div>
 

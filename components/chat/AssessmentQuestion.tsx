@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -13,6 +13,8 @@ interface AssessmentQuestionProps {
   isAnswered?: boolean;
   answerType?: 'multiple_choice' | 'short_answer' | 'numerical' | 'long_answer';
   placeholder?: string;
+  isFromHistory?: boolean;
+  submittedAnswer?: string;
 }
 
 export function AssessmentQuestion({
@@ -22,11 +24,28 @@ export function AssessmentQuestion({
   onAnswer,
   isAnswered = false,
   answerType = 'multiple_choice',
-  placeholder
+  placeholder,
+  isFromHistory = false,
+  submittedAnswer
 }: AssessmentQuestionProps) {
   const [selectedAnswer, setSelectedAnswer] = useState<string>("");
   const [textAnswer, setTextAnswer] = useState<string>("");
   const [hasSubmitted, setHasSubmitted] = useState(false);
+
+  // Initialize with submitted answer if it exists
+  React.useEffect(() => {
+    if (submittedAnswer && isFromHistory) {
+      if (answerType === 'multiple_choice') {
+        setSelectedAnswer(submittedAnswer);
+      } else {
+        setTextAnswer(submittedAnswer);
+      }
+      setHasSubmitted(true);
+    }
+  }, [submittedAnswer, isFromHistory, answerType]);
+
+  // Disable the question if it's from history
+  const isDisabled = isFromHistory || hasSubmitted || isAnswered;
 
   const handleSubmit = () => {
     const answer = answerType === 'multiple_choice' ? selectedAnswer : textAnswer;
@@ -37,7 +56,7 @@ export function AssessmentQuestion({
   };
 
   const handleOptionSelect = (optionLetter: string) => {
-    if (!hasSubmitted && !isAnswered) {
+    if (!isDisabled) {
       setSelectedAnswer(optionLetter);
     }
   };
@@ -66,14 +85,14 @@ export function AssessmentQuestion({
                 key={index}
                 type="button"
                 onClick={() => handleOptionSelect(optionLetter)}
-                disabled={hasSubmitted || isAnswered}
+                disabled={isDisabled}
                 className={`
                   w-full flex items-center gap-3 p-3 rounded-lg border text-left transition-all
                   ${isSelected
                     ? 'border-blue-500 bg-blue-50'
                     : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                   }
-                  ${(hasSubmitted || isAnswered) ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'}
+                  ${isDisabled ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'}
                 `}
               >
                 {/* Radio Circle */}
@@ -95,7 +114,7 @@ export function AssessmentQuestion({
           })}
 
           {/* Submit Button */}
-          {!hasSubmitted && !isAnswered && (
+          {!isDisabled && (
             <div className="pt-3">
               <Button
                 onClick={handleSubmit}
@@ -108,9 +127,14 @@ export function AssessmentQuestion({
           )}
 
           {/* Submitted State */}
-          {(hasSubmitted || isAnswered) && (
-            <div className="pt-2 text-sm text-green-600 font-medium">
-              Answer submitted
+          {isDisabled && (
+            <div className="pt-2 text-sm text-gray-600 font-medium">
+              {isFromHistory ? "Previously answered" : "Answer submitted"}
+              {submittedAnswer && (
+                <div className="text-xs text-gray-500 mt-1">
+                  Answer: {submittedAnswer}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -122,7 +146,7 @@ export function AssessmentQuestion({
               value={textAnswer}
               onChange={(e) => setTextAnswer(e.target.value)}
               placeholder={placeholder || "Type your answer here..."}
-              disabled={hasSubmitted || isAnswered}
+              disabled={isDisabled}
               className="w-full min-h-[100px] p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
               rows={4}
             />
@@ -132,13 +156,13 @@ export function AssessmentQuestion({
               value={textAnswer}
               onChange={(e) => setTextAnswer(e.target.value)}
               placeholder={placeholder || (answerType === 'numerical' ? "Enter a number..." : "Type your answer here...")}
-              disabled={hasSubmitted || isAnswered}
+              disabled={isDisabled}
               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           )}
 
           {/* Submit Button */}
-          {!hasSubmitted && !isAnswered && (
+          {!isDisabled && (
             <Button
               onClick={handleSubmit}
               disabled={!textAnswer.trim()}
@@ -149,9 +173,14 @@ export function AssessmentQuestion({
           )}
 
           {/* Submitted State */}
-          {(hasSubmitted || isAnswered) && (
-            <div className="text-sm text-green-600 font-medium">
-              Answer submitted
+          {isDisabled && (
+            <div className="text-sm text-gray-600 font-medium">
+              {isFromHistory ? "Previously answered" : "Answer submitted"}
+              {submittedAnswer && (
+                <div className="text-xs text-gray-500 mt-1 p-2 bg-gray-50 rounded border">
+                  <strong>Answer:</strong> {submittedAnswer}
+                </div>
+              )}
             </div>
           )}
         </div>
