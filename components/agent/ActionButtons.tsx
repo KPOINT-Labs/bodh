@@ -1,5 +1,8 @@
+"use client";
+
 import { Button } from "@/components/ui/button";
 import { Play, RotateCcw } from "lucide-react";
+import { useLearningPanel } from "@/contexts/LearningPanelContext";
 import type { Lesson, Module } from "@/types/chat";
 
 interface ActionButtonsProps {
@@ -21,6 +24,18 @@ export function ActionButtons({
   onStartLesson,
   onContinueLearning,
 }: ActionButtonsProps) {
+  const { collapsePanel } = useLearningPanel();
+
+  const handleStartLesson = () => {
+    collapsePanel();
+    onStartLesson();
+  };
+
+  const handleContinueLearning = () => {
+    collapsePanel();
+    onContinueLearning();
+  };
+
   if (isReturningUser) {
     return (
       <div className="pt-4 ml-11 space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-500">
@@ -29,7 +44,7 @@ export function ActionButtons({
         </p>
         <div className="flex flex-wrap gap-3">
           <Button
-            onClick={onContinueLearning}
+            onClick={handleContinueLearning}
             className="gap-2 bg-blue-500 hover:bg-blue-600 text-white rounded-full px-5"
           >
             <RotateCcw className="h-4 w-4" />
@@ -37,7 +52,7 @@ export function ActionButtons({
           </Button>
           <Button
             variant="outline"
-            onClick={onStartLesson}
+            onClick={handleStartLesson}
             className="gap-2 border-gray-300 text-gray-700 hover:bg-gray-50 rounded-full px-5"
           >
             <Play className="h-4 w-4" />
@@ -58,7 +73,7 @@ export function ActionButtons({
         from <span className="text-blue-500 font-semibold">{module.title}</span>
       </p>
       <Button
-        onClick={onStartLesson}
+        onClick={handleStartLesson}
         className="gap-2 bg-blue-500 hover:bg-blue-600 text-white rounded-full px-5"
       >
         <Play className="h-4 w-4" />

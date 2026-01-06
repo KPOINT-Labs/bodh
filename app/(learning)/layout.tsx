@@ -1,10 +1,11 @@
 "use client";
 
-import { ReactNode, useState } from "react";
+import { ReactNode } from "react";
 import { PeerLearningPanel } from "@/components/learning/PeerLearningPanel";
+import { LearningPanelProvider, useLearningPanel } from "@/contexts/LearningPanelContext";
 
-export default function LearningLayout({ children }: { children: ReactNode }) {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+function LearningLayoutContent({ children }: { children: ReactNode }) {
+  const { isCollapsed, toggleCollapse } = useLearningPanel();
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -16,7 +17,7 @@ export default function LearningLayout({ children }: { children: ReactNode }) {
       >
         <PeerLearningPanel
           isCollapsed={isCollapsed}
-          onToggleCollapse={() => setIsCollapsed(!isCollapsed)}
+          onToggleCollapse={toggleCollapse}
         />
       </div>
       {/* Main Content */}
@@ -24,5 +25,13 @@ export default function LearningLayout({ children }: { children: ReactNode }) {
         {children}
       </div>
     </div>
+  );
+}
+
+export default function LearningLayout({ children }: { children: ReactNode }) {
+  return (
+    <LearningPanelProvider>
+      <LearningLayoutContent>{children}</LearningLayoutContent>
+    </LearningPanelProvider>
   );
 }

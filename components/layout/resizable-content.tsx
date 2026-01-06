@@ -59,7 +59,7 @@ export function ResizableContent({ header, content, footer, rightPanel }: Resiza
     <div className="h-full overflow-hidden bg-[#F4F4F4]">
       <ResizablePanelGroup direction="horizontal" className="h-full">
         {/* Main Content Panel */}
-        <ResizablePanel defaultSize={rightPanel ? 50 : 100} minSize={50} className="flex flex-col">
+        <ResizablePanel defaultSize={rightPanel ? 30 : 100} minSize={30} className="flex flex-col">
           {/* Fixed Header */}
           <div className="shrink-0">
             {header}
