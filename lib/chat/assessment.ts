@@ -272,3 +272,105 @@ export function parseAssessmentContent(content: string): ParsedAssessment {
 export function isAssessmentContent(content: string): boolean {
   return /Question\s+\d+.*?:/i.test(content) || content.toLowerCase().includes('quiz');
 }
+
+export interface MessageData {
+  id: string;
+  content: string;
+  role: 'user' | 'assistant' | 'system';
+  messageType?: string;
+  createdAt: string | Date;
+  conversationId: string;
+}
+
+export interface QuestionAttempt {
+  questionNumber: number;
+  questionText: string;
+  userAnswer: string;
+  isAttempted: boolean;
+  messageId: string;
+}
+
+/**
+ * Generate a stable hash for a question to track attempts across conversations
+ */
+function generateQuestionHash(questionText: string, questionNumber: number): string {
+  const normalizedText = questionText.toLowerCase().replace(/[^\w\s]/g, '').trim();
+  return `q${questionNumber}_${normalizedText.replace(/\s+/g, '_').substring(0, 50)}`;
+}
+
+/**
+ * Parse messages to find answered FA questions in a conversation
+ */
+export function findAnsweredQuestions(messages: MessageData[]): Map<string, QuestionAttempt> {
+  const answeredQuestions = new Map<string, QuestionAttempt>();
+  const faMessages = messages.filter(msg => msg.messageType === 'fa');
+  
+  for (let i = 0; i < faMessages.length; i++) {
+    const message = faMessages[i];
+    
+    // Process assistant messages (questions)
+    if (message.role === 'assistant' && isAssessmentContent(message.content)) {
+      const parsed = parseAssessmentContent(message.content);
+      
+      for (const question of parsed.questions) {
+        const questionHash = generateQuestionHash(question.questionText, question.questionNumber);
+        
+        // Look for the next user message with FA type as the answer
+        for (let j = i + 1; j < faMessages.length; j++) {
+          const potentialAnswer = faMessages[j];
+          
+          if (potentialAnswer.role === 'user' && potentialAnswer.messageType === 'fa') {
+            // Check if this answer follows this question (basic heuristic)
+            const timeDiff = new Date(potentialAnswer.createdAt).getTime() - new Date(message.createdAt).getTime();
+            
+            // If the answer comes within reasonable time after the question (10 minutes max)
+            if (timeDiff > 0 && timeDiff < 10 * 60 * 1000) {
+              answeredQuestions.set(questionHash, {
+                questionNumber: question.questionNumber,
+                questionText: question.questionText,
+                userAnswer: potentialAnswer.content,
+                isAttempted: true,
+                messageId: potentialAnswer.id
+              });
+              break; // Found answer for this question
+            }
+          }
+        }
+      }
+    }
+  }
+  
+  return answeredQuestions;
+}
+
+/**
+ * Check if a specific question has been answered in the conversation
+ */
+export function isQuestionAnswered(
+  questionText: string, 
+  questionNumber: number, 
+  answeredQuestions: Map<string, QuestionAttempt>
+): QuestionAttempt | null {
+  const questionHash = generateQuestionHash(questionText, questionNumber);
+  return answeredQuestions.get(questionHash) || null;
+}
+
+/**
+ * Get all answered questions for a conversation
+ */
+export async function getAnsweredQuestionsForConversation(conversationId: string): Promise<Map<string, QuestionAttempt>> {
+  try {
+    // This would typically fetch from an API endpoint
+    // For now, return empty map - will be implemented when called from components
+    const response = await fetch(`/api/messages?conversationId=${conversationId}`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch messages');
+    }
+    
+    const messages: MessageData[] = await response.json();
+    return findAnsweredQuestions(messages);
+  } catch (error) {
+    console.error('Error fetching answered questions:', error);
+    return new Map();
+  }
+}
