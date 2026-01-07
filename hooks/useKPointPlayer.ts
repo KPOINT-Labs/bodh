@@ -20,8 +20,8 @@ interface KPointPlayer {
   getPlayState: () => PlayerState;
   seekTo: (timeInMs: number) => void;
   setState?: (state: PlayerState) => void;
-  pause?: () => void;
-  play?: () => void;
+  pauseVideo?: () => void;
+  playVideo?: () => void;
   info: {
     kvideoId: string;
   };
@@ -111,8 +111,8 @@ export function useKPointPlayer({ kpointVideoId, onBookmarksReady, onPlayerReady
         // Pause the video
         if (playerRef.current) {
           try {
-            if (playerRef.current.pause) {
-              playerRef.current.pause();
+            if (playerRef.current.pauseVideo) {
+              playerRef.current.pauseVideo();
             } else if (playerRef.current.setState) {
               playerRef.current.setState(PLAYER_STATE.PAUSED);
             }
@@ -130,8 +130,8 @@ export function useKPointPlayer({ kpointVideoId, onBookmarksReady, onPlayerReady
           // Resume video on error
           if (playerRef.current) {
             try {
-              if (playerRef.current.play) {
-                playerRef.current.play();
+              if (playerRef.current.playVideo) {
+                playerRef.current.playVideo();
               } else if (playerRef.current.setState) {
                 playerRef.current.setState(PLAYER_STATE.PLAYING);
               }
