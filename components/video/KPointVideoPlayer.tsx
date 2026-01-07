@@ -35,8 +35,7 @@ export function KPointVideoPlayer({
 
   return (
     <div
-      className={`w-full rounded-xl overflow-hidden ${className}`}
-      style={{ borderRadius: "12px" }}
+      className={`w-full overflow-hidden ${className}`}
     >
       <style jsx global>{`
         .player-wrapper,
@@ -44,7 +43,6 @@ export function KPointVideoPlayer({
         .kpoint-player,
         .kp,
         .player-overlay {
-          border-radius: 12px !important;
           overflow: hidden !important;
         }
       `}</style>
@@ -56,7 +54,7 @@ export function KPointVideoPlayer({
         data-kvideo-id={kpointVideoId}
         data-player={kpointVideoId}
         data-video-params={videoParams}
-        style={{ width: "100%", borderRadius: "12px", overflow: "hidden" }}
+        style={{ width: "100%", overflow: "hidden" }}
       />
     </div>
   );

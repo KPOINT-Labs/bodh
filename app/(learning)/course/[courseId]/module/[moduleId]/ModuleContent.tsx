@@ -147,18 +147,22 @@ export function ModuleContent({ course, module, userId }: ModuleContentProps) {
   );
 
   const rightPanel = selectedLesson?.kpointVideoId ? (
-    <div className="h-full flex flex-col bg-background">
-      <div className="p-4 border-b">
-        <h3 className="font-semibold text-sm">Now Playing</h3>
-        <p className="text-xs text-muted-foreground">
-          Lesson {selectedLesson.orderIndex + 1}: {selectedLesson.title}
-        </p>
-      </div>
-      <div className="flex-1 p-4">
-        <KPointVideoPlayer
-          kpointVideoId={selectedLesson.kpointVideoId}
-          startOffset={videoStartOffset}
-        />
+    <div className="h-full flex flex-col bg-white p-4">
+      {/* Video Card */}
+      <div className="bg-background rounded-2xl shadow-xl overflow-hidden">
+        {/* Video Player */}
+        <div className="aspect-video">
+          <KPointVideoPlayer
+            kpointVideoId={selectedLesson.kpointVideoId}
+            startOffset={videoStartOffset}
+          />
+        </div>
+        {/* Lesson Title Below Video */}
+        <div className="p-4">
+          <h3 className="font-medium text-sm text-foreground">
+            Lesson {selectedLesson.orderIndex + 1}: {selectedLesson.title}
+          </h3>
+        </div>
       </div>
     </div>
   ) : null;
