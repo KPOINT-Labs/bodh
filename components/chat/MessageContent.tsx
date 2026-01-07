@@ -102,10 +102,10 @@ export function MessageContent({ content, messageType, onQuestionAnswer, onTimes
               </div>
             );
           } else {
-            // Check if this is a video link (timestamp link) - render without bullet
+            // Check if this is a video link (timestamp link) - render without bullet but aligned with bullets
             if (hasTimestampLinks(listItem.content)) {
               return (
-                <div key={index} className={`my-1 ${listItem.isIndented ? "ml-8" : "ml-2"}`}>
+                <div key={index} className={`my-1 ${listItem.isIndented ? "ml-10" : "ml-6"}`}>
                   {parseInlineMarkdownWithTimestamps(listItem.content, onTimestampClick)}
                 </div>
               );
