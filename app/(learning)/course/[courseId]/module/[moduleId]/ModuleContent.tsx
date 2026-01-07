@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback } from "react";
 import Script from "next/script";
 import { Card } from "@/components/ui/card";
 import { ResizableContent } from "@/components/layout/resizable-content";
@@ -9,7 +9,10 @@ import { ChatAgent } from "@/components/agent/ChatAgent";
 import { ChatInput } from "@/components/chat/ChatInput";
 import { KPointVideoPlayer } from "@/components/video/KPointVideoPlayer";
 import { BookOpen } from "lucide-react";
-import { type MessageData } from "@/lib/chat/message-store";
+
+// Hooks
+import { useKPointPlayer } from "@/hooks/useKPointPlayer";
+import { useChatSession } from "@/hooks/useChatSession";
 
 interface Lesson {
   id: string;
@@ -39,250 +42,70 @@ interface ModuleContentProps {
   userId: string;
 }
 
-// KPoint player state constants
-const PLAYER_STATE = {
-  UNSTARTED: -1,
-  ENDED: 0,
-  PLAYING: 1,
-  PAUSED: 2,
-  BUFFERING: 3,
-  REPLAYING: 5,
-} as const;
-
-type PlayerState = (typeof PLAYER_STATE)[keyof typeof PLAYER_STATE];
-
-// Type for KPoint player instance
-interface KPointPlayer {
-  getCurrentTime: () => number;
-  getPlayState: () => PlayerState;
-  seekTo: (timeInMs: number) => void;
-  info: {
-    kvideoId: string;
-  };
-  getBookmarks: () => Array<Record<string, unknown>>;
-  events: {
-    onStateChange: string;
-    timeUpdate: string;
-    started: string;
-  };
-  addEventListener: (event: string, callback: (data: unknown) => void) => void;
-  removeEventListener: (event: string, callback: (data: unknown) => void) => void;
-}
-
 export function ModuleContent({ course, module, userId }: ModuleContentProps) {
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
   const [conversationId, setConversationId] = useState<string | null>(null);
-  const [chatMessages, setChatMessages] = useState<MessageData[]>([]);
-  const [isSending, setIsSending] = useState(false);
   const [videoStartOffset, setVideoStartOffset] = useState<number | null>(null);
-  const kpointPlayerRef = useRef<KPointPlayer | null>(null);
-  const eventHandlersRef = useRef<Map<string, (data: unknown) => void>>(new Map());
-  const kpointVideoIdRef = useRef<string | null>(null);
 
-  // Store kpointVideoId in ref for cleanup
-  useEffect(() => {
-    kpointVideoIdRef.current = selectedLesson?.kpointVideoId ?? null;
-  }, [selectedLesson?.kpointVideoId]);
+  // KPoint player hook
+  const { seekTo, getCurrentTime, isPlayerReady } = useKPointPlayer({
+    kpointVideoId: selectedLesson?.kpointVideoId,
+  });
 
-  // Listen for KPoint player ready event
-  useEffect(() => {
-    // Define event handlers inside useEffect to avoid dependency issues
-    const handlePlayerStateChange = (data: unknown) => {
-      console.log("KPoint player state change:", data);
-      // Add your state change logic here
-    };
+  // Chat session hook
+  const { chatMessages, isSending, sendMessage } = useChatSession({
+    courseId: course.id,
+    conversationId,
+    selectedLesson,
+    lessons: module.lessons,
+    getCurrentTime,
+  });
 
-    const handlePlayerTimeUpdate = (data: unknown) => {
-      console.log("KPoint player time update:", data);
-      // Add your time update logic here
-    };
-
-    const handlePlayerStarted = (data: unknown) => {
-      console.log("KPoint player started:", data);
-      
-      // Add delay before getting bookmarks to ensure player is fully initialized
-      setTimeout(() => {
-        const playerBookmarks = kpointPlayerRef.current?.getBookmarks();
-        console.log("KPoint player bookmarks:", playerBookmarks);
-        
-        if (playerBookmarks && Array.isArray(playerBookmarks)) {
-          // Filter bookmarks with VISMARK artifact_type and store them
-          const vismarkBookmarks = playerBookmarks.filter(
-            (bookmark: any) => bookmark.artifact_type === 'VISMARK' && bookmark.rel_offset
-          );
-          
-          console.log("VISMARK bookmarks for FA triggering:", vismarkBookmarks);
-          // Trigger FA with the filtered bookmarks
-        }
-      }, 1000); // 1 second delay
-    };
-
-    const handlePlayerReady = (event: CustomEvent<{ message: string; container: unknown; player: KPointPlayer }>) => {
-      console.log("KPoint player ready:", event.detail.message);
-      const player = event.detail.player;
-      kpointPlayerRef.current = player;
-
-      // Clear start offset after player is ready (it was already used in data-video-params)
-      setVideoStartOffset(null);
-
-      // Define event handlers
-      const handlers: Record<string, (data: unknown) => void> = {
-        [player.events.onStateChange]: handlePlayerStateChange,
-        [player.events.timeUpdate]: handlePlayerTimeUpdate,
-        [player.events.started]: handlePlayerStarted,
-      };
-
-      // Subscribe to all events
-      Object.entries(handlers).forEach(([event, handler]) => {
-        player.addEventListener(event, handler);
-        eventHandlersRef.current.set(event, handler);
-      });
-    };
-
-    document.addEventListener("kpointPlayerReady", handlePlayerReady as EventListener);
-
-    return () => {
-      document.removeEventListener("kpointPlayerReady", handlePlayerReady as EventListener);
-
-      // Unsubscribe from all events
-      if (kpointPlayerRef.current) {
-        eventHandlersRef.current.forEach((handler, event) => {
-          kpointPlayerRef.current?.removeEventListener(event, handler);
-        });
-      }
-      eventHandlersRef.current.clear();
-
-      // Delete player instance from window
-      if (kpointVideoIdRef.current) {
-        delete (window as unknown as Record<string, unknown>)[kpointVideoIdRef.current];
-      }
-
-      kpointPlayerRef.current = null;
-    };
+  // Handle lesson selection
+  const handleLessonSelect = useCallback((lesson: Lesson) => {
+    setSelectedLesson(lesson);
   }, []);
 
-  const handleLessonSelect = (lesson: Lesson) => {
-    setSelectedLesson(lesson);
-  };
-
+  // Handle conversation ready
   const handleConversationReady = useCallback((convId: string) => {
     setConversationId(convId);
   }, []);
 
   // Handle timestamp link clicks - seek to the specified time in the video
-  const handleTimestampClick = useCallback((seconds: number, youtubeVideoId?: string | null) => {
-    const player = kpointPlayerRef.current;
-    if (player) {
-      // Player is ready, seek to the timestamp (convert seconds to milliseconds)
-      player.seekTo(seconds * 1000);
-      console.log(`Seeking to ${seconds} seconds`);
-    } else {
-      // Player not ready - find the lesson by youtubeVideoId and select it
-      if (youtubeVideoId) {
-        const matchingLesson = module.lessons.find(
-          (lesson) => lesson.youtubeVideoId === youtubeVideoId
-        );
-        if (matchingLesson) {
-          console.log(`Found matching lesson: ${matchingLesson.title}, selecting with offset ${seconds}s`);
-          setVideoStartOffset(seconds);
-          setSelectedLesson(matchingLesson);
-        } else {
-          console.warn(`No lesson found with youtubeVideoId: ${youtubeVideoId}`);
-          setVideoStartOffset(seconds);
-        }
+  const handleTimestampClick = useCallback(
+    (seconds: number, youtubeVideoId?: string | null) => {
+      if (isPlayerReady()) {
+        seekTo(seconds);
       } else {
-        // No youtubeVideoId provided, just store the offset
-        setVideoStartOffset(seconds);
-        console.log(`Player not ready. Stored ${seconds} seconds as start offset.`);
-      }
-    }
-  }, [module.lessons]);
-
-  const handleSendMessage = useCallback(async (message: string, taskGraphType?: "QnA" | "FA") => {
-    if (!conversationId) {
-      console.error("Conversation not ready");
-      return;
-    }
-
-    // For FA answers (just the letter), don't show as user message in chat
-    const isQuizAnswer = taskGraphType === "FA" && message.length <= 2;
-
-    // Immediately show user message with a temporary ID (unless it's a quiz answer)
-    if (!isQuizAnswer) {
-      const tempUserMessage: MessageData = {
-        id: `temp-${Date.now()}`,
-        conversationId,
-        role: "user",
-        content: message,
-        inputType: "text",
-        messageType: taskGraphType?.toLowerCase() || "general",
-        createdAt: new Date().toISOString(),
-      };
-
-      // Add user message immediately to show it right away
-      setChatMessages(prev => [...prev, tempUserMessage]);
-    }
-
-    setIsSending(true);
-
-    try {
-      // Build video IDs array - use selected lesson or fallback to first lesson
-      const videoIds: string[] = [];
-      const activeLesson = selectedLesson || module.lessons.sort((a, b) => a.orderIndex - b.orderIndex)[0];
-      if (activeLesson?.youtubeVideoId) {
-        videoIds.push(activeLesson.youtubeVideoId);
-      }
-
-      console.log("Active lesson:", activeLesson?.title, "YouTube ID:", activeLesson?.youtubeVideoId);
-
-      // Get current video timestamp from KPoint player (with safety check)
-      let startTimestamp = 0;
-      if (kpointPlayerRef.current) {
-        try {
-          const currentTime = kpointPlayerRef.current.getCurrentTime();
-          if (typeof currentTime === "number" && !isNaN(currentTime)) {
-            startTimestamp = Math.floor(currentTime); // Convert to integer seconds
+        // Player not ready - find the lesson by youtubeVideoId and select it
+        if (youtubeVideoId) {
+          const matchingLesson = module.lessons.find(
+            (lesson) => lesson.youtubeVideoId === youtubeVideoId
+          );
+          if (matchingLesson) {
+            console.log(`Found matching lesson: ${matchingLesson.title}, selecting with offset ${seconds}s`);
+            setVideoStartOffset(seconds);
+            setSelectedLesson(matchingLesson);
+          } else {
+            console.warn(`No lesson found with youtubeVideoId: ${youtubeVideoId}`);
+            setVideoStartOffset(seconds);
           }
-        } catch (error) {
-          console.warn("Failed to get current time from KPoint player:", error);
+        } else {
+          setVideoStartOffset(seconds);
+          console.log(`Player not ready. Stored ${seconds} seconds as start offset.`);
         }
       }
+    },
+    [module.lessons, isPlayerReady, seekTo]
+  );
 
-      console.log("Sending message - videoIds:", videoIds, "startTimestamp:", startTimestamp, "taskGraphType:", taskGraphType);
+  // Build active lesson (selected or first)
+  const activeLesson = selectedLesson || module.lessons.sort((a, b) => a.orderIndex - b.orderIndex)[0];
+  const videoIds = activeLesson?.kpointVideoId ? [activeLesson.kpointVideoId] : [];
 
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message,
-          conversationId,
-          courseId: course.id,
-          taskGraphType, // Pass the task graph type to force FA for quiz answers
-          videoIds,
-          startTimestamp,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        // Add assistant message
-        setChatMessages(prev => [...prev, data.assistantMessage]);
-      } else {
-        console.error("Chat error:", data.error);
-      }
-    } catch (error) {
-      console.error("Failed to send message:", error);
-    } finally {
-      setIsSending(false);
-    }
-  }, [conversationId, course.id, selectedLesson]);
-
+  // Layout sections
   const header = (
-    <LessonHeader
-      courseTitle={course.title}
-      moduleTitle={module.title}
-    />
+    <LessonHeader courseTitle={course.title} moduleTitle={module.title} />
   );
 
   const content = (
@@ -294,7 +117,7 @@ export function ModuleContent({ course, module, userId }: ModuleContentProps) {
         userId={userId}
         onLessonSelect={handleLessonSelect}
         onConversationReady={handleConversationReady}
-        onSendMessage={handleSendMessage}
+        onSendMessage={sendMessage}
         onTimestampClick={handleTimestampClick}
         chatMessages={chatMessages}
         isWaitingForResponse={isSending}
@@ -302,90 +125,19 @@ export function ModuleContent({ course, module, userId }: ModuleContentProps) {
 
       {/* Module Lessons Overview */}
       {!selectedLesson && module.lessons.length > 1 && (
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <BookOpen className="h-5 w-5 text-primary" />
-            Lessons in {module.title}
-          </h3>
-          <div className="space-y-3">
-            {module.lessons.map((lesson) => (
-              <button
-                key={lesson.id}
-                onClick={() => handleLessonSelect(lesson)}
-                className="w-full text-left p-4 rounded-lg border border-border hover:border-primary hover:bg-primary/5 transition-all duration-200"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <span className="text-xs text-muted-foreground">
-                      Lesson {lesson.orderIndex + 1}
-                    </span>
-                    <h4 className="font-medium">{lesson.title}</h4>
-                    {lesson.description && (
-                      <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                        {lesson.description}
-                      </p>
-                    )}
-                  </div>
-                  <div className="text-primary">
-                    <svg
-                      className="h-5 w-5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 5l7 7-7 7"
-                      />
-                    </svg>
-                  </div>
-                </div>
-              </button>
-            ))}
-          </div>
-        </Card>
+        <LessonsList
+          lessons={module.lessons}
+          moduleTitle={module.title}
+          onLessonSelect={handleLessonSelect}
+        />
       )}
-
-      {/* Selected Lesson Info */}
-      {/* {selectedLesson && (
-        <Card className="p-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-          <div className="flex items-center gap-2 mb-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleBackToWelcome}
-              className="gap-1"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Back
-            </Button>
-          </div>
-          <div className="space-y-2">
-            <span className="text-xs text-muted-foreground">
-              Now Playing - Lesson {selectedLesson.orderIndex + 1}
-            </span>
-            <h3 className="text-lg font-semibold">{selectedLesson.title}</h3>
-            {selectedLesson.description && (
-              <p className="text-sm text-muted-foreground">
-                {selectedLesson.description}
-              </p>
-            )}
-          </div>
-        </Card>
-      )} */}
     </div>
   );
-
-  // Build videoIds array from selected lesson or first lesson
-  const activeLesson = selectedLesson || module.lessons.sort((a, b) => a.orderIndex - b.orderIndex)[0];
-  const videoIds = activeLesson?.kpointVideoId ? [activeLesson.kpointVideoId] : [];
 
   const footer = (
     <ChatInput
       placeholder="Ask me anything about this lesson..."
-      onSend={handleSendMessage}
+      onSend={sendMessage}
       isLoading={isSending}
       conversationId={conversationId || undefined}
       courseId={course.id}
@@ -403,7 +155,10 @@ export function ModuleContent({ course, module, userId }: ModuleContentProps) {
         </p>
       </div>
       <div className="flex-1 p-4">
-        <KPointVideoPlayer kpointVideoId={selectedLesson.kpointVideoId} startOffset={videoStartOffset} />
+        <KPointVideoPlayer
+          kpointVideoId={selectedLesson.kpointVideoId}
+          startOffset={videoStartOffset}
+        />
       </div>
     </div>
   ) : null;
@@ -411,8 +166,7 @@ export function ModuleContent({ course, module, userId }: ModuleContentProps) {
   return (
     <>
       <Script
-        src="https://assets.zencite.in/orca/media/embed/player-silk.js"
-        //src="https://assets.kpoint.com/orca/media/embed/videofront-vega.js"
+        src="https://assets.zencite.in/orca/media/embed/videofront-vega.js"
         strategy="afterInteractive"
       />
       <ResizableContent
@@ -422,5 +176,61 @@ export function ModuleContent({ course, module, userId }: ModuleContentProps) {
         rightPanel={rightPanel}
       />
     </>
+  );
+}
+
+// Extracted component for lessons list
+interface LessonsListProps {
+  lessons: Lesson[];
+  moduleTitle: string;
+  onLessonSelect: (lesson: Lesson) => void;
+}
+
+function LessonsList({ lessons, moduleTitle, onLessonSelect }: LessonsListProps) {
+  return (
+    <Card className="p-6">
+      <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+        <BookOpen className="h-5 w-5 text-primary" />
+        Lessons in {moduleTitle}
+      </h3>
+      <div className="space-y-3">
+        {lessons.map((lesson) => (
+          <button
+            key={lesson.id}
+            onClick={() => onLessonSelect(lesson)}
+            className="w-full text-left p-4 rounded-lg border border-border hover:border-primary hover:bg-primary/5 transition-all duration-200"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-xs text-muted-foreground">
+                  Lesson {lesson.orderIndex + 1}
+                </span>
+                <h4 className="font-medium">{lesson.title}</h4>
+                {lesson.description && (
+                  <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                    {lesson.description}
+                  </p>
+                )}
+              </div>
+              <div className="text-primary">
+                <svg
+                  className="h-5 w-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 5l7 7-7 7"
+                  />
+                </svg>
+              </div>
+            </div>
+          </button>
+        ))}
+      </div>
+    </Card>
   );
 }

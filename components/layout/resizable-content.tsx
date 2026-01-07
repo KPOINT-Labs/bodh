@@ -92,7 +92,7 @@ export function ResizableContent({ header, content, footer, rightPanel }: Resiza
             </ResizableHandle>
             <ResizablePanel
               defaultSize={25}
-              minSize={20}
+              minSize={30}
               maxSize={60}
               className="hidden lg:block"
             >
