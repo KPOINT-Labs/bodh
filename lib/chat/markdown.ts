@@ -77,6 +77,57 @@ export function parseBulletPoint(line: string): RegExpMatchArray | null {
 }
 
 /**
+ * Parse a list item and determine its type (numbered or bullet)
+ * Detects indentation based on leading whitespace
+ */
+export interface ListItemResult {
+  type: "numbered" | "bullet" | "none";
+  number?: number;
+  content: string;
+  isIndented: boolean;
+}
+
+export function parseListItem(line: string): ListItemResult | null {
+  // Check for leading whitespace (indentation)
+  const leadingWhitespace = line.match(/^(\s*)/);
+  const isIndented = leadingWhitespace ? leadingWhitespace[1].length > 0 : false;
+  const trimmed = line.trim();
+
+  // Check for numbered list item (1., 2., etc.)
+  const numberedMatch = trimmed.match(/^(\d+)\.\s+(.+)/);
+  if (numberedMatch) {
+    return {
+      type: "numbered",
+      number: parseInt(numberedMatch[1], 10),
+      content: numberedMatch[2],
+      isIndented,
+    };
+  }
+
+  // Check for dash bullet point
+  const dashMatch = trimmed.match(/^-\s+(.+)/);
+  if (dashMatch) {
+    return {
+      type: "bullet",
+      content: dashMatch[1],
+      isIndented,
+    };
+  }
+
+  // Check for bullet point (•)
+  const bulletMatch = trimmed.match(/^•\s*(.+)/);
+  if (bulletMatch) {
+    return {
+      type: "bullet",
+      content: bulletMatch[1],
+      isIndented,
+    };
+  }
+
+  return null;
+}
+
+/**
  * Check if a line is a "You'll learn:" header
  */
 export function isLearningHeader(line: string): boolean {

@@ -1,9 +1,10 @@
 import {
   parseInlineMarkdownWithTimestamps,
-  parseBulletPoint,
+  parseListItem,
   isLearningHeader,
   parseHeader,
   isHorizontalRule,
+  hasTimestampLinks,
 } from "@/lib/chat/markdown";
 import { parseAssessmentContent, isAssessmentContent } from "@/lib/chat/assessment";
 import { AssessmentQuestion } from "./AssessmentQuestion";
@@ -89,16 +90,34 @@ export function MessageContent({ content, messageType, onQuestionAnswer, onTimes
           );
         }
 
-        // Check for bullet points
-        const bulletMatch = parseBulletPoint(line);
-        if (bulletMatch) {
-          const bulletText = bulletMatch[2] || line.trim().substring(bulletMatch[0].length);
-          return (
-            <div key={index} className="flex items-start gap-2 ml-2 my-1">
-              <span className="text-blue-500 shrink-0">•</span>
-              <span>{parseInlineMarkdownWithTimestamps(bulletText, onTimestampClick)}</span>
-            </div>
-          );
+        // Check for list items (numbered or bullet)
+        const listItem = parseListItem(line);
+        if (listItem) {
+          if (listItem.type === "numbered") {
+            // Numbered list item (1., 2., etc.)
+            return (
+              <div key={index} className="flex items-start gap-2 my-1">
+                <span className="font-semibold text-gray-700 min-w-6">{listItem.number}.</span>
+                <span>{parseInlineMarkdownWithTimestamps(listItem.content, onTimestampClick)}</span>
+              </div>
+            );
+          } else {
+            // Check if this is a video link (timestamp link) - render without bullet
+            if (hasTimestampLinks(listItem.content)) {
+              return (
+                <div key={index} className={`my-1 ${listItem.isIndented ? "ml-8" : "ml-2"}`}>
+                  {parseInlineMarkdownWithTimestamps(listItem.content, onTimestampClick)}
+                </div>
+              );
+            }
+            // Regular bullet point - indent if it has leading whitespace
+            return (
+              <div key={index} className={`flex items-start gap-2 my-1 ${listItem.isIndented ? "ml-6" : "ml-2"}`}>
+                <span className="text-gray-600 shrink-0">•</span>
+                <span>{parseInlineMarkdownWithTimestamps(listItem.content, onTimestampClick)}</span>
+              </div>
+            );
+          }
         }
 
         if (isLearningHeader(line)) {
