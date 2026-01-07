@@ -158,8 +158,8 @@ export function ModuleContent({ course, module, userId }: ModuleContentProps) {
           />
         </div>
         {/* Lesson Title Below Video */}
-        <div className="p-4">
-          <h3 className="font-medium text-sm text-foreground">
+        <div className="p-3">
+          <h3 className="font-medium text-xs text-foreground line-clamp-2">
             Lesson {selectedLesson.orderIndex + 1}: {selectedLesson.title}
           </h3>
         </div>
