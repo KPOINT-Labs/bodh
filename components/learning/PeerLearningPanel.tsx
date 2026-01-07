@@ -10,14 +10,13 @@ import { LoadingPanel } from "./LoadingPanel";
 import { ErrorPanel } from "./ErrorPanel";
 import { EmptyPanel } from "./EmptyPanel";
 import { CourseList } from "./CourseList";
-import { ModuleList } from "./ModuleList";
 
 /**
  * PeerLearningPanel - Sidebar for course navigation
  *
  * Displays:
- * - List of enrolled courses
- * - Module/lesson hierarchy for selected course
+ * - List of enrolled courses with accordion expansion
+ * - Module/lesson hierarchy within selected course
  * - Progress indicators
  * - Collapsible sidebar
  */
@@ -38,7 +37,6 @@ export function PeerLearningPanel({
     isLoading,
     error,
     selectCourse,
-    backToCourses,
     toggleModule,
   } = usePeerLearning({
     userId: propUserId,
@@ -72,25 +70,14 @@ export function PeerLearningPanel({
     return <EmptyPanel className={className} onToggleCollapse={onToggleCollapse} />;
   }
 
-  // Course list view
-  if (!selectedCourse) {
-    return (
-      <CourseList
-        className={className}
-        courses={courses}
-        onSelectCourse={selectCourse}
-        onToggleCollapse={onToggleCollapse}
-      />
-    );
-  }
-
-  // Module list view
+  // Course list with accordion for modules
   return (
-    <ModuleList
+    <CourseList
       className={className}
-      course={selectedCourse}
+      courses={courses}
+      selectedCourse={selectedCourse}
       expandedModules={expandedModules}
-      onBackToCourses={backToCourses}
+      onSelectCourse={selectCourse}
       onToggleModule={toggleModule}
       onLessonClick={handleLessonClick}
       onToggleCollapse={onToggleCollapse}

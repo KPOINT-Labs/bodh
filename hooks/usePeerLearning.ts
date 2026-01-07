@@ -121,6 +121,13 @@ export function usePeerLearning(options: UsePeerLearningOptions): UsePeerLearnin
   }, []);
 
   const selectCourse = useCallback((course: Course) => {
+    // Toggle: if clicking the same course, collapse it
+    if (selectedCourse?.id === course.id) {
+      setSelectedCourse(null);
+      setExpandedModules([]);
+      return;
+    }
+
     setSelectedCourse(course);
     // Auto-expand first in-progress module
     const inProgressModule = course.modules.find((m) => m.status === "in_progress");
@@ -129,7 +136,7 @@ export function usePeerLearning(options: UsePeerLearningOptions): UsePeerLearnin
     } else {
       setExpandedModules([]);
     }
-  }, []);
+  }, [selectedCourse]);
 
   return {
     userId,

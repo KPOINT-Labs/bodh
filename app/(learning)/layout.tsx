@@ -12,7 +12,7 @@ function LearningLayoutContent({ children }: { children: ReactNode }) {
       {/* Left Panel - Course Navigation */}
       <div
         className={`shrink-0 border-r border-gray-200 bg-white hidden lg:block overflow-hidden transition-all duration-300 ${
-          isCollapsed ? "w-16" : "w-72"
+          isCollapsed ? "w-16" : "w-80"
         }`}
       >
         <PeerLearningPanel

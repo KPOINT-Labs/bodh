@@ -32,6 +32,7 @@ export async function GET(request: NextRequest) {
                     title: true,
                     orderIndex: true,
                     type: true,
+                    duration: true,
                   },
                 },
               },
@@ -124,11 +125,28 @@ export async function GET(request: NextRequest) {
       );
       const progress = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
 
+      // Calculate total duration in minutes (duration is stored in seconds)
+      const totalDurationSeconds = course.modules.reduce(
+        (sum, m) => sum + m.lessons.reduce((lessonSum, l) => lessonSum + (l.duration || 0), 0),
+        0
+      );
+      const totalDuration = Math.round(totalDurationSeconds / 60);
+
+      // Determine course status based on progress
+      let courseStatus: "completed" | "in_progress" | "yet_to_start" = "yet_to_start";
+      if (progress === 100) {
+        courseStatus = "completed";
+      } else if (progress > 0) {
+        courseStatus = "in_progress";
+      }
+
       return {
         id: course.id,
         title: course.title,
         slug: course.slug,
         progress,
+        status: courseStatus,
+        totalDuration,
         modules,
       };
     });

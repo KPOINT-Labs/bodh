@@ -154,7 +154,7 @@ export function ModuleContent({ course, module, userId }: ModuleContentProps) {
   const rightPanel = selectedLesson?.kpointVideoId ? (
     <div className="h-full flex flex-col bg-white p-4">
       {/* Video Card */}
-      <div className="bg-background rounded-2xl shadow-xl overflow-hidden">
+      <div className="bg-background rounded-2xl shadow-xl overflow-hidden border-2 border-blue-200 hover:border-blue-400 hover:shadow-blue-300/40">
         {/* Video Player */}
         <div className="aspect-video">
           <KPointVideoPlayer
