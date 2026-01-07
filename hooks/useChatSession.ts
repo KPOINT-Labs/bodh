@@ -133,9 +133,65 @@ export function useChatSession({
     [] // Empty deps - sendMessage is now stable
   );
 
+  // Send FA message without showing user message in chat UI
+  const sendFAMessage = useCallback(
+    async (message: string, timestampSeconds?: number) => {
+      const convId = conversationIdRef.current;
+      if (!convId) {
+        console.error("Conversation not ready");
+        return;
+      }
+
+      setIsSending(true);
+
+      try {
+        // Build video IDs array - use selected lesson or fallback to first lesson
+        const videoIds: string[] = [];
+        const currentLessons = lessonsRef.current;
+        const activeLesson =
+          selectedLessonRef.current || currentLessons.sort((a, b) => a.orderIndex - b.orderIndex)[0];
+
+        if (activeLesson?.youtubeVideoId) {
+          videoIds.push(activeLesson.youtubeVideoId);
+        }
+
+        // Use provided timestamp or get current video timestamp
+        const startTimestamp = timestampSeconds ?? getCurrentTimeRef.current();
+
+        const response = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            message,
+            conversationId: convId,
+            courseId: courseIdRef.current,
+            taskGraphType: "FA",
+            videoIds,
+            startTimestamp,
+          }),
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          // Only show the assistant message, not the user message
+          setChatMessages((prev) => [...prev, data.assistantMessage]);
+        } else {
+          console.error("FA message error:", data.error);
+        }
+      } catch (error) {
+        console.error("Failed to send FA message:", error);
+      } finally {
+        setIsSending(false);
+      }
+    },
+    [] // Empty deps - sendFAMessage is now stable
+  );
+
   return {
     chatMessages,
     isSending,
     sendMessage,
+    sendFAMessage,
   };
 }

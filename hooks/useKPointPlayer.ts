@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
 
 // KPoint player state constants
 const PLAYER_STATE = {
@@ -19,6 +19,9 @@ interface KPointPlayer {
   getCurrentTime: () => number;
   getPlayState: () => PlayerState;
   seekTo: (timeInMs: number) => void;
+  setState?: (state: PlayerState) => void;
+  pause?: () => void;
+  play?: () => void;
   info: {
     kvideoId: string;
   };
@@ -32,47 +35,152 @@ interface KPointPlayer {
   removeEventListener: (event: string, callback: (data: unknown) => void) => void;
 }
 
+interface Bookmark {
+  id: string;
+  rel_offset: number; // milliseconds
+  artifact_type: string;
+  [key: string]: unknown;
+}
+
 interface UseKPointPlayerOptions {
   kpointVideoId: string | null | undefined;
-  onBookmarksReady?: (bookmarks: Array<Record<string, unknown>>) => void;
+  onBookmarksReady?: (bookmarks: Bookmark[]) => void;
   onPlayerReady?: () => void;
+  onFATrigger?: (message: string, timestampSeconds: number, pauseVideo?: boolean) => Promise<void>;
 }
 
 /**
  * Hook to manage KPoint video player lifecycle
  * Handles player initialization, event subscriptions, and cleanup
  */
-export function useKPointPlayer({ kpointVideoId, onBookmarksReady, onPlayerReady }: UseKPointPlayerOptions) {
+export function useKPointPlayer({ kpointVideoId, onBookmarksReady, onPlayerReady, onFATrigger }: UseKPointPlayerOptions) {
   const playerRef = useRef<KPointPlayer | null>(null);
   const eventHandlersRef = useRef<Map<string, (data: unknown) => void>>(new Map());
   const kpointVideoIdRef = useRef<string | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
+  const triggeredBookmarksRef = useRef<Set<string>>(new Set());
+  const isPlayingRef = useRef(false);
+  const bookmarksRef = useRef<Bookmark[]>([]);
+  
   // Store callbacks in refs to avoid effect re-runs
   const onBookmarksReadyRef = useRef(onBookmarksReady);
   const onPlayerReadyRef = useRef(onPlayerReady);
+  const onFATriggerRef = useRef(onFATrigger);
 
   // Keep refs updated
   useEffect(() => {
     onBookmarksReadyRef.current = onBookmarksReady;
     onPlayerReadyRef.current = onPlayerReady;
+    onFATriggerRef.current = onFATrigger;
   });
+  
+  // Keep state refs updated
+  useEffect(() => {
+    isPlayingRef.current = isPlaying;
+  }, [isPlaying]);
+  
+  useEffect(() => {
+    bookmarksRef.current = bookmarks;
+  }, [bookmarks]);
 
   // Store kpointVideoId in ref for cleanup
   useEffect(() => {
     kpointVideoIdRef.current = kpointVideoId ?? null;
   }, [kpointVideoId]);
 
+  // Internal function to check for FA triggers with explicit bookmarks parameter
+  const checkForFATriggersInternal = useCallback((currentTimeMs: number, currentBookmarks: Bookmark[]) => {
+    for (const bookmark of currentBookmarks) {
+      const bookmarkId = bookmark.id || `${bookmark.rel_offset}`;
+      
+      // Skip if already triggered
+      if (triggeredBookmarksRef.current.has(bookmarkId)) {
+        continue;
+      }
+      
+      // Check if we've reached or passed the bookmark time (within 500ms tolerance)
+      const timeDiff = currentTimeMs - bookmark.rel_offset;
+      
+      if (timeDiff >= 0 && timeDiff <= 500) {
+        console.log(`FA Trigger: Bookmark at ${bookmark.rel_offset}ms (${(bookmark.rel_offset / 1000).toFixed(1)}s)`);
+        
+        // Mark as triggered
+        triggeredBookmarksRef.current.add(bookmarkId);
+        
+        // Pause the video
+        if (playerRef.current) {
+          try {
+            if (playerRef.current.pause) {
+              playerRef.current.pause();
+            } else if (playerRef.current.setState) {
+              playerRef.current.setState(PLAYER_STATE.PAUSED);
+            }
+            setIsPlaying(false);
+          } catch (error) {
+            console.error('Failed to pause video:', error);
+          }
+        }
+        
+        // Trigger FA with simple message and timestamp in seconds
+        const message = "Ask me a formative assessment";
+        const timestampSeconds = bookmark.rel_offset / 1000; // Convert milliseconds to seconds
+        onFATriggerRef.current?.(message, timestampSeconds, true).catch(error => {
+          console.error('FA trigger failed:', error);
+          // Resume video on error
+          if (playerRef.current) {
+            try {
+              if (playerRef.current.play) {
+                playerRef.current.play();
+              } else if (playerRef.current.setState) {
+                playerRef.current.setState(PLAYER_STATE.PLAYING);
+              }
+              setIsPlaying(true);
+            } catch (playError) {
+              console.error('Failed to resume video:', playError);
+            }
+          }
+        });
+        
+        break; // Only trigger one at a time
+      }
+    }
+  }, []);
+
+
   // Listen for KPoint player ready event - runs only once on mount
   useEffect(() => {
     const handlePlayerStateChange = (data: unknown) => {
       console.log("KPoint player state change:", data);
+      
+      // Update playing state based on player state
+      if (playerRef.current) {
+        const currentState = playerRef.current.getPlayState();
+        const nowPlaying = currentState === PLAYER_STATE.PLAYING;
+        setIsPlaying(nowPlaying);
+      }
     };
 
-    const handlePlayerTimeUpdate = (data: unknown) => {
-      console.log("KPoint player time update:", data);
+    const handlePlayerTimeUpdate = () => {
+      // Log current time for debugging
+      if (playerRef.current) {
+        const currentTimeMs = playerRef.current.getCurrentTime();
+// Get current values from refs (not stale closure values)
+        const currentBookmarks = bookmarksRef.current;
+        const currentIsPlaying = isPlayingRef.current;
+        
+        // Check for FA triggers on time update
+        if (currentBookmarks.length > 0 && currentIsPlaying) {
+          checkForFATriggersInternal(currentTimeMs, currentBookmarks);
+        }
+      }
     };
 
     const handlePlayerStarted = (data: unknown) => {
       console.log("KPoint player started:", data);
+      
+      // Set playing state when player starts
+      setIsPlaying(true);
 
       // Add delay before getting bookmarks to ensure player is fully initialized
       setTimeout(() => {
@@ -84,9 +192,10 @@ export function useKPointPlayer({ kpointVideoId, onBookmarksReady, onPlayerReady
           const vismarkBookmarks = playerBookmarks.filter(
             (bookmark: Record<string, unknown>) =>
               bookmark.artifact_type === "VISMARK" && bookmark.rel_offset
-          );
+          ) as Bookmark[];
 
           console.log("VISMARK bookmarks for FA triggering:", vismarkBookmarks);
+          setBookmarks(vismarkBookmarks);
           onBookmarksReadyRef.current?.(vismarkBookmarks);
         }
       }, 1000);
@@ -98,6 +207,7 @@ export function useKPointPlayer({ kpointVideoId, onBookmarksReady, onPlayerReady
       console.log("KPoint player ready:", event.detail.message);
       const player = event.detail.player;
       playerRef.current = player;
+      
 
       // Notify parent that player is ready
       onPlayerReadyRef.current?.();
@@ -167,11 +277,20 @@ export function useKPointPlayer({ kpointVideoId, onBookmarksReady, onPlayerReady
   const isPlayerReady = useCallback(() => {
     return playerRef.current !== null;
   }, []);
+  ;
+  
+  // Get current playing state
+  const getIsPlaying = useCallback(() => {
+    return isPlaying;
+  }, [isPlaying]);
 
   return {
     playerRef,
     seekTo,
     getCurrentTime,
     isPlayerReady,
+    isPlaying,
+    getIsPlaying,
+    bookmarks,
   };
 }

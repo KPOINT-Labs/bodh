@@ -47,13 +47,18 @@ export function ModuleContent({ course, module, userId }: ModuleContentProps) {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [videoStartOffset, setVideoStartOffset] = useState<number | null>(null);
 
-  // KPoint player hook
-  const { seekTo, getCurrentTime, isPlayerReady } = useKPointPlayer({
+  // KPoint player hook with FA trigger integration
+  const { seekTo, getCurrentTime, isPlayerReady, isPlaying } = useKPointPlayer({
     kpointVideoId: selectedLesson?.kpointVideoId,
+    onFATrigger: async (message: string, timestampSeconds: number, pauseVideo?: boolean) => {
+      // Send FA message directly without showing user message in UI, with specific timestamp
+      await sendFAMessage(message, timestampSeconds);
+      // Video is already paused by the hook when pauseVideo is true
+    },
   });
 
   // Chat session hook
-  const { chatMessages, isSending, sendMessage } = useChatSession({
+  const { chatMessages, isSending, sendMessage, sendFAMessage } = useChatSession({
     courseId: course.id,
     conversationId,
     selectedLesson,
