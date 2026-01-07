@@ -17,6 +17,7 @@ interface UseLiveKitProps {
   courseId: string;
   userId?: string;
   videoIds?: string[];
+  serviceDomain?: string;
 }
 
 interface UseLiveKitReturn {
@@ -52,6 +53,7 @@ export function useLiveKit({
   courseId,
   userId = "anonymous",
   videoIds = [],
+  serviceDomain = "bodh.kpoint.com",
 }: UseLiveKitProps): UseLiveKitReturn {
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -97,7 +99,7 @@ export function useLiveKit({
           user_id: userId,
           agent_type: "qna-agent",
           video_ids: videoIds,
-          domain: "bodh.kpoint.com",
+          domain: serviceDomain,
         }),
       });
 

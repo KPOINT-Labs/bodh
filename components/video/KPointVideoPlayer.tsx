@@ -6,12 +6,14 @@ interface KPointVideoPlayerProps {
   kpointVideoId: string;
   className?: string;
   startOffset?: number | null; // Start offset in seconds
+  serviceDomain?: string;
 }
 
 export function KPointVideoPlayer({
   kpointVideoId,
   className = "",
   startOffset,
+  serviceDomain = "bodh.kpoint.com",
 }: KPointVideoPlayerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -50,7 +52,7 @@ export function KPointVideoPlayer({
         ref={containerRef}
         key={kpointVideoId}
         data-init-dynamic-internal=""
-        data-video-host="bodh.kpoint.com"
+        data-video-host={serviceDomain}
         data-kvideo-id={kpointVideoId}
         data-player={kpointVideoId}
         data-video-params={videoParams}
