@@ -29,13 +29,15 @@ export function MessageContent({ content, messageType, onQuestionAnswer, onTimes
   // Check if this is an assessment message with questions
   if (messageType === "fa" && isAssessmentContent(content)) {
     const parsed = parseAssessmentContent(content);
-    
+
     return (
       <div className="space-y-4">
-        {/* Render intro text */}
+        {/* Render intro/feedback text - show the full explanation */}
         {parsed.introText && (
-          <div className="text-sm leading-relaxed">
-            <p>{parseInlineMarkdownWithTimestamps(parsed.introText, onTimestampClick)}</p>
+          <div className="text-sm leading-relaxed text-gray-700">
+            {parsed.introText.split('\n').map((line, idx) => (
+              line.trim() ? <p key={idx} className={idx > 0 ? "mt-2" : ""}>{parseInlineMarkdownWithTimestamps(line, onTimestampClick)}</p> : null
+            ))}
           </div>
         )}
 
@@ -53,12 +55,6 @@ export function MessageContent({ content, messageType, onQuestionAnswer, onTimes
           />
         ))}
 
-        {/* Render other content */}
-        {parsed.otherContent.map((text, index) => (
-          <div key={index} className="text-sm leading-relaxed">
-            <p>{parseInlineMarkdownWithTimestamps(text, onTimestampClick)}</p>
-          </div>
-        ))}
       </div>
     );
   }

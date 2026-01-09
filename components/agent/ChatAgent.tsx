@@ -24,7 +24,7 @@ interface ChatAgentProps {
   userId: string;
   onLessonSelect: (lesson: Lesson) => void;
   onConversationReady?: (conversationId: string) => void;
-  onSendMessage?: (message: string, taskGraphType?: "QnA" | "FA") => void;
+  onSendMessage?: (message: string, taskGraphType?: "QnA" | "FA", isAnswer?: boolean) => void;
   onTimestampClick?: (seconds: number, youtubeVideoId?: string | null) => void;
   chatMessages?: MessageData[];
   isWaitingForResponse?: boolean;
@@ -53,9 +53,9 @@ export function ChatAgent({
   // Handler for assessment question answers
   const handleQuestionAnswer = (questionNumber: number, answer: string) => {
     console.log(`Question ${questionNumber} answered:`, answer);
-    // Send the answer to the FA API without adding to the prompt
+    // Send the answer to the FA API with isAnswer=true (don't add assessment prompt)
     if (onSendMessage) {
-      onSendMessage(answer, "FA");
+      onSendMessage(answer, "FA", true);
     }
   };
 
