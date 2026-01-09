@@ -11,6 +11,9 @@ import {
 } from "@/components/ui/card";
 import { BookOpen, Clock, GraduationCap, ArrowLeft } from "lucide-react";
 
+// Render at request time (database required)
+export const dynamic = "force-dynamic";
+
 export default async function CoursesPage() {
   const courses = await prisma.course.findMany({
     where: {

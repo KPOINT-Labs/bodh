@@ -3,6 +3,9 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { ModuleContent } from "./ModuleContent";
 
+// Render at request time (database required)
+export const dynamic = "force-dynamic";
+
 interface ModulePageProps {
   params: Promise<{ courseId: string; moduleId: string }>;
 }

@@ -10,7 +10,7 @@ import {
 } from "livekit-client";
 
 // Prism API base URL (must use NEXT_PUBLIC_ prefix for client-side access)
-const PRISM_API_URL = process.env.NEXT_PUBLIC_PRISM_API_URL || "https://prism-prod.kpoint.ai";
+const PRISM_API_URL = process.env.NEXT_PUBLIC_PRISM_API_URL ;
 
 interface UseLiveKitProps {
   conversationId: string;

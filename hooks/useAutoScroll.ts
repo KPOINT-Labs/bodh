@@ -7,7 +7,7 @@ interface UseAutoScrollOptions {
 
 interface UseAutoScrollReturn {
   /** Ref to attach to the scroll anchor element */
-  scrollRef: React.RefObject<HTMLDivElement>;
+  scrollRef: React.RefObject<HTMLDivElement | null>;
   /** Function to trigger scroll to bottom */
   scrollToBottom: () => void;
 }

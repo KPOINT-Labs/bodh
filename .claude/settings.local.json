@@ -1,9 +1,9 @@
 {
+  "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "shadcn",
     "livekit-docs",
     "figma",
     "next-devtools"
-  ],
-  "enableAllProjectMcpServers": true
+  ]
 }
