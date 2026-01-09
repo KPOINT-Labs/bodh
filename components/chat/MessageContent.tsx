@@ -6,12 +6,14 @@ import {
   isHorizontalRule,
   hasTimestampLinks,
 } from "@/lib/chat/markdown";
-import { parseAssessmentContent, isAssessmentContent } from "@/lib/chat/assessment";
+import { parseAssessmentContent, isAssessmentContent, detectAnswerFeedback } from "@/lib/chat/assessment";
 import { AssessmentQuestion } from "./AssessmentQuestion";
+import { FeedbackBadge } from "./FeedbackBadge";
 
 interface MessageContentProps {
   content: string;
   messageType?: string;
+  role?: "user" | "assistant" | "system";
   onQuestionAnswer?: (questionNumber: number, answer: string) => void;
   onTimestampClick?: (seconds: number, youtubeVideoId?: string | null) => void;
   isFromHistory?: boolean;
@@ -25,38 +27,70 @@ interface MessageContentProps {
  * - Learning headers ("You'll learn:")
  * - Assessment questions (FA messages)
  */
-export function MessageContent({ content, messageType, onQuestionAnswer, onTimestampClick, isFromHistory = false }: MessageContentProps) {
-  // Check if this is an assessment message with questions
-  if (messageType === "fa" && isAssessmentContent(content)) {
-    const parsed = parseAssessmentContent(content);
+export function MessageContent({ content, messageType, role, onQuestionAnswer, onTimestampClick, isFromHistory = false }: MessageContentProps) {
+  // Check if this is an FA assistant message with feedback (correct/incorrect response)
+  // Only show feedback badge for assistant messages, not user answers
+  if (messageType === "fa" && role === "assistant") {
+    const feedback = detectAnswerFeedback(content);
+    const hasQuestions = isAssessmentContent(content);
 
-    return (
-      <div className="space-y-4">
-        {/* Render intro/feedback text - show the full explanation */}
-        {parsed.introText && (
+    // If it's feedback only (no new questions), show feedback badge with explanation
+    if (feedback.type && !hasQuestions) {
+      return (
+        <div className="space-y-3">
+          {/* Feedback Badge */}
+          <FeedbackBadge type={feedback.type} isFromHistory={isFromHistory} />
+
+          {/* Explanation text */}
           <div className="text-sm leading-relaxed text-gray-700">
-            {parsed.introText.split('\n').map((line, idx) => (
-              line.trim() ? <p key={idx} className={idx > 0 ? "mt-2" : ""}>{parseInlineMarkdownWithTimestamps(line, onTimestampClick)}</p> : null
+            {content.split('\n').map((line, idx) => (
+              line.trim() ? (
+                <p key={idx} className={idx > 0 ? "mt-2" : ""}>
+                  {parseInlineMarkdownWithTimestamps(line, onTimestampClick)}
+                </p>
+              ) : null
             ))}
           </div>
-        )}
+        </div>
+      );
+    }
 
-        {/* Render questions */}
-        {parsed.questions.map((question) => (
-          <AssessmentQuestion
-            key={question.questionNumber}
-            question={question.questionText}
-            options={question.options}
-            questionNumber={question.questionNumber}
-            answerType={question.answerType}
-            placeholder={question.placeholder}
-            onAnswer={(answer) => onQuestionAnswer?.(question.questionNumber, answer)}
-            isFromHistory={isFromHistory}
-          />
-        ))}
+    // If it has questions (with or without feedback)
+    if (hasQuestions) {
+      const parsed = parseAssessmentContent(content);
 
-      </div>
-    );
+      return (
+        <div className="space-y-4">
+          {/* Show feedback badge if this response contains feedback + next question */}
+          {feedback.type && (
+            <FeedbackBadge type={feedback.type} isFromHistory={isFromHistory} />
+          )}
+
+          {/* Render intro/feedback text - show the full explanation */}
+          {parsed.introText && (
+            <div className="text-sm leading-relaxed text-gray-700">
+              {parsed.introText.split('\n').map((line, idx) => (
+                line.trim() ? <p key={idx} className={idx > 0 ? "mt-2" : ""}>{parseInlineMarkdownWithTimestamps(line, onTimestampClick)}</p> : null
+              ))}
+            </div>
+          )}
+
+          {/* Render questions */}
+          {parsed.questions.map((question) => (
+            <AssessmentQuestion
+              key={question.questionNumber}
+              question={question.questionText}
+              options={question.options}
+              questionNumber={question.questionNumber}
+              answerType={question.answerType}
+              placeholder={question.placeholder}
+              onAnswer={(answer) => onQuestionAnswer?.(question.questionNumber, answer)}
+              isFromHistory={isFromHistory}
+            />
+          ))}
+        </div>
+      );
+    }
   }
 
   // Regular message content rendering

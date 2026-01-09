@@ -7,6 +7,9 @@ import { Card } from "@/components/ui/card";
 // Types
 import type { Course, Module, Lesson, MessageData } from "@/types/chat";
 
+// Utils
+import { detectAnswerFeedback } from "@/lib/chat/assessment";
+
 // Hooks
 import { useTypingEffect } from "@/hooks/useTypingEffect";
 import { useAutoScroll } from "@/hooks/useAutoScroll";
@@ -91,9 +94,25 @@ export function ChatAgent({
     }
   }, [latestMessage, isLoading, startTyping]);
 
-  // Auto-scroll when chat messages change
+  // Auto-scroll when chat messages change (with delay for feedback messages)
   useEffect(() => {
     if (chatMessages.length > 0) {
+      const latestMsg = chatMessages[chatMessages.length - 1];
+
+      // Check if the latest message is an FA response with feedback
+      if (latestMsg.messageType === "fa" && latestMsg.role === "assistant") {
+        const feedback = detectAnswerFeedback(latestMsg.content);
+
+        // If it has feedback, delay scroll to let user see the badge first
+        if (feedback.type) {
+          const timer = setTimeout(() => {
+            scrollToBottom();
+          }, 2000); // Match FeedbackBadge duration
+          return () => clearTimeout(timer);
+        }
+      }
+
+      // For non-feedback messages, scroll immediately
       scrollToBottom();
     }
   }, [chatMessages, scrollToBottom]);

@@ -39,6 +39,7 @@ export function ChatMessage({ message, onQuestionAnswer, onTimestampClick, isFro
         <MessageContent
           content={message.content}
           messageType={message.messageType}
+          role={message.role}
           onQuestionAnswer={onQuestionAnswer}
           onTimestampClick={onTimestampClick}
           isFromHistory={isFromHistory}

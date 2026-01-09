@@ -44,8 +44,6 @@ export function AssessmentQuestion({
     }
   }, [submittedAnswer, isFromHistory, answerType]);
 
-  // Disable the question if it's from history
-  const isDisabled = isFromHistory || hasSubmitted || isAnswered;
 
   const handleSubmit = () => {
     if (answerType === 'multiple_choice' && selectedAnswer && options) {
@@ -63,7 +61,7 @@ export function AssessmentQuestion({
   };
 
   const handleOptionSelect = (optionLetter: string) => {
-    if (!isDisabled) {
+    if (!hasSubmitted) {
       setSelectedAnswer(optionLetter);
     }
   };
@@ -80,7 +78,7 @@ export function AssessmentQuestion({
       </p>
 
       {/* Options and Submit Section - Card Style */}
-      {isMultipleChoice && !isDisabled && (
+      {isMultipleChoice && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 space-y-3">
           {/* Options */}
           {options.map((option, index) => {
@@ -93,14 +91,14 @@ export function AssessmentQuestion({
                 key={index}
                 type="button"
                 onClick={() => handleOptionSelect(optionLetter)}
-                disabled={isDisabled}
+                disabled={hasSubmitted || isFromHistory}
                 className={`
                   w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-left transition-all duration-200
                   ${isSelected
                     ? 'bg-blue-50 border-2 border-blue-400'
                     : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
                   }
-                  ${isDisabled ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'}
+                  ${(hasSubmitted || isFromHistory) ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'}
                 `}
               >
                 {/* Radio Circle */}
@@ -128,16 +126,33 @@ export function AssessmentQuestion({
           {/* Submit Button */}
           <Button
             onClick={handleSubmit}
-            disabled={!selectedAnswer}
+            disabled={!selectedAnswer || hasSubmitted || isFromHistory}
             className="w-full bg-gradient-to-r from-blue-500 to-indigo-400 hover:from-blue-600 hover:to-indigo-500 text-white px-6 py-3 rounded-xl text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed shadow-md mt-2 transform transition-all duration-150 hover:scale-[1.02] active:scale-[0.98]"
           >
-            Submit Answer
+            {isFromHistory ? (
+              <span className="flex items-center justify-center gap-2">
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+                Attempted
+              </span>
+            ) : hasSubmitted ? (
+              <span className="flex items-center justify-center gap-2">
+                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                Evaluating...
+              </span>
+            ) : (
+              'Submit Answer'
+            )}
           </Button>
         </div>
       )}
 
       {/* Text Input Section - Card Style */}
-      {isTextInput && !isDisabled && (
+      {isTextInput && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 space-y-3">
           {/* Text Input Field */}
           {answerType === 'long_answer' ? (
@@ -145,8 +160,8 @@ export function AssessmentQuestion({
               value={textAnswer}
               onChange={(e) => setTextAnswer(e.target.value)}
               placeholder={placeholder || "Type your answer here..."}
-              disabled={isDisabled}
-              className="w-full min-h-[100px] px-4 py-3.5 bg-gray-50 border-2 border-transparent rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white resize-none text-sm"
+              disabled={hasSubmitted || isFromHistory}
+              className="w-full min-h-[100px] px-4 py-3.5 bg-gray-50 border-2 border-transparent rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white resize-none text-sm disabled:opacity-75"
               rows={4}
             />
           ) : (
@@ -155,18 +170,35 @@ export function AssessmentQuestion({
               value={textAnswer}
               onChange={(e) => setTextAnswer(e.target.value)}
               placeholder={placeholder || (answerType === 'numerical' ? "Enter a number..." : "Type your answer here...")}
-              disabled={isDisabled}
-              className="w-full px-4 py-3.5 bg-gray-50 border-2 border-transparent rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white text-sm"
+              disabled={hasSubmitted || isFromHistory}
+              className="w-full px-4 py-3.5 bg-gray-50 border-2 border-transparent rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white text-sm disabled:opacity-75"
             />
           )}
 
           {/* Submit Button */}
           <Button
             onClick={handleSubmit}
-            disabled={!textAnswer.trim()}
+            disabled={!textAnswer.trim() || hasSubmitted || isFromHistory}
             className="w-full bg-gradient-to-r from-blue-500 to-indigo-400 hover:from-blue-600 hover:to-indigo-500 text-white px-6 py-3 rounded-xl text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed shadow-md transform transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
           >
-            Submit Answer
+            {isFromHistory ? (
+              <span className="flex items-center justify-center gap-2">
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+                Attempted
+              </span>
+            ) : hasSubmitted ? (
+              <span className="flex items-center justify-center gap-2">
+                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                Evaluating...
+              </span>
+            ) : (
+              'Submit Answer'
+            )}
           </Button>
         </div>
       )}
