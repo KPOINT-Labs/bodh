@@ -97,7 +97,7 @@ export function useLiveKit({
           room_name: roomName,
           participant_name: userId,
           user_id: userId,
-          agent_type: "qna-agent",
+          agent_type: "bodh-agent",
           video_ids: videoIds,
           domain: serviceDomain,
         }),

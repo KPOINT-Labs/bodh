@@ -82,7 +82,7 @@ export function ChatAgent({
 
   // Typing effect hook
   const { displayedText, isTyping, startTyping } = useTypingEffect({
-    speed: 10,
+    speed: 5,
     onScrollNeeded: scrollToBottom,
     scrollInterval: 50,
   });

@@ -17,10 +17,10 @@ export function KPointVideoPlayer({
 }: KPointVideoPlayerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Build video params with optional start offset
+  // Build video params with optional start offset (convert seconds to milliseconds)
   const videoParams = JSON.stringify({
     autoplay: true,
-    ...(startOffset ? { start: startOffset } : {}),
+    ...(startOffset ? { offset: startOffset * 1000 } : {}),
   });
 
   useEffect(() => {
