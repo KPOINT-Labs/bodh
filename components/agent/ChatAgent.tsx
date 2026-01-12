@@ -10,6 +10,43 @@ import type { Course, Module, Lesson, MessageData } from "@/types/chat";
 // Utils
 import { detectAnswerFeedback } from "@/lib/chat/assessment";
 
+/**
+ * Split messages that contain "---" separator into two separate messages
+ * This is used for FA final feedback where we want to show the assessment summary
+ * as a separate assistant message
+ */
+function expandMessagesWithSeparator(messages: MessageData[]): MessageData[] {
+  const expanded: MessageData[] = [];
+
+  for (const msg of messages) {
+    // Only split FA assistant messages with "---" separator
+    if (msg.messageType === "fa" && msg.role === "assistant" && msg.content.includes('\n---')) {
+      const [firstPart, ...restParts] = msg.content.split(/\n---+\n?/);
+      const secondPart = restParts.join('\n').trim();
+
+      // First message: feedback part
+      expanded.push({
+        ...msg,
+        id: `${msg.id}-part1`,
+        content: firstPart.trim(),
+      });
+
+      // Second message: assessment summary (if exists)
+      if (secondPart) {
+        expanded.push({
+          ...msg,
+          id: `${msg.id}-part2`,
+          content: secondPart,
+        });
+      }
+    } else {
+      expanded.push(msg);
+    }
+  }
+
+  return expanded;
+}
+
 // Hooks
 import { useTypingEffect } from "@/hooks/useTypingEffect";
 import { useAutoScroll } from "@/hooks/useAutoScroll";
@@ -151,7 +188,7 @@ export function ChatAgent({
         {/* History Messages */}
         {historyMessages.length > 0 && (
           <div className="space-y-4">
-            {historyMessages.map((msg) => (
+            {expandMessagesWithSeparator(historyMessages).map((msg) => (
               <ChatMessage key={msg.id} message={msg} onQuestionAnswer={handleQuestionAnswer} onTimestampClick={onTimestampClick} isFromHistory={true} />
             ))}
           </div>
@@ -186,7 +223,7 @@ export function ChatAgent({
         {/* Chat Messages (from current session) */}
         {chatMessages.length > 0 && (
           <div className="space-y-4 pt-4 mt-4 border-t border-gray-100">
-            {chatMessages.map((msg) => (
+            {expandMessagesWithSeparator(chatMessages).map((msg) => (
               <ChatMessage key={msg.id} message={msg} onQuestionAnswer={handleQuestionAnswer} onTimestampClick={onTimestampClick} isFromHistory={false} />
             ))}
           </div>
