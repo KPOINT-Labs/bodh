@@ -27,7 +27,7 @@ export function AssessmentSummary({ content, onTimestampClick }: AssessmentSumma
       {/* View feedback button */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="flex items-center gap-2 px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg transition-colors text-sm font-medium"
+        className="flex items-center justify-center w-full px-4 py-2 bg-transparent hover:bg-gray-50 text-blue-600 rounded-lg border border-blue-200 transition-colors text-sm font-medium"
       >
         <ClipboardCheck className="h-4 w-4" />
         {isExpanded ? 'Hide feedback' : 'View feedback'}

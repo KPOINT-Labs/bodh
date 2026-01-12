@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { CheckCircle, XCircle, Sparkles } from "lucide-react";
+import { CheckCircle, XCircle, PartyPopper } from "lucide-react";
 import { fireConfetti } from "@/components/ui/confetti";
 
 interface FeedbackBadgeProps {
@@ -63,10 +63,10 @@ export function FeedbackBadge({ type, message, duration = 2000 }: FeedbackBadgeP
       {type === 'correct' ? (
         <div className={`${baseClasses} bg-gradient-to-r from-emerald-500 to-teal-400`}>
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20">
-            <CheckCircle className="h-6 w-6" />
+            <CheckCircle className="h-6 w-6 animate-spin" style={{ animationDuration: '2s' }} />
           </div>
           <span className="font-bold text-xl">{message || 'Awesome!'}</span>
-          <Sparkles className="h-6 w-6 animate-pulse" />
+          <PartyPopper className="h-6 w-6 animate-pulse" />
         </div>
       ) : (
         <div className={`${baseClasses} bg-gradient-to-r from-red-500 to-rose-400`}>
