@@ -38,8 +38,10 @@ export function MessageContent({ content, messageType, role, onQuestionAnswer, o
     if (feedback.type && !hasQuestions) {
       return (
         <div className="space-y-3">
-          {/* Feedback Badge */}
-          <FeedbackBadge type={feedback.type} isFromHistory={isFromHistory} />
+          {/* Feedback Badge - only show for new messages, not history */}
+          {!isFromHistory && (feedback.type === 'correct' || feedback.type === 'incorrect') && (
+            <FeedbackBadge type={feedback.type} />
+          )}
 
           {/* Explanation text */}
           <div className="text-sm leading-relaxed text-gray-700">
@@ -61,9 +63,9 @@ export function MessageContent({ content, messageType, role, onQuestionAnswer, o
 
       return (
         <div className="space-y-4">
-          {/* Show feedback badge if this response contains feedback + next question */}
-          {feedback.type && (
-            <FeedbackBadge type={feedback.type} isFromHistory={isFromHistory} />
+          {/* Show feedback badge if this response contains feedback + next question - only for new messages */}
+          {!isFromHistory && (feedback.type === 'correct' || feedback.type === 'incorrect') && (
+            <FeedbackBadge type={feedback.type} />
           )}
 
           {/* Render intro/feedback text - show the full explanation */}
