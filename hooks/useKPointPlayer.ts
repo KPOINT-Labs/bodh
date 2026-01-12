@@ -262,9 +262,9 @@ export function useKPointPlayer({ kpointVideoId, onBookmarksReady, onPlayerReady
   const getCurrentTime = useCallback((): number => {
     if (playerRef.current) {
       try {
-        const currentTime = playerRef.current.getCurrentTime();
-        if (typeof currentTime === "number" && !isNaN(currentTime)) {
-          return Math.floor(currentTime);
+        const currentTimeMs = playerRef.current.getCurrentTime();
+        if (typeof currentTimeMs === "number" && !isNaN(currentTimeMs)) {
+          return Math.floor(currentTimeMs / 1000); // Convert milliseconds to seconds
         }
       } catch (error) {
         console.warn("Failed to get current time from KPoint player:", error);

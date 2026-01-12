@@ -6,18 +6,20 @@ import { CheckCircle, XCircle, Sparkles } from "lucide-react";
 import { fireConfetti } from "@/components/ui/confetti";
 
 interface FeedbackBadgeProps {
-  type: 'correct' | 'incorrect' ;
+  type: 'correct' | 'incorrect';
   message?: string;
   duration?: number; // Duration in ms before auto-hide (default: 2000)
-  isFromHistory?: boolean; // Don't fire confetti for historical messages
 }
 
 /**
  * Displays a floating feedback toast in the center of the screen
  * Auto-dismisses after a few seconds with fade-out animation
  * Fires confetti for correct answers
+ *
+ * NOTE: This component should only be rendered for NEW messages, not history.
+ * The parent component is responsible for not rendering this for historical messages.
  */
-export function FeedbackBadge({ type, message, duration = 2000, isFromHistory = false }: FeedbackBadgeProps) {
+export function FeedbackBadge({ type, message, duration = 2000 }: FeedbackBadgeProps) {
   const [isVisible, setIsVisible] = useState(true);
   const [isFading, setIsFading] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -27,13 +29,12 @@ export function FeedbackBadge({ type, message, duration = 2000, isFromHistory = 
     setMounted(true);
   }, []);
 
-  // Fire confetti for correct answers (only for new messages, not history)
+  // Fire confetti for correct answers
   useEffect(() => {
-    if (type === 'correct' && !isFromHistory) {
+    if (type === 'correct') {
       fireConfetti();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [type]);
 
   // Handle fade-out and hide timers
   useEffect(() => {

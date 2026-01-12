@@ -36,21 +36,34 @@ export function MessageContent({ content, messageType, role, onQuestionAnswer, o
 
     // If it's feedback only (no new questions), show feedback badge with explanation
     if (feedback.type && !hasQuestions) {
+      const lines = content.split('\n').filter(line => line.trim());
+      const feedbackLine = lines[0] || '';
+      const restLines = lines.slice(1);
+
       return (
         <div className="space-y-3">
-          {/* Feedback Badge */}
-          <FeedbackBadge type={feedback.type} isFromHistory={isFromHistory} />
+          {/* Feedback Badge - only show for new messages, not history */}
+          {!isFromHistory && (feedback.type === 'correct' || feedback.type === 'incorrect') && (
+            <FeedbackBadge type={feedback.type} />
+          )}
 
-          {/* Explanation text */}
-          <div className="text-sm leading-relaxed text-gray-700">
-            {content.split('\n').map((line, idx) => (
-              line.trim() ? (
+          {/* Feedback line in bold/colored */}
+          {feedbackLine && (
+            <p className={`text-sm font-bold ${feedback.type === 'correct' ? 'text-emerald-600' : 'text-red-600'}`}>
+              {parseInlineMarkdownWithTimestamps(feedbackLine, onTimestampClick)}
+            </p>
+          )}
+
+          {/* Rest of explanation in normal text */}
+          {restLines.length > 0 && (
+            <div className="text-sm leading-relaxed text-gray-700">
+              {restLines.map((line, idx) => (
                 <p key={idx} className={idx > 0 ? "mt-2" : ""}>
                   {parseInlineMarkdownWithTimestamps(line, onTimestampClick)}
                 </p>
-              ) : null
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       );
     }
@@ -59,21 +72,41 @@ export function MessageContent({ content, messageType, role, onQuestionAnswer, o
     if (hasQuestions) {
       const parsed = parseAssessmentContent(content);
 
+      // Extract feedback line from original content (first non-empty line)
+      const contentLines = content.split('\n').filter(line => line.trim());
+      const feedbackLine = feedback.type ? contentLines[0] : null;
+
       return (
         <div className="space-y-4">
-          {/* Show feedback badge if this response contains feedback + next question */}
-          {feedback.type && (
-            <FeedbackBadge type={feedback.type} isFromHistory={isFromHistory} />
+          {/* Show feedback badge if this response contains feedback + next question - only for new messages */}
+          {!isFromHistory && (feedback.type === 'correct' || feedback.type === 'incorrect') && (
+            <FeedbackBadge type={feedback.type} />
           )}
 
-          {/* Render intro/feedback text - show the full explanation */}
-          {parsed.introText && (
-            <div className="text-sm leading-relaxed text-gray-700">
-              {parsed.introText.split('\n').map((line, idx) => (
-                line.trim() ? <p key={idx} className={idx > 0 ? "mt-2" : ""}>{parseInlineMarkdownWithTimestamps(line, onTimestampClick)}</p> : null
-              ))}
-            </div>
+          {/* Show feedback line in bold/colored */}
+          {feedbackLine && (
+            <p className={`text-sm font-bold ${feedback.type === 'correct' ? 'text-emerald-600' : 'text-red-600'}`}>
+              {parseInlineMarkdownWithTimestamps(feedbackLine, onTimestampClick)}
+            </p>
           )}
+
+          {/* Render intro/feedback text - exclude the feedback line we already showed */}
+          {parsed.introText && (() => {
+            // Remove the feedback line from intro text if it's there
+            let displayIntro = parsed.introText;
+            if (feedbackLine) {
+              // The intro text might start with the feedback line (stripped of markdown)
+              const strippedFeedback = feedbackLine.replace(/\*\*/g, '').trim();
+              if (displayIntro.startsWith(strippedFeedback)) {
+                displayIntro = displayIntro.slice(strippedFeedback.length).trim();
+              }
+            }
+            return displayIntro ? (
+              <div className="text-sm leading-relaxed text-gray-700">
+                {parseInlineMarkdownWithTimestamps(displayIntro, onTimestampClick)}
+              </div>
+            ) : null;
+          })()}
 
           {/* Render questions */}
           {parsed.questions.map((question) => (
