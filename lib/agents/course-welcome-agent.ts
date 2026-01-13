@@ -45,7 +45,7 @@ export function createCourseWelcomeAgent(context: CourseContext): Agent {
 
   return new Agent({
     name: "course_welcome_agent",
-    model: "gemini-2.0-flash",
+    model: "gemini-2.5-flash",
     description: "Agent for generating personalized course welcome messages and summaries.",
     instruction: systemPrompt,
   });
@@ -62,7 +62,7 @@ export function createReturningStudentAgent(context: CourseContext & {
 
   return new Agent({
     name: "returning_student_agent",
-    model: "gemini-2.0-flash",
+    model: "gemini-2.5-flash",
     description: "Agent for welcoming returning students and helping them continue their journey.",
     instruction: systemPrompt,
   });
