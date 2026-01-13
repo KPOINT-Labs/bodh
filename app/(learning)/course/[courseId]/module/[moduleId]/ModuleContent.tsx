@@ -132,6 +132,7 @@ export function ModuleContent({ course, module, userId }: ModuleContentProps) {
         onTimestampClick={handleTimestampClick}
         chatMessages={chatMessages}
         isWaitingForResponse={isSending}
+        isVideoPlaying={isPlaying}
       />
 
       {/* Module Lessons Overview */}

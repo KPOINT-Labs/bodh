@@ -10,6 +10,8 @@ export {
   createReturningStudentAgent,
   generateCourseSummary,
   generateWelcomeBackMessage,
+  streamCourseSummary,
+  streamWelcomeBackMessage,
 } from "./course-welcome-agent";
 
 export type { CourseContext } from "./prompts";

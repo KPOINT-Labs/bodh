@@ -34,6 +34,27 @@ class Agent {
     const response = result.response;
     return response.text();
   }
+
+  /**
+   * Generate content with streaming - yields text chunks as they arrive
+   */
+  async *generateStream(userPrompt?: string): AsyncGenerator<string, void, unknown> {
+    const model = this.genAI.getGenerativeModel({
+      model: this.config.model,
+      systemInstruction: this.config.instruction,
+    });
+
+    const prompt = userPrompt || "Generate the response based on your instructions.";
+
+    const result = await model.generateContentStream(prompt);
+
+    for await (const chunk of result.stream) {
+      const text = chunk.text();
+      if (text) {
+        yield text;
+      }
+    }
+  }
 }
 
 /**
@@ -98,4 +119,23 @@ export async function generateWelcomeBackMessage(context: CourseContext & {
     console.error("Error generating welcome back message:", error);
     return `Welcome back! Ready to continue your journey with ${context.courseTitle}?`;
   }
+}
+
+/**
+ * Stream a course welcome summary - yields text chunks as they arrive
+ */
+export async function* streamCourseSummary(context: CourseContext): AsyncGenerator<string, void, unknown> {
+  const agent = createCourseWelcomeAgent(context);
+  yield* agent.generateStream();
+}
+
+/**
+ * Stream a welcome back message - yields text chunks as they arrive
+ */
+export async function* streamWelcomeBackMessage(context: CourseContext & {
+  lastLesson?: string;
+  progress?: number;
+}): AsyncGenerator<string, void, unknown> {
+  const agent = createReturningStudentAgent(context);
+  yield* agent.generateStream();
 }

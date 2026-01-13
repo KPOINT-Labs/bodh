@@ -48,7 +48,6 @@ function expandMessagesWithSeparator(messages: MessageData[]): MessageData[] {
 }
 
 // Hooks
-import { useTypingEffect } from "@/hooks/useTypingEffect";
 import { useAutoScroll } from "@/hooks/useAutoScroll";
 import { useChatInitialization } from "@/hooks/useChatInitialization";
 
@@ -68,6 +67,7 @@ interface ChatAgentProps {
   onTimestampClick?: (seconds: number, youtubeVideoId?: string | null) => void;
   chatMessages?: MessageData[];
   isWaitingForResponse?: boolean;
+  isVideoPlaying?: boolean;
 }
 
 /**
@@ -89,6 +89,7 @@ export function ChatAgent({
   onSendMessage,
   chatMessages = [],
   isWaitingForResponse = false,
+  isVideoPlaying = false,
 }: ChatAgentProps) {
   // Handler for assessment question answers
   const handleQuestionAnswer = (questionNumber: number, answer: string) => {
@@ -107,8 +108,8 @@ export function ChatAgent({
   // Auto-scroll hook
   const { scrollRef, scrollToBottom } = useAutoScroll();
 
-  // Chat initialization hook
-  const { historyMessages, latestMessage, isLoading, isReturningUser } =
+  // Chat initialization hook (with streaming support)
+  const { historyMessages, latestMessage, isLoading, isStreaming, isReturningUser } =
     useChatInitialization({
       course,
       module,
@@ -117,19 +118,12 @@ export function ChatAgent({
       onConversationReady,
     });
 
-  // Typing effect hook
-  const { displayedText, isTyping, startTyping } = useTypingEffect({
-    speed: 5,
-    onScrollNeeded: scrollToBottom,
-    scrollInterval: 50,
-  });
-
-  // Start typing when latest message is ready
+  // Auto-scroll during streaming
   useEffect(() => {
-    if (latestMessage && !isLoading) {
-      startTyping(latestMessage);
+    if (isStreaming && latestMessage) {
+      scrollToBottom();
     }
-  }, [latestMessage, isLoading, startTyping]);
+  }, [isStreaming, latestMessage, scrollToBottom]);
 
   // Auto-scroll when chat messages change (with delay for feedback messages)
   useEffect(() => {
@@ -194,15 +188,15 @@ export function ChatAgent({
           </div>
         )}
 
-        {/* Current/Latest Message with typing effect */}
+        {/* Current/Latest Message with streaming text */}
         <div className="flex items-start gap-3">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-500">
             <Sparkles className="h-4 w-4 text-white" />
           </div>
           <div className="bg-gray-50 rounded-2xl rounded-tl-sm px-4 py-3 max-w-[85%]">
             <div className="text-sm leading-relaxed text-gray-800">
-              <MessageContent content={displayedText} onTimestampClick={onTimestampClick} />
-              {isTyping && (
+              <MessageContent content={latestMessage} onTimestampClick={onTimestampClick} />
+              {isStreaming && (
                 <span className="inline-block w-2 h-4 bg-blue-500 animate-pulse ml-0.5" />
               )}
             </div>
@@ -210,11 +204,12 @@ export function ChatAgent({
         </div>
 
         {/* Action Buttons */}
-        {!isTyping && firstLesson && (
+        {!isStreaming && firstLesson && (
           <ActionButtons
             firstLesson={firstLesson}
             module={module}
             isReturningUser={isReturningUser}
+            isVideoPlaying={isVideoPlaying}
             onStartLesson={handleStartLesson}
             onContinueLearning={handleContinueFromLastLesson}
           />
@@ -233,7 +228,7 @@ export function ChatAgent({
         {isWaitingForResponse && <TypingIndicator />}
 
         {/* No lessons message */}
-        {!isTyping && !firstLesson && (
+        {!isStreaming && !firstLesson && (
           <p className="text-sm text-gray-500 ml-11">
             No lessons available in this module yet. Please check back later.
           </p>
