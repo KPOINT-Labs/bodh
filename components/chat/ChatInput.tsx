@@ -1,9 +1,27 @@
 "use client";
 
 import { useRef, useState, useEffect } from "react";
-import { Loader2, Send, Mic, MicOff, X } from "lucide-react";
+import { Loader2, Send, Mic, MicOff } from "lucide-react";
 import { toast } from "sonner";
 import { useLiveKit } from "@/hooks/useLiveKit";
+
+// LiveKit state type for when passed from parent
+interface LiveKitState {
+  isConnected: boolean;
+  isConnecting: boolean;
+  isMuted: boolean;
+  isSpeaking: boolean;
+  audioLevel: number;
+  error: string | null;
+  agentTranscript: string;
+  transcriptSegments: { id: string; text: string; participantIdentity: string; isAgent: boolean; isFinal: boolean; timestamp: number }[];
+  isAgentSpeaking: boolean;
+  isAudioBlocked: boolean;
+  connect: () => Promise<void>;
+  disconnect: () => Promise<void>;
+  toggleMute: () => Promise<void>;
+  startAudio: () => Promise<void>;
+}
 
 interface ChatInputProps {
   placeholder?: string;
@@ -14,6 +32,8 @@ interface ChatInputProps {
   courseId?: string;
   userId?: string;
   videoIds?: string[];
+  /** Optional: LiveKit state passed from parent (for shared session) */
+  liveKitState?: LiveKitState;
 }
 
 export function ChatInput({
@@ -25,32 +45,41 @@ export function ChatInput({
   courseId,
   userId,
   videoIds,
+  liveKitState,
 }: ChatInputProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [inputValue, setInputValue] = useState("");
 
-  // LiveKit voice hook - connects to Prism backend
-  const { isConnected, isConnecting, isMuted, audioLevel, error: voiceError, connect, disconnect, toggleMute } = useLiveKit({
-    conversationId: conversationId || "",
-    courseId: courseId || "",
-    userId: userId,
-    videoIds: videoIds,
+  // LiveKit voice hook - only used if no state passed from parent
+  // When liveKitState is provided, we skip creating our own hook to avoid interference
+  const ownLiveKit = useLiveKit({
+    conversationId: liveKitState ? "" : (conversationId || ""),
+    courseId: liveKitState ? "" : (courseId || ""),
+    userId: liveKitState ? undefined : userId,
+    videoIds: liveKitState ? undefined : videoIds,
+    autoConnect: false, // Never auto-connect from ChatInput
   });
 
-  // Log voice errors when they occur
+  // Use parent's LiveKit state if provided, otherwise use own hook
+  const { isConnected, isConnecting, isMuted, audioLevel, error: voiceError, toggleMute } =
+    liveKitState || ownLiveKit;
+
+  // Log voice errors when they occur (only for own hook, parent handles its own)
   useEffect(() => {
-    if (voiceError) {
+    if (!liveKitState && voiceError) {
       console.error("[Voice] Error:", voiceError);
       toast.error("Voice connection failed", {
         description: voiceError,
         duration: 2000
       });
     }
-  }, [voiceError]);
+  }, [voiceError, liveKitState]);
 
-  // Track previous connection state to detect changes
+  // Track previous connection state to detect changes (only for own hook)
   const prevConnectedRef = useRef(false);
   useEffect(() => {
+    if (liveKitState) return; // Parent handles its own toast notifications
+
     if (isConnected && !prevConnectedRef.current) {
       // Just connected
       toast.success("Voice session started", {
@@ -62,7 +91,7 @@ export function ChatInput({
       toast.info("Voice session ended", { duration: 2000 });
     }
     prevConnectedRef.current = isConnected;
-  }, [isConnected]);
+  }, [isConnected, liveKitState]);
 
   // Handle text message submit
   const handleSubmit = async () => {
@@ -73,30 +102,17 @@ export function ChatInput({
     }
   };
 
-  // Handle voice button click - connects or toggles mute
+  // Handle voice button click - toggle mute only (session is already connected from parent)
   const handleVoiceClick = async () => {
-    console.log("[Voice] Button clicked", { conversationId, courseId, isConnected, isMuted });
-
-    if (!conversationId || !courseId) {
-      console.warn("[Voice] Missing required props:", { conversationId, courseId });
-      return;
-    }
+    console.log("[Voice] Button clicked", { isConnected, isMuted });
 
     if (isConnected) {
       // Toggle mute when connected
       console.log("[Voice] Toggling mute...");
       await toggleMute();
     } else {
-      // Start voice session
-      console.log("[Voice] Starting session...");
-      await connect();
+      console.log("[Voice] Session not connected yet, waiting...");
     }
-  };
-
-  // Handle end session button click
-  const handleEndSession = async () => {
-    console.log("[Voice] Ending session...");
-    await disconnect();
   };
 
   // Handle Enter key
@@ -112,7 +128,7 @@ export function ChatInput({
   // Determine placeholder text
   const getPlaceholder = () => {
     if (isLoading) return "Thinking...";
-    if (isConnected) return isMuted ? "Mic muted" : "Listening...";
+    if (isConnected) return isMuted ? "Type your question here" : "Listening...";
     return placeholder;
   };
 
@@ -152,23 +168,13 @@ export function ChatInput({
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             placeholder={getPlaceholder()}
-            disabled={isDisabled || isConnected}
+            disabled={isDisabled || (isConnected && !isMuted)}
             onKeyDown={handleKeyDown}
             className="flex-1 bg-transparent border-none outline-none font-normal text-[16px] text-gray-900 placeholder-[#99a1af] tracking-[-0.3125px] leading-[24px] disabled:opacity-50"
           />
         )}
         <div className="flex items-center gap-2">
-          {/* End session button - only shown when connected */}
-          {isConnected && (
-            <button
-              onClick={handleEndSession}
-              className="flex items-center justify-center w-[36px] h-[36px] rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
-              title="End voice session"
-            >
-              <X className="h-4 w-4 text-gray-600" />
-            </button>
-          )}
-          {/* Main action button */}
+          {/* Main action button - toggles mute/unmute */}
           <button
             onClick={inputValue.trim() ? handleSubmit : handleVoiceClick}
             disabled={isDisabled || isConnecting}

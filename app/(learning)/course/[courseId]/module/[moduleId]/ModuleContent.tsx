@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import Script from "next/script";
 import { Card } from "@/components/ui/card";
 import { ResizableContent } from "@/components/layout/resizable-content";
@@ -9,10 +9,12 @@ import { ChatAgent } from "@/components/agent/ChatAgent";
 import { ChatInput } from "@/components/chat/ChatInput";
 import { KPointVideoPlayer } from "@/components/video/KPointVideoPlayer";
 import { BookOpen } from "lucide-react";
+import { toast } from "sonner";
 
 // Hooks
 import { useKPointPlayer } from "@/hooks/useKPointPlayer";
 import { useChatSession } from "@/hooks/useChatSession";
+import { useLiveKit } from "@/hooks/useLiveKit";
 
 interface Lesson {
   id: string;
@@ -46,6 +48,66 @@ export function ModuleContent({ course, module, userId }: ModuleContentProps) {
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [videoStartOffset, setVideoStartOffset] = useState<number | null>(null);
+
+  // Get active lesson (selected or first)
+  const activeLesson = selectedLesson || module.lessons.sort((a, b) => a.orderIndex - b.orderIndex)[0];
+  const videoIds = activeLesson?.kpointVideoId ? [activeLesson.kpointVideoId] : [];
+
+  // LiveKit voice session - auto-connect in listen-only mode (text-to-speech)
+  const liveKit = useLiveKit({
+    conversationId: conversationId || `temp-${course.id}-${module.id}`,
+    courseId: course.id,
+    userId: userId,
+    videoIds: videoIds,
+    autoConnect: true,
+    listenOnly: true, // Text-to-speech mode - agent speaks, user listens
+    metadata: {
+      courseId: course.id,
+      courseTitle: course.title,
+      courseDescription: course.description,
+      learningObjectives: course.learningObjectives?.join(", "), // Pass as comma-separated string
+      moduleId: module.id,
+      moduleTitle: module.title,
+      lessonId: activeLesson?.id,
+      lessonTitle: activeLesson?.title,
+      sessionType: "welcome",
+    },
+  });
+
+  // Show toast notifications for LiveKit connection status
+  useEffect(() => {
+    if (liveKit.isConnected) {
+      toast.success("Voice session started", {
+        description: "AI assistant is ready to speak",
+        duration: 2000,
+      });
+    }
+  }, [liveKit.isConnected]);
+
+  useEffect(() => {
+    if (liveKit.error) {
+      toast.error("Voice connection failed", {
+        description: liveKit.error,
+        duration: 3000,
+      });
+    }
+  }, [liveKit.error]);
+
+  // Show toast when audio is blocked (needs user interaction)
+  useEffect(() => {
+    if (liveKit.isAudioBlocked) {
+      toast.info("Click to enable audio", {
+        description: "Browser blocked audio playback",
+        duration: 10000,
+        action: {
+          label: "Enable Audio",
+          onClick: () => {
+            liveKit.startAudio();
+          },
+        },
+      });
+    }
+  }, [liveKit.isAudioBlocked, liveKit.startAudio]);
 
   // KPoint player hook with FA trigger integration
   const { seekTo, getCurrentTime, isPlayerReady, isPlaying } = useKPointPlayer({
@@ -110,10 +172,6 @@ export function ModuleContent({ course, module, userId }: ModuleContentProps) {
     [module.lessons, selectedLesson?.id, isPlayerReady, seekTo]
   );
 
-  // Build active lesson (selected or first)
-  const activeLesson = selectedLesson || module.lessons.sort((a, b) => a.orderIndex - b.orderIndex)[0];
-  const videoIds = activeLesson?.kpointVideoId ? [activeLesson.kpointVideoId] : [];
-
   // Layout sections
   const header = (
     <LessonHeader courseTitle={course.title} moduleTitle={module.title} />
@@ -133,6 +191,10 @@ export function ModuleContent({ course, module, userId }: ModuleContentProps) {
         chatMessages={chatMessages}
         isWaitingForResponse={isSending}
         isVideoPlaying={isPlaying}
+        // LiveKit agent transcript
+        agentTranscript={liveKit.agentTranscript}
+        isAgentSpeaking={liveKit.isAgentSpeaking}
+        isLiveKitConnected={liveKit.isConnected}
       />
 
       {/* Module Lessons Overview */}
@@ -155,6 +217,8 @@ export function ModuleContent({ course, module, userId }: ModuleContentProps) {
       courseId={course.id}
       userId={userId}
       videoIds={videoIds}
+      // Pass LiveKit state from parent (auto-connected session)
+      liveKitState={liveKit}
     />
   );
 

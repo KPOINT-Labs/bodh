@@ -68,6 +68,12 @@ interface ChatAgentProps {
   chatMessages?: MessageData[];
   isWaitingForResponse?: boolean;
   isVideoPlaying?: boolean;
+  /** Agent transcript from LiveKit (spoken text) */
+  agentTranscript?: string;
+  /** Whether agent is currently speaking */
+  isAgentSpeaking?: boolean;
+  /** Whether LiveKit is connected */
+  isLiveKitConnected?: boolean;
 }
 
 /**
@@ -90,6 +96,9 @@ export function ChatAgent({
   chatMessages = [],
   isWaitingForResponse = false,
   isVideoPlaying = false,
+  agentTranscript = "",
+  isAgentSpeaking = false,
+  isLiveKitConnected = false,
 }: ChatAgentProps) {
   // Handler for assessment question answers
   const handleQuestionAnswer = (questionNumber: number, answer: string) => {
@@ -118,12 +127,12 @@ export function ChatAgent({
       onConversationReady,
     });
 
-  // Auto-scroll during streaming
+  // Auto-scroll during streaming (local or agent transcript)
   useEffect(() => {
-    if (isStreaming && latestMessage) {
+    if ((isStreaming && latestMessage) || (isAgentSpeaking && agentTranscript)) {
       scrollToBottom();
     }
-  }, [isStreaming, latestMessage, scrollToBottom]);
+  }, [isStreaming, latestMessage, isAgentSpeaking, agentTranscript, scrollToBottom]);
 
   // Auto-scroll when chat messages change (with delay for feedback messages)
   useEffect(() => {
@@ -189,22 +198,42 @@ export function ChatAgent({
         )}
 
         {/* Current/Latest Message with streaming text */}
-        <div className="flex items-start gap-3">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-500">
-            <Sparkles className="h-4 w-4 text-white" />
-          </div>
-          <div className="bg-gray-50 rounded-2xl rounded-tl-sm px-4 py-3 max-w-[85%]">
-            <div className="text-sm leading-relaxed text-gray-800">
-              <MessageContent content={latestMessage} onTimestampClick={onTimestampClick} />
-              {isStreaming && (
-                <span className="inline-block w-2 h-4 bg-blue-500 animate-pulse ml-0.5" />
-              )}
+        {/* When LiveKit is connected, prefer agent transcript over local generation */}
+        {(isLiveKitConnected && agentTranscript) || (!isLiveKitConnected && latestMessage) ? (
+          <div className="flex items-start gap-3">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-500">
+              <Sparkles className="h-4 w-4 text-white" />
+            </div>
+            <div className="bg-gray-50 rounded-2xl rounded-tl-sm px-4 py-3 max-w-[85%]">
+              <div className="text-sm leading-relaxed text-gray-800">
+                <MessageContent
+                  content={isLiveKitConnected && agentTranscript ? agentTranscript : latestMessage}
+                  onTimestampClick={onTimestampClick}
+                />
+                {/* Show cursor when streaming locally or agent is speaking */}
+                {(isStreaming || isAgentSpeaking) && (
+                  <span className="inline-block w-2 h-4 bg-blue-500 animate-pulse ml-0.5" />
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        ) : isLiveKitConnected ? (
+          /* Waiting for agent to speak when LiveKit is connected but no transcript yet */
+          <div className="flex items-start gap-3">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-500">
+              <Sparkles className="h-4 w-4 text-white" />
+            </div>
+            <div className="bg-gray-50 rounded-2xl rounded-tl-sm px-4 py-3 max-w-[85%]">
+              <div className="text-sm leading-relaxed text-gray-500 italic flex items-center gap-2">
+                <span className="inline-block w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+                Connecting to your AI assistant...
+              </div>
+            </div>
+          </div>
+        ) : null}
 
-        {/* Action Buttons */}
-        {!isStreaming && firstLesson && (
+        {/* Action Buttons - show after message is complete */}
+        {!isStreaming && !isAgentSpeaking && firstLesson && (
           <ActionButtons
             firstLesson={firstLesson}
             module={module}
