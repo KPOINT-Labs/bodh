@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import type { PeerLearningPanelProps, Lesson } from "@/types/learning";
 import { usePeerLearning } from "@/hooks/usePeerLearning";
 
@@ -31,6 +32,7 @@ export function PeerLearningPanel({
   const router = useRouter();
 
   const {
+    userId,
     courses,
     selectedCourse,
     expandedModules,
@@ -48,6 +50,32 @@ export function PeerLearningPanel({
     const course = courses.find((c) => c.id === courseId);
     const courseSlug = course?.slug || courseId;
     router.push(`/course/${courseSlug}/module/${moduleId}`);
+  };
+
+  const handleDeleteThread = async (moduleId: string) => {
+    if (!userId) {
+      toast.error("User not found");
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/thread?userId=${userId}&moduleId=${moduleId}`, {
+        method: "DELETE",
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        toast.success("Thread history deleted successfully");
+        // Refresh the page to reset the chat state
+        router.refresh();
+      } else {
+        toast.error(data.error || "Failed to delete thread");
+      }
+    } catch (err) {
+      console.error("Failed to delete thread:", err);
+      toast.error("Failed to delete thread");
+    }
   };
 
   // Collapsed view
@@ -81,6 +109,7 @@ export function PeerLearningPanel({
       onToggleModule={toggleModule}
       onLessonClick={handleLessonClick}
       onToggleCollapse={onToggleCollapse}
+      onDeleteThread={handleDeleteThread}
     />
   );
 }

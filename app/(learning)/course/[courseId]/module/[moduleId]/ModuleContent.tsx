@@ -64,7 +64,7 @@ export function ModuleContent({ course, module, userId }: ModuleContentProps) {
     metadata: {
       courseId: course.id,
       courseTitle: course.title,
-      courseDescription: course.description,
+      courseDescription: course.description ?? undefined,
       learningObjectives: course.learningObjectives?.join(", "), // Pass as comma-separated string
       moduleId: module.id,
       moduleTitle: module.title,
@@ -79,7 +79,7 @@ export function ModuleContent({ course, module, userId }: ModuleContentProps) {
     if (liveKit.isConnected) {
       toast.success("Voice session started", {
         description: "AI assistant is ready to speak",
-        duration: 2000,
+        duration: 1000,
       });
     }
   }, [liveKit.isConnected]);
@@ -88,7 +88,7 @@ export function ModuleContent({ course, module, userId }: ModuleContentProps) {
     if (liveKit.error) {
       toast.error("Voice connection failed", {
         description: liveKit.error,
-        duration: 3000,
+        duration: 1000,
       });
     }
   }, [liveKit.error]);
@@ -98,7 +98,7 @@ export function ModuleContent({ course, module, userId }: ModuleContentProps) {
     if (liveKit.isAudioBlocked) {
       toast.info("Click to enable audio", {
         description: "Browser blocked audio playback",
-        duration: 10000,
+        duration: 1000,
         action: {
           label: "Enable Audio",
           onClick: () => {

@@ -91,6 +91,63 @@ export async function GET(request: NextRequest) {
 }
 
 /**
+ * DELETE /api/thread?userId=xxx&moduleId=xxx
+ * Delete a thread and all its conversations and messages for a user in a module
+ */
+export async function DELETE(request: NextRequest) {
+  try {
+    const searchParams = request.nextUrl.searchParams;
+    const userId = searchParams.get("userId");
+    const moduleId = searchParams.get("moduleId");
+
+    if (!userId || !moduleId) {
+      return NextResponse.json(
+        { error: "userId and moduleId are required" },
+        { status: 400 }
+      );
+    }
+
+    // Find the thread first
+    const thread = await prisma.thread.findUnique({
+      where: {
+        userId_moduleId: {
+          userId,
+          moduleId,
+        },
+      },
+    });
+
+    if (!thread) {
+      return NextResponse.json(
+        { error: "Thread not found" },
+        { status: 404 }
+      );
+    }
+
+    // Delete the thread - cascade will handle conversations and messages
+    await prisma.thread.delete({
+      where: {
+        id: thread.id,
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: "Thread and all related data deleted successfully",
+    });
+  } catch (error) {
+    console.error("Thread DELETE API error:", error);
+    return NextResponse.json(
+      {
+        error: "Failed to delete thread",
+        details: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 }
+    );
+  }
+}
+
+/**
  * POST /api/thread
  * Create a new thread for a user in a module
  */
