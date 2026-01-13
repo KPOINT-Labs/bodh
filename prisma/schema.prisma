@@ -111,6 +111,7 @@ model Lesson {
   youtubeVideoId    String?
   serviceDomain     String             @default("bodh.kpoint.com")
   duration          Int                @default(0)
+  quiz              Json?              // Quiz configuration/data for this lesson
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
   slug              String?
