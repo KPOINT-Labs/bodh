@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 
 export interface MessageRequest {
   conversationId: string;
@@ -136,8 +137,8 @@ export async function POST(request: NextRequest) {
         audioUrl,
         audioDuration,
         videoTimestamp,
-        emotions: emotions || undefined,
-        references: references || undefined,
+        emotions: emotions as Prisma.InputJsonValue | undefined,
+        references: references as Prisma.InputJsonValue | undefined,
       },
     });
 

@@ -51,31 +51,27 @@ export function useChatSession({
   });
 
   // Stable sendMessage - never recreated
+  // isAnswer: true when user is answering an FA question (not starting a new assessment)
   const sendMessage = useCallback(
-    async (message: string, taskGraphType?: "QnA" | "FA") => {
+    async (message: string, taskGraphType?: "QnA" | "FA", isAnswer?: boolean) => {
       const convId = conversationIdRef.current;
       if (!convId) {
         console.error("Conversation not ready");
         return;
       }
 
-      // For FA answers (just the letter), don't show as user message in chat
-      const isQuizAnswer = taskGraphType === "FA" && message.length <= 2;
+      // Always show user message with a temporary ID
+      const tempUserMessage: MessageData = {
+        id: `temp-${Date.now()}`,
+        conversationId: convId,
+        role: "user",
+        content: message,
+        inputType: "text",
+        messageType: taskGraphType?.toLowerCase() || "general",
+        createdAt: new Date().toISOString(),
+      };
 
-      // Immediately show user message with a temporary ID (unless it's a quiz answer)
-      if (!isQuizAnswer) {
-        const tempUserMessage: MessageData = {
-          id: `temp-${Date.now()}`,
-          conversationId: convId,
-          role: "user",
-          content: message,
-          inputType: "text",
-          messageType: taskGraphType?.toLowerCase() || "general",
-          createdAt: new Date().toISOString(),
-        };
-
-        setChatMessages((prev) => [...prev, tempUserMessage]);
-      }
+      setChatMessages((prev) => [...prev, tempUserMessage]);
 
       setIsSending(true);
 
@@ -101,7 +97,9 @@ export function useChatSession({
           "startTimestamp:",
           startTimestamp,
           "taskGraphType:",
-          taskGraphType
+          taskGraphType,
+          "isAnswer:",
+          isAnswer
         );
 
         const response = await fetch("/api/chat", {
@@ -114,6 +112,7 @@ export function useChatSession({
             taskGraphType,
             videoIds,
             startTimestamp,
+            isAnswer: isAnswer || false,
           }),
         });
 

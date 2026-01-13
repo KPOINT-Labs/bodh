@@ -11,6 +11,9 @@ import { CourseIdForm } from "./_components/course-id-form";
 import { CourseSlugForm } from "./_components/course-slug-form";
 import { CourseActions } from "./_components/course-actions";
 
+// Render at request time (database required)
+export const dynamic = "force-dynamic";
+
 const CourseIdPage = async ({
   params
 }: {

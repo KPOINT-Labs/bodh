@@ -1,16 +1,96 @@
 import React from "react";
+import { Play } from "lucide-react";
 
 /**
- * Parse inline markdown (bold text) and return React nodes
- * Supports **bold** syntax
+ * Parse inline markdown (bold text and links) and return React nodes
+ * Supports **bold** and [text](url) syntax
+ * YouTube links are rendered as clickable buttons when onYouTubeClick is provided
  */
-export function parseInlineMarkdown(text: string): React.ReactNode {
+export function parseInlineMarkdown(
+  text: string,
+  onYouTubeClick?: (seconds: number, youtubeVideoId: string | null) => void
+): React.ReactNode {
+  // First split by links, then by bold
+  // Regex for markdown links: [text](url)
+  const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
+
+  const result: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let match;
+  let keyIndex = 0;
+
+  while ((match = linkRegex.exec(text)) !== null) {
+    // Add text before this link (with bold parsing)
+    if (match.index > lastIndex) {
+      const beforeText = text.slice(lastIndex, match.index);
+      result.push(...parseBoldText(beforeText, keyIndex));
+      keyIndex += beforeText.split(/(\*\*[^*]+\*\*)/g).length;
+    }
+
+    // Add the link
+    const linkText = match[1];
+    const linkUrl = match[2];
+
+    // Check if this is a YouTube URL
+    const youtubeVideoId = extractYouTubeVideoId(linkUrl);
+
+    if (youtubeVideoId && onYouTubeClick) {
+      // Extract time parameter if present (t=XXXs or t=XXX)
+      const timeMatch = linkUrl.match(/[?&]t=(\d+)s?/);
+      const seconds = timeMatch ? parseInt(timeMatch[1], 10) : 0;
+
+      // Render as clickable button for YouTube links with play icon
+      result.push(
+        React.createElement(
+          "button",
+          {
+            key: `yt-link-${keyIndex++}`,
+            className: "text-blue-600 hover:text-blue-800 hover:underline cursor-pointer inline-flex items-center gap-1",
+            onClick: () => onYouTubeClick(seconds, youtubeVideoId),
+            type: "button",
+          },
+          React.createElement(Play, { className: "h-3 w-3 fill-current", key: "icon" }),
+          linkText
+        )
+      );
+    } else {
+      // Regular link - open in new tab
+      result.push(
+        React.createElement(
+          "a",
+          {
+            key: `link-${keyIndex++}`,
+            href: linkUrl,
+            target: "_blank",
+            rel: "noopener noreferrer",
+            className: "text-blue-600 hover:text-blue-800 hover:underline",
+          },
+          linkText
+        )
+      );
+    }
+
+    lastIndex = match.index + match[0].length;
+  }
+
+  // Add remaining text (with bold parsing)
+  if (lastIndex < text.length) {
+    result.push(...parseBoldText(text.slice(lastIndex), keyIndex));
+  }
+
+  return result.length > 0 ? result : text;
+}
+
+/**
+ * Parse bold text (**text**) and return array of React nodes
+ */
+function parseBoldText(text: string, startKey: number): React.ReactNode[] {
   const parts = text.split(/(\*\*[^*]+\*\*)/g);
   return parts.map((part, i) => {
     if (part.startsWith("**") && part.endsWith("**")) {
       return React.createElement(
         "strong",
-        { key: i, className: "font-semibold" },
+        { key: `bold-${startKey + i}`, className: "font-semibold" },
         part.slice(2, -2)
       );
     }
@@ -19,8 +99,9 @@ export function parseInlineMarkdown(text: string): React.ReactNode {
 }
 
 /**
- * Parse inline markdown with timestamp links
- * Supports **bold** and [text (MM:SS)](url?t=XXXs) timestamp links
+ * Parse inline markdown with timestamp links and YouTube links
+ * Supports **bold**, [text (MM:SS)](url?t=XXXs) timestamp links, and [text](youtubeUrl) links
+ * YouTube links render as clickable buttons that play video in panel
  */
 export function parseInlineMarkdownWithTimestamps(
   text: string,
@@ -30,7 +111,7 @@ export function parseInlineMarkdownWithTimestamps(
   const { parts } = parseTimestampLinks(text);
 
   if (parts.length === 0) {
-    return parseInlineMarkdown(text);
+    return parseInlineMarkdown(text, onTimestampClick);
   }
 
   return parts.map((part, i) => {
@@ -40,18 +121,21 @@ export function parseInlineMarkdownWithTimestamps(
         "button",
         {
           key: `ts-${i}`,
-          className: "text-blue-600 hover:text-blue-800 hover:underline cursor-pointer inline",
+          className: "text-blue-600 hover:text-blue-800 hover:underline cursor-pointer inline-flex items-center gap-1",
           onClick: () => onTimestampClick?.(seconds, youtubeVideoId),
           type: "button",
         },
-        linkText
+        [
+          React.createElement(Play, { className: "h-3 w-3 fill-current", key: "icon" }),
+          linkText
+        ]
       );
     }
-    // Parse bold text in remaining text parts
+    // Parse bold text and YouTube links in remaining text parts
     return React.createElement(
       React.Fragment,
       { key: `txt-${i}` },
-      parseInlineMarkdown(part.content)
+      parseInlineMarkdown(part.content, onTimestampClick)
     );
   });
 }

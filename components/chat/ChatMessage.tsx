@@ -1,5 +1,6 @@
 import { Sparkles, User } from "lucide-react";
 import { MessageContent } from "./MessageContent";
+import { AssessmentSummary } from "./AssessmentSummary";
 import type { MessageData } from "@/types/chat";
 
 interface ChatMessageProps {
@@ -16,6 +17,8 @@ interface ChatMessageProps {
  */
 export function ChatMessage({ message, onQuestionAnswer, onTimestampClick, isFromHistory = false }: ChatMessageProps) {
   const isUser = message.role === "user";
+  // Check if this is an assessment summary (second part of a split FA message)
+  const isAssessmentSummary = message.id.endsWith('-part2') && message.messageType === 'fa';
 
   return (
     <div
@@ -36,13 +39,21 @@ export function ChatMessage({ message, onQuestionAnswer, onTimestampClick, isFro
             : "bg-gray-50 rounded-2xl rounded-tl-sm px-4 py-3 max-w-[85%] text-gray-800"
         }
       >
-        <MessageContent
-          content={message.content}
-          messageType={message.messageType}
-          onQuestionAnswer={onQuestionAnswer}
-          onTimestampClick={onTimestampClick}
-          isFromHistory={isFromHistory}
-        />
+        {isAssessmentSummary ? (
+          <AssessmentSummary
+            content={message.content}
+            onTimestampClick={onTimestampClick}
+          />
+        ) : (
+          <MessageContent
+            content={message.content}
+            messageType={message.messageType}
+            role={message.role}
+            onQuestionAnswer={onQuestionAnswer}
+            onTimestampClick={onTimestampClick}
+            isFromHistory={isFromHistory}
+          />
+        )}
       </div>
 
       {/* User Avatar */}

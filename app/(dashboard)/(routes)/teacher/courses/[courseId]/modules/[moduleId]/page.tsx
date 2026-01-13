@@ -9,6 +9,9 @@ import { LessonsForm } from "./_components/lessons-form";
 import { ModuleSlugForm } from "./_components/module-slug-form";
 import { ModuleActions } from "./_components/module-actions";
 
+// Render at request time (database required)
+export const dynamic = "force-dynamic";
+
 const ModuleIdPage = async ({
   params
 }: {

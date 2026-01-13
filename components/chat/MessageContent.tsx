@@ -6,12 +6,14 @@ import {
   isHorizontalRule,
   hasTimestampLinks,
 } from "@/lib/chat/markdown";
-import { parseAssessmentContent, isAssessmentContent } from "@/lib/chat/assessment";
+import { parseAssessmentContent, isAssessmentContent, detectAnswerFeedback } from "@/lib/chat/assessment";
 import { AssessmentQuestion } from "./AssessmentQuestion";
+import { FeedbackBadge } from "./FeedbackBadge";
 
 interface MessageContentProps {
   content: string;
   messageType?: string;
+  role?: "user" | "assistant" | "system";
   onQuestionAnswer?: (questionNumber: number, answer: string) => void;
   onTimestampClick?: (seconds: number, youtubeVideoId?: string | null) => void;
   isFromHistory?: boolean;
@@ -25,42 +27,103 @@ interface MessageContentProps {
  * - Learning headers ("You'll learn:")
  * - Assessment questions (FA messages)
  */
-export function MessageContent({ content, messageType, onQuestionAnswer, onTimestampClick, isFromHistory = false }: MessageContentProps) {
-  // Check if this is an assessment message with questions
-  if (messageType === "fa" && isAssessmentContent(content)) {
-    const parsed = parseAssessmentContent(content);
-    
-    return (
-      <div className="space-y-4">
-        {/* Render intro text */}
-        {parsed.introText && (
-          <div className="text-sm leading-relaxed">
-            <p>{parseInlineMarkdownWithTimestamps(parsed.introText, onTimestampClick)}</p>
-          </div>
-        )}
+export function MessageContent({ content, messageType, role, onQuestionAnswer, onTimestampClick, isFromHistory = false }: MessageContentProps) {
+  // Check if this is an FA assistant message with feedback (correct/incorrect response)
+  // Only show feedback badge for assistant messages, not user answers
+  if (messageType === "fa" && role === "assistant") {
+    const feedback = detectAnswerFeedback(content);
+    const hasQuestions = isAssessmentContent(content);
 
-        {/* Render questions */}
-        {parsed.questions.map((question) => (
-          <AssessmentQuestion
-            key={question.questionNumber}
-            question={question.questionText}
-            options={question.options}
-            questionNumber={question.questionNumber}
-            answerType={question.answerType}
-            placeholder={question.placeholder}
-            onAnswer={(answer) => onQuestionAnswer?.(question.questionNumber, answer)}
-            isFromHistory={isFromHistory}
-          />
-        ))}
+    // If it's feedback only (no new questions), show feedback badge with explanation
+    if (feedback.type && !hasQuestions) {
+      const lines = content.split('\n').filter(line => line.trim());
+      const feedbackLine = lines[0] || '';
+      const restLines = lines.slice(1);
 
-        {/* Render other content */}
-        {parsed.otherContent.map((text, index) => (
-          <div key={index} className="text-sm leading-relaxed">
-            <p>{parseInlineMarkdownWithTimestamps(text, onTimestampClick)}</p>
-          </div>
-        ))}
-      </div>
-    );
+      return (
+        <div className="space-y-3">
+          {/* Feedback Badge - only show for new messages, not history */}
+          {!isFromHistory && (feedback.type === 'correct' || feedback.type === 'incorrect') && (
+            <FeedbackBadge type={feedback.type} />
+          )}
+
+          {/* Feedback line in bold/colored */}
+          {feedbackLine && (
+            <p className={`text-sm font-bold ${feedback.type === 'correct' ? 'text-emerald-600' : 'text-red-600'}`}>
+              {parseInlineMarkdownWithTimestamps(feedbackLine, onTimestampClick)}
+            </p>
+          )}
+
+          {/* Rest of explanation in normal text */}
+          {restLines.length > 0 && (
+            <div className="text-sm leading-relaxed text-gray-700">
+              {restLines.map((line, idx) => (
+                <p key={idx} className={idx > 0 ? "mt-2" : ""}>
+                  {parseInlineMarkdownWithTimestamps(line, onTimestampClick)}
+                </p>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // If it has questions (with or without feedback)
+    if (hasQuestions) {
+      const parsed = parseAssessmentContent(content);
+
+      // Extract feedback line from original content (first non-empty line)
+      const contentLines = content.split('\n').filter(line => line.trim());
+      const feedbackLine = feedback.type ? contentLines[0] : null;
+
+      return (
+        <div className="space-y-4">
+          {/* Show feedback badge if this response contains feedback + next question - only for new messages */}
+          {!isFromHistory && (feedback.type === 'correct' || feedback.type === 'incorrect') && (
+            <FeedbackBadge type={feedback.type} />
+          )}
+
+          {/* Show feedback line in bold/colored */}
+          {feedbackLine && (
+            <p className={`text-sm font-bold ${feedback.type === 'correct' ? 'text-emerald-600' : 'text-red-600'}`}>
+              {parseInlineMarkdownWithTimestamps(feedbackLine, onTimestampClick)}
+            </p>
+          )}
+
+          {/* Render intro/feedback text - exclude the feedback line we already showed */}
+          {parsed.introText && (() => {
+            // Remove the feedback line from intro text if it's there
+            let displayIntro = parsed.introText;
+            if (feedbackLine) {
+              // The intro text might start with the feedback line (stripped of markdown)
+              const strippedFeedback = feedbackLine.replace(/\*\*/g, '').trim();
+              if (displayIntro.startsWith(strippedFeedback)) {
+                displayIntro = displayIntro.slice(strippedFeedback.length).trim();
+              }
+            }
+            return displayIntro ? (
+              <div className="text-sm leading-relaxed text-gray-700">
+                {parseInlineMarkdownWithTimestamps(displayIntro, onTimestampClick)}
+              </div>
+            ) : null;
+          })()}
+
+          {/* Render questions */}
+          {parsed.questions.map((question) => (
+            <AssessmentQuestion
+              key={question.questionNumber}
+              question={question.questionText}
+              options={question.options}
+              questionNumber={question.questionNumber}
+              answerType={question.answerType}
+              placeholder={question.placeholder}
+              onAnswer={(answer) => onQuestionAnswer?.(question.questionNumber, answer)}
+              isFromHistory={isFromHistory}
+            />
+          ))}
+        </div>
+      );
+    }
   }
 
   // Regular message content rendering

@@ -44,19 +44,24 @@ export function AssessmentQuestion({
     }
   }, [submittedAnswer, isFromHistory, answerType]);
 
-  // Disable the question if it's from history
-  const isDisabled = isFromHistory || hasSubmitted || isAnswered;
 
   const handleSubmit = () => {
-    const answer = answerType === 'multiple_choice' ? selectedAnswer : textAnswer;
-    if (answer.trim()) {
-      onAnswer(answer);
+    if (answerType === 'multiple_choice' && selectedAnswer && options) {
+      // Get the full option text for display
+      const optionIndex = selectedAnswer.charCodeAt(0) - 65;
+      if (optionIndex >= 0 && optionIndex < options.length) {
+        const optionText = options[optionIndex].replace(/^[A-D]\)\s*/i, '').trim();
+        onAnswer(optionText);
+        setHasSubmitted(true);
+      }
+    } else if (textAnswer.trim()) {
+      onAnswer(textAnswer);
       setHasSubmitted(true);
     }
   };
 
   const handleOptionSelect = (optionLetter: string) => {
-    if (!isDisabled) {
+    if (!hasSubmitted) {
       setSelectedAnswer(optionLetter);
     }
   };
@@ -65,18 +70,19 @@ export function AssessmentQuestion({
   const isTextInput = ['short_answer', 'numerical', 'long_answer'].includes(answerType);
 
   return (
-    <div className="w-full max-w-xl bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+    <div className="w-full space-y-4">
       {/* Question Number and Text */}
-      <p className="text-gray-800 text-sm leading-relaxed mb-4 font-semibold">
-        {questionNumber && <span className="text-blue-600">Q{questionNumber}. </span>}
+      <p className="text-gray-800 text-sm leading-relaxed font-medium">
+        {questionNumber && <span className="text-gray-900">Q{questionNumber}: </span>}
         {question}
       </p>
 
-      {isMultipleChoice ? (
-        <div className="space-y-2">
+      {/* Options and Submit Section - Card Style */}
+      {isMultipleChoice && (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 space-y-3">
           {/* Options */}
           {options.map((option, index) => {
-            const optionLetter = String.fromCharCode(65 + index); // A, B, C, D
+            const optionLetter = String.fromCharCode(65 + index);
             const optionText = option.replace(/^[A-D]\)\s*/i, '').trim();
             const isSelected = selectedAnswer === optionLetter;
 
@@ -85,69 +91,77 @@ export function AssessmentQuestion({
                 key={index}
                 type="button"
                 onClick={() => handleOptionSelect(optionLetter)}
-                disabled={isDisabled}
+                disabled={hasSubmitted || isFromHistory}
                 className={`
-                  w-full flex items-center gap-3 p-3 rounded-lg border text-left transition-all
+                  w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-left transition-all duration-200
                   ${isSelected
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                    ? 'bg-blue-50 border-2 border-blue-400'
+                    : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
                   }
-                  ${isDisabled ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'}
+                  ${(hasSubmitted || isFromHistory) ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'}
                 `}
               >
                 {/* Radio Circle */}
                 <div
                   className={`
-                    w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0
-                    ${isSelected ? 'border-blue-500 bg-blue-500' : 'border-gray-300'}
+                    w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all
+                    ${isSelected ? 'border-blue-500 bg-blue-500' : 'border-gray-300 bg-white'}
                   `}
                 >
                   {isSelected && (
-                    <div className="w-2 h-2 rounded-full bg-white" />
+                    <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
                   )}
                 </div>
 
                 {/* Option Text */}
-                <span className="text-sm text-gray-700">{optionText}</span>
+                <span className={`text-sm ${isSelected ? 'text-gray-900 font-medium' : 'text-gray-700'}`}>
+                  {optionText}
+                </span>
               </button>
             );
           })}
 
           {/* Submit Button */}
-          {!isDisabled && (
-            <div className="pt-3">
-              <Button
-                onClick={handleSubmit}
-                disabled={!selectedAnswer}
-                className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Submit
-              </Button>
-            </div>
-          )}
-
-          {/* Submitted State */}
-          {isDisabled && (
-            <div className="pt-2 text-sm text-gray-600 font-medium">
-              {isFromHistory ? "Previously answered" : "Answer submitted"}
-              {submittedAnswer && (
-                <div className="text-xs text-gray-500 mt-1">
-                  Answer: {submittedAnswer}
-                </div>
-              )}
-            </div>
-          )}
+          <Button
+            onClick={handleSubmit}
+            disabled={!selectedAnswer || hasSubmitted || isFromHistory}
+            className="w-full bg-gradient-to-r from-blue-500 to-indigo-400 hover:from-blue-600 hover:to-indigo-500 text-white px-6 py-3 rounded-xl text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed shadow-md mt-2 transform transition-all duration-150 hover:scale-[1.02] active:scale-[0.98]"
+          >
+            {isFromHistory ? (
+              <span className="flex items-center justify-center gap-2">
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+                Attempted
+              </span>
+            ) : hasSubmitted ? (
+              <span className="flex items-center justify-center gap-2">
+                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                Evaluating...
+              </span>
+            ) : (
+              'Submit Answer'
+            )}
+          </Button>
         </div>
-      ) : isTextInput ? (
-        <div className="space-y-4">
+      )}
+
+      {/* Text Input Section - Card Style */}
+      {isTextInput && (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 space-y-3">
           {/* Text Input Field */}
           {answerType === 'long_answer' ? (
             <Textarea
               value={textAnswer}
               onChange={(e) => setTextAnswer(e.target.value)}
               placeholder={placeholder || "Type your answer here..."}
-              disabled={isDisabled}
-              className="w-full min-h-[100px] p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+              disabled={hasSubmitted || isFromHistory}
+              className="w-full min-h-[100px] px-4 py-3.5 bg-gray-50 border-2 border-transparent rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white resize-none text-sm disabled:opacity-75"
               rows={4}
             />
           ) : (
@@ -156,35 +170,39 @@ export function AssessmentQuestion({
               value={textAnswer}
               onChange={(e) => setTextAnswer(e.target.value)}
               placeholder={placeholder || (answerType === 'numerical' ? "Enter a number..." : "Type your answer here...")}
-              disabled={isDisabled}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              disabled={hasSubmitted || isFromHistory}
+              className="w-full px-4 py-3.5 bg-gray-50 border-2 border-transparent rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white text-sm disabled:opacity-75"
             />
           )}
 
           {/* Submit Button */}
-          {!isDisabled && (
-            <Button
-              onClick={handleSubmit}
-              disabled={!textAnswer.trim()}
-              className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Submit
-            </Button>
-          )}
-
-          {/* Submitted State */}
-          {isDisabled && (
-            <div className="text-sm text-gray-600 font-medium">
-              {isFromHistory ? "Previously answered" : "Answer submitted"}
-              {submittedAnswer && (
-                <div className="text-xs text-gray-500 mt-1 p-2 bg-gray-50 rounded border">
-                  <strong>Answer:</strong> {submittedAnswer}
-                </div>
-              )}
-            </div>
-          )}
+          <Button
+            onClick={handleSubmit}
+            disabled={!textAnswer.trim() || hasSubmitted || isFromHistory}
+            className="w-full bg-gradient-to-r from-blue-500 to-indigo-400 hover:from-blue-600 hover:to-indigo-500 text-white px-6 py-3 rounded-xl text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed shadow-md transform transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+          >
+            {isFromHistory ? (
+              <span className="flex items-center justify-center gap-2">
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+                Attempted
+              </span>
+            ) : hasSubmitted ? (
+              <span className="flex items-center justify-center gap-2">
+                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                Evaluating...
+              </span>
+            ) : (
+              'Submit Answer'
+            )}
+          </Button>
         </div>
-      ) : null}
+      )}
+
     </div>
   );
 }

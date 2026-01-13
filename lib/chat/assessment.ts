@@ -273,6 +273,109 @@ export function isAssessmentContent(content: string): boolean {
   return /Question\s+\d+.*?:/i.test(content) || content.toLowerCase().includes('quiz');
 }
 
+export interface FeedbackResult {
+  type: 'correct' | 'incorrect' | 'partial' | null;
+  feedbackText: string;
+  explanation: string;
+}
+
+/**
+ * Detects if the content contains feedback about a correct or incorrect answer
+ */
+export function detectAnswerFeedback(content: string): FeedbackResult {
+  const lowerContent = content.toLowerCase();
+
+  // Correct answer patterns
+  const correctPatterns = [
+    'correct', 'that\'s right', 'that is right', 'exactly', 'well done',
+    'great job', 'perfect', 'excellent', 'awesome', 'you got it',
+    'absolutely right', 'spot on', 'right answer', 'yes!', 'yes,',
+    'good job', 'nice work', 'brilliant', 'you\'re correct'
+  ];
+
+  // Incorrect answer patterns
+  const incorrectPatterns = [
+    'incorrect', 'that\'s not', 'that is not', 'not quite', 'wrong',
+    'not correct', 'actually', 'the correct answer', 'the right answer is',
+    'unfortunately', 'close but', 'not exactly', 'try again',
+    'the answer is', 'should be', 'it\'s actually'
+  ];
+
+  // Check for correct patterns
+  const isCorrect = correctPatterns.some(pattern => {
+    const index = lowerContent.indexOf(pattern);
+    // Make sure it's near the beginning (within first 200 chars) to be the main feedback
+    return index !== -1 && index < 200;
+  });
+
+  // Check for incorrect patterns
+  const isIncorrect = incorrectPatterns.some(pattern => {
+    const index = lowerContent.indexOf(pattern);
+    return index !== -1 && index < 200;
+  });
+
+  // If both found, look at which comes first
+  if (isCorrect && isIncorrect) {
+    // Find first occurrence of each
+    const firstCorrect = correctPatterns.reduce((min, pattern) => {
+      const idx = lowerContent.indexOf(pattern);
+      return idx !== -1 && idx < min ? idx : min;
+    }, Infinity);
+
+    const firstIncorrect = incorrectPatterns.reduce((min, pattern) => {
+      const idx = lowerContent.indexOf(pattern);
+      return idx !== -1 && idx < min ? idx : min;
+    }, Infinity);
+
+    if (firstCorrect < firstIncorrect) {
+      return {
+        type: 'correct',
+        feedbackText: 'Awesome!',
+        explanation: content
+      };
+    } else {
+      return {
+        type: 'incorrect',
+        feedbackText: 'Not quite right',
+        explanation: content
+      };
+    }
+  }
+
+  if (isCorrect) {
+    return {
+      type: 'correct',
+      feedbackText: 'Awesome!',
+      explanation: content
+    };
+  }
+
+  if (isIncorrect) {
+    return {
+      type: 'incorrect',
+      feedbackText: 'Not quite right',
+      explanation: content
+    };
+  }
+
+  return {
+    type: null,
+    feedbackText: '',
+    explanation: content
+  };
+}
+
+/**
+ * Checks if content is primarily feedback (not a new question)
+ */
+export function isFeedbackContent(content: string): boolean {
+  const hasQuestion = /Question\s+\d+/i.test(content);
+  const feedback = detectAnswerFeedback(content);
+
+  // It's feedback if it has feedback indicators but no new questions
+  return feedback.type !== null && !hasQuestion;
+}
+
 export interface MessageData {
   id: string;
   content: string;

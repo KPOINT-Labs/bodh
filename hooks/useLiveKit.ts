@@ -10,7 +10,7 @@ import {
 } from "livekit-client";
 
 // Prism API base URL (must use NEXT_PUBLIC_ prefix for client-side access)
-const PRISM_API_URL = process.env.NEXT_PUBLIC_PRISM_API_URL || "https://prism-prod.kpoint.ai";
+const PRISM_API_URL = process.env.NEXT_PUBLIC_PRISM_API_URL ;
 
 interface UseLiveKitProps {
   conversationId: string;
@@ -88,16 +88,16 @@ export function useLiveKit({
       console.log("[LiveKit] Starting connection", { roomName, courseId, userId });
 
       // Get token from Prism backend
-      console.log("[LiveKit] Fetching token from:", `${PRISM_API_URL}/api/v1/bodh/token`);
+      console.log("[LiveKit] Fetching token from:", `${PRISM_API_URL}/api/v1/adi2/token`);
       console.log("[LiveKit] Request payload:", { roomName, userId, videoIds });
-      const response = await fetch(`${PRISM_API_URL}/api/v1/bodh/token`, {
+      const response = await fetch(`${PRISM_API_URL}/api/v1/adi2/token`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           room_name: roomName,
           participant_name: userId,
           user_id: userId,
-          agent_type: "qna-agent",
+          agent_type: "bodh-agent",
           video_ids: videoIds,
           domain: serviceDomain,
         }),

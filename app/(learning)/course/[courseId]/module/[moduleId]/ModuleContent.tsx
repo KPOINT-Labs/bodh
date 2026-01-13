@@ -79,29 +79,35 @@ export function ModuleContent({ course, module, userId }: ModuleContentProps) {
   // Handle timestamp link clicks - seek to the specified time in the video
   const handleTimestampClick = useCallback(
     (seconds: number, youtubeVideoId?: string | null) => {
-      if (isPlayerReady()) {
+      // Find the matching lesson by youtubeVideoId
+      const matchingLesson = youtubeVideoId
+        ? module.lessons.find((lesson) => lesson.youtubeVideoId === youtubeVideoId)
+        : null;
+
+      // Check if this lesson is already selected (avoid re-render)
+      const isAlreadySelected = matchingLesson && selectedLesson?.id === matchingLesson.id;
+
+      if (isAlreadySelected) {
+        // Same lesson already selected - just seek, don't re-render
         seekTo(seconds);
+        console.log(`Same lesson already playing. Seeking to ${seconds}s`);
+      } else if (matchingLesson) {
+        // Different lesson - select it with offset
+        console.log(`Found matching lesson: ${matchingLesson.title}, selecting with offset ${seconds}s`);
+        setVideoStartOffset(seconds);
+        setSelectedLesson(matchingLesson);
+      } else if (isPlayerReady()) {
+        // No matching lesson but player is ready - seek current video
+        seekTo(seconds);
+      } else if (youtubeVideoId) {
+        console.warn(`No lesson found with youtubeVideoId: ${youtubeVideoId}`);
+        setVideoStartOffset(seconds);
       } else {
-        // Player not ready - find the lesson by youtubeVideoId and select it
-        if (youtubeVideoId) {
-          const matchingLesson = module.lessons.find(
-            (lesson) => lesson.youtubeVideoId === youtubeVideoId
-          );
-          if (matchingLesson) {
-            console.log(`Found matching lesson: ${matchingLesson.title}, selecting with offset ${seconds}s`);
-            setVideoStartOffset(seconds);
-            setSelectedLesson(matchingLesson);
-          } else {
-            console.warn(`No lesson found with youtubeVideoId: ${youtubeVideoId}`);
-            setVideoStartOffset(seconds);
-          }
-        } else {
-          setVideoStartOffset(seconds);
-          console.log(`Player not ready. Stored ${seconds} seconds as start offset.`);
-        }
+        setVideoStartOffset(seconds);
+        console.log(`Player not ready. Stored ${seconds} seconds as start offset.`);
       }
     },
-    [module.lessons, isPlayerReady, seekTo]
+    [module.lessons, selectedLesson?.id, isPlayerReady, seekTo]
   );
 
   // Build active lesson (selected or first)

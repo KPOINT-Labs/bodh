@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { parseAssessmentContent, isAssessmentContent } from "@/lib/chat/assessment";
 
 const SARVAM_PROMPT_API_URL = "https://swayam.arya.sarvam.ai/api/chat/prompt/prompt";
 const SARVAM_SESSION_API_URL = "https://swayam.arya.sarvam.ai/api/chat/session";
@@ -22,6 +23,7 @@ export interface ChatRequest {
   taskGraphType?: "QnA" | "FA";
   videoIds?: string[]; // YouTube video IDs
   startTimestamp?: number; // Video timestamp in seconds
+  isAnswer?: boolean; // True if this is an answer to an FA question (not a new assessment request)
 }
 
 interface SarvamStep {
@@ -257,7 +259,8 @@ export async function POST(request: NextRequest) {
       courseId,
       taskGraphType: providedType,
       videoIds = [],
-      startTimestamp = 0
+      startTimestamp = 0,
+      isAnswer: isAnswerFlag = false
     } = body;
 
     console.log("=== CHAT API REQUEST ===");
@@ -297,10 +300,9 @@ export async function POST(request: NextRequest) {
     );
 
     // Build the request body for Sarvam prompt API
-    // For FA (Formative Assessment), check if this is just an answer or a new assessment request
-    // If the message is very short (likely an answer), don't add the assessment prompt
-    const isAnswer = taskGraphType === "FA" && message.trim().length <= 100;
-    const finalPrompt = taskGraphType === "FA" && !isAnswer
+    // For FA (Formative Assessment), add the assessment prompt only for NEW assessment requests
+    // If isAnswerFlag is true, this is an answer to an existing question - don't add the prompt
+    const finalPrompt = taskGraphType === "FA" && !isAnswerFlag
       ? `Be in assessment mode. Generate EXACTLY 5 questions (use mixed question types if needed). Ask questions one by one. If the user answers 3 or more questions correctly, stop the assessment and provide feedback. IMPORTANT: Do NOT tell the user about the 5 question limit or the 3 correct answers threshold. Do NOT mention "I will ask 5 questions" or similar. Just start with the first question naturally.\n\nUser request: ${message}`
       : message;
 
@@ -398,6 +400,79 @@ export async function POST(request: NextRequest) {
         updatedAt: new Date(),
       },
     });
+
+    // Handle FAAttempt creation for FA answers
+    if (taskGraphType === "FA" && userMessage) {
+      try {
+        // Get the user ID from the conversation
+        const conversation = await prisma.conversation.findUnique({
+          where: { id: conversationId },
+          include: {
+            thread: {
+              select: { userId: true }
+            }
+          }
+        });
+
+        if (conversation?.thread?.userId) {
+          // Find the most recent FA question from assistant
+          const recentFAQuestion = await prisma.message.findFirst({
+            where: {
+              conversationId,
+              role: "assistant",
+              messageType: "fa",
+              createdAt: {
+                lt: userMessage.createdAt
+              }
+            },
+            orderBy: {
+              createdAt: "desc"
+            }
+          });
+
+          // Check if the assistant message contains FA questions
+          if (recentFAQuestion && isAssessmentContent(recentFAQuestion.content)) {
+            const parsed = parseAssessmentContent(recentFAQuestion.content);
+            
+            // If there are questions and user provided a short answer (likely answering a question)
+            if (parsed.questions.length > 0 && message.trim().length <= 500) {
+              // Get the most recent question (usually the last one asked)
+              const lastQuestion = parsed.questions[parsed.questions.length - 1];
+              
+              // Create or update FAAttempt record
+              await prisma.fAAttempt.upsert({
+                where: {
+                  userId_messageId: {
+                    userId: conversation.thread.userId,
+                    messageId: recentFAQuestion.id
+                  }
+                },
+                create: {
+                  userId: conversation.thread.userId,
+                  messageId: recentFAQuestion.id,
+                  question: lastQuestion.questionText,
+                  answer: message,
+                  isAttempted: true,
+                  questionType: lastQuestion.answerType,
+                  // isCorrect will be determined later by evaluation
+                },
+                update: {
+                  answer: message,
+                  isAttempted: true,
+                  questionType: lastQuestion.answerType,
+                  updatedAt: new Date()
+                }
+              });
+
+              console.log("FAAttempt created for question:", lastQuestion.questionText);
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error creating FAAttempt:", error);
+        // Don't fail the request if FAAttempt creation fails
+      }
+    }
 
     return NextResponse.json({
       success: true,

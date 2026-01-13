@@ -9,6 +9,9 @@ import { LessonVideoForm } from "./_components/lesson-video-form";
 import { LessonSlugForm } from "./_components/lesson-slug-form";
 import { LessonActions } from "./_components/lesson-actions";
 
+// Render at request time (database required)
+export const dynamic = "force-dynamic";
+
 const LessonIdPage = async ({
   params
 }: {
