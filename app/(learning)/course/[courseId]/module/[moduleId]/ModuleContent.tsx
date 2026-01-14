@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import Script from "next/script";
 import { Card } from "@/components/ui/card";
 import { ResizableContent } from "@/components/layout/resizable-content";
@@ -14,7 +14,7 @@ import { toast } from "sonner";
 // Hooks
 import { useKPointPlayer } from "@/hooks/useKPointPlayer";
 import { useChatSession } from "@/hooks/useChatSession";
-import { useLiveKit } from "@/hooks/useLiveKit";
+import { useLiveKit, TranscriptSegment } from "@/hooks/useLiveKit";
 import { useSessionType } from "@/hooks/useSessionType";
 
 interface Lesson {
@@ -55,10 +55,97 @@ export function ModuleContent({ course, module, userId }: ModuleContentProps) {
   const videoIds = activeLesson?.kpointVideoId ? [activeLesson.kpointVideoId] : [];
 
   // Determine session type (welcome vs welcome_back) before connecting to LiveKit
-  const { sessionType, isLoading: isSessionTypeLoading } = useSessionType({
+  const { sessionType, isLoading: isSessionTypeLoading, isReturningUser } = useSessionType({
     userId,
     moduleId: module.id,
   });
+
+  // Track which transcript segments have been stored to avoid duplicates
+  const storedSegmentsRef = useRef<Set<string>>(new Set());
+  // Track if user has sent a message - used for storing subsequent agent responses
+  const userHasSentMessageRef = useRef<boolean>(false);
+  // Track if welcome message has been stored (for first-time users only)
+  const welcomeStoredRef = useRef<boolean>(false);
+  // Ref for isReturningUser to use in callback
+  const isReturningUserRef = useRef<boolean>(isReturningUser);
+  // Ref for addAssistantMessage to use in callback (set after useChatSession)
+  const addAssistantMessageRef = useRef<((message: string, messageType?: string) => Promise<void>) | null>(null);
+  // Ref for clearAgentTranscript to use in callback (set after useLiveKit)
+  const clearAgentTranscriptRef = useRef<(() => void) | null>(null);
+
+  // Keep isReturningUserRef updated
+  useEffect(() => {
+    isReturningUserRef.current = isReturningUser;
+  }, [isReturningUser]);
+
+  // Handle LiveKit agent transcript - store in DB and add to chat when final
+  // Welcome message: Store for first-time users, skip for returning users
+  // Other agent responses: Store after user sends a message
+  const handleTranscriptCallback = useCallback(
+    (segment: TranscriptSegment) => {
+      // Debug logging
+      console.log("[ModuleContent] Transcript callback:", {
+        isFinal: segment.isFinal,
+        isAgent: segment.isAgent,
+        textLength: segment.text?.length,
+        userHasSent: userHasSentMessageRef.current,
+        welcomeStored: welcomeStoredRef.current,
+        isReturning: isReturningUserRef.current,
+        hasAddAssistant: !!addAssistantMessageRef.current,
+      });
+
+      if (!segment.isFinal || !segment.isAgent || !segment.text.trim()) {
+        return;
+      }
+
+      const segmentKey = `${segment.id}-${segment.text.length}`;
+      if (storedSegmentsRef.current.has(segmentKey)) {
+        console.log("[ModuleContent] Segment already stored, skipping");
+        return; // Already stored
+      }
+
+      // Case 1: First agent message (welcome/welcome_back)
+      if (!userHasSentMessageRef.current && !welcomeStoredRef.current) {
+        if (!isReturningUserRef.current) {
+          // First-time user: Store the welcome message
+          if (addAssistantMessageRef.current) {
+            storedSegmentsRef.current.add(segmentKey);
+            welcomeStoredRef.current = true;
+            console.log("[ModuleContent] Storing welcome message for first-time user:", segment.text.substring(0, 50) + "...");
+            addAssistantMessageRef.current(segment.text, "general");
+            if (clearAgentTranscriptRef.current) {
+              clearAgentTranscriptRef.current();
+            }
+          } else {
+            console.warn("[ModuleContent] Cannot store welcome - addAssistantMessageRef not set");
+          }
+        } else {
+          // Returning user: Skip welcome_back message (don't store)
+          welcomeStoredRef.current = true; // Mark as handled so we don't try again
+          console.log("[ModuleContent] Skipping welcome_back message for returning user (not storing)");
+        }
+        return;
+      }
+
+      // Case 2: Agent response to user message
+      if (userHasSentMessageRef.current) {
+        if (addAssistantMessageRef.current) {
+          storedSegmentsRef.current.add(segmentKey);
+          console.log("[ModuleContent] Storing agent response to chat:", segment.text.substring(0, 50) + "...");
+          addAssistantMessageRef.current(segment.text, "general");
+          if (clearAgentTranscriptRef.current) {
+            clearAgentTranscriptRef.current();
+          }
+        } else {
+          console.warn("[ModuleContent] Cannot store response - addAssistantMessageRef not set");
+        }
+      } else {
+        // Edge case: welcome already handled but user hasn't sent message yet
+        console.log("[ModuleContent] Transcript received but not storing (welcome done, no user message yet)");
+      }
+    },
+    [] // No deps needed - uses refs for all dynamic values
+  );
 
   // LiveKit voice session - auto-connect in listen-only mode (text-to-speech)
   // Only auto-connect once we know the session type
@@ -69,6 +156,7 @@ export function ModuleContent({ course, module, userId }: ModuleContentProps) {
     videoIds: videoIds,
     autoConnect: !isSessionTypeLoading, // Wait for session type check before connecting
     listenOnly: true, // Text-to-speech mode - agent speaks, user listens
+    onTranscript: handleTranscriptCallback, // Store agent transcripts in DB
     metadata: {
       courseId: course.id,
       courseTitle: course.title,
@@ -79,8 +167,14 @@ export function ModuleContent({ course, module, userId }: ModuleContentProps) {
       lessonId: activeLesson?.id,
       lessonTitle: activeLesson?.title,
       sessionType: sessionType, // Dynamic: "welcome" or "welcome_back"
+      userId: userId, // User ID for conversation creation in prism
     },
   });
+
+  // Keep clearAgentTranscriptRef updated for use in transcript callback
+  useEffect(() => {
+    clearAgentTranscriptRef.current = liveKit.clearAgentTranscript;
+  }, [liveKit.clearAgentTranscript]);
 
   // Show toast notifications for LiveKit connection status
   useEffect(() => {
@@ -128,13 +222,29 @@ export function ModuleContent({ course, module, userId }: ModuleContentProps) {
   });
 
   // Chat session hook
-  const { chatMessages, isSending, sendMessage, sendFAMessage } = useChatSession({
+  const { chatMessages, isSending, sendMessage, sendFAMessage, addUserMessage, addAssistantMessage } = useChatSession({
     courseId: course.id,
     conversationId,
     selectedLesson,
     lessons: module.lessons,
     getCurrentTime,
   });
+
+  // Keep addAssistantMessageRef updated for use in transcript callback
+  useEffect(() => {
+    addAssistantMessageRef.current = addAssistantMessage;
+  }, [addAssistantMessage]);
+
+  // Wrapper for addUserMessage that also sets the flag to track user interaction
+  // This prevents welcome messages from being stored - only user messages and responses
+  const handleAddUserMessage = useCallback(
+    async (message: string, messageType: string = "general", inputType: string = "text") => {
+      console.log("[ModuleContent] User sent message, setting userHasSentMessageRef = true");
+      userHasSentMessageRef.current = true; // Mark that user has interacted
+      await addUserMessage(message, messageType, inputType);
+    },
+    [addUserMessage]
+  );
 
   // Handle lesson selection
   const handleLessonSelect = useCallback((lesson: Lesson) => {
@@ -203,6 +313,7 @@ export function ModuleContent({ course, module, userId }: ModuleContentProps) {
         agentTranscript={liveKit.agentTranscript}
         isAgentSpeaking={liveKit.isAgentSpeaking}
         isLiveKitConnected={liveKit.isConnected}
+        isReturningUser={isReturningUser}
       />
 
       {/* Module Lessons Overview */}
@@ -220,6 +331,7 @@ export function ModuleContent({ course, module, userId }: ModuleContentProps) {
     <ChatInput
       placeholder="Ask me anything about this lesson..."
       onSend={sendMessage}
+      onAddUserMessage={handleAddUserMessage}
       isLoading={isSending}
       conversationId={conversationId || undefined}
       courseId={course.id}

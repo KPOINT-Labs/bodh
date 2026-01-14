@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { Sparkles } from "lucide-react";
 import { Card } from "@/components/ui/card";
 
@@ -9,6 +9,68 @@ import type { Course, Module, Lesson, MessageData } from "@/types/chat";
 
 // Utils
 import { detectAnswerFeedback } from "@/lib/chat/assessment";
+import { initializeChatSession } from "@/lib/chat/message-store";
+
+/**
+ * Hook for typing effect on agent transcript
+ * Gradually reveals text character by character for live feel
+ */
+function useTypingEffect(
+  fullText: string,
+  isActive: boolean,
+  typingSpeed: number = 20 // ms per character
+): string {
+  const [displayedText, setDisplayedText] = useState("");
+  const lastFullTextRef = useRef("");
+  const displayedLengthRef = useRef(0);
+
+  useEffect(() => {
+    // If text changed (new content), we need to handle it
+    if (fullText !== lastFullTextRef.current) {
+      // If new text is longer (content added), continue typing from where we were
+      if (fullText.startsWith(lastFullTextRef.current)) {
+        // Content appended - keep current position
+        lastFullTextRef.current = fullText;
+      } else {
+        // Completely new text - reset
+        displayedLengthRef.current = 0;
+        lastFullTextRef.current = fullText;
+      }
+    }
+
+    if (!isActive || !fullText) {
+      // Show full text immediately when not active or no text
+      if (fullText && !isActive) {
+        setDisplayedText(fullText);
+        displayedLengthRef.current = fullText.length;
+      }
+      return;
+    }
+
+    // Start typing effect
+    const timer = setInterval(() => {
+      if (displayedLengthRef.current < fullText.length) {
+        displayedLengthRef.current++;
+        setDisplayedText(fullText.slice(0, displayedLengthRef.current));
+      } else {
+        clearInterval(timer);
+      }
+    }, typingSpeed);
+
+    return () => clearInterval(timer);
+  }, [fullText, isActive, typingSpeed]);
+
+  // Reset when fullText is cleared
+  useEffect(() => {
+    if (!fullText) {
+      setDisplayedText("");
+      displayedLengthRef.current = 0;
+      lastFullTextRef.current = "";
+    }
+  }, [fullText]);
+
+  return displayedText;
+}
 
 /**
  * Split messages that contain "---" separator into two separate messages
@@ -49,7 +111,6 @@ function expandMessagesWithSeparator(messages: MessageData[]): MessageData[] {
 
 // Hooks
 import { useAutoScroll } from "@/hooks/useAutoScroll";
-import { useChatInitialization } from "@/hooks/useChatInitialization";
 
 // Components
 import { ChatMessage, MessageContent, TypingIndicator } from "@/components/chat";
@@ -74,6 +135,8 @@ interface ChatAgentProps {
   isAgentSpeaking?: boolean;
   /** Whether LiveKit is connected */
   isLiveKitConnected?: boolean;
+  /** Whether this is a returning user (from useSessionType) */
+  isReturningUser?: boolean;
 }
 
 /**
@@ -99,53 +162,113 @@ export function ChatAgent({
   agentTranscript = "",
   isAgentSpeaking = false,
   isLiveKitConnected = false,
+  isReturningUser = false,
 }: ChatAgentProps) {
+  // State for session initialization
+  const [historyMessages, setHistoryMessages] = useState<MessageData[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const hasInitialized = useRef(false);
+
   // Handler for assessment question answers
-  const handleQuestionAnswer = (questionNumber: number, answer: string) => {
+  const handleQuestionAnswer = useCallback((questionNumber: number, answer: string) => {
     console.log(`Question ${questionNumber} answered:`, answer);
     // Send the answer to the FA API with isAnswer=true (don't add assessment prompt)
     if (onSendMessage) {
       onSendMessage(answer, "FA", true);
     }
-  };
+  }, [onSendMessage]);
 
   // Get the first lesson from the module
   const firstLesson = module.lessons.sort(
     (a, b) => a.orderIndex - b.orderIndex
   )[0];
 
+  // Initialize chat session (create/get thread and conversation, load history)
+  // Welcome messages are NOT stored - LiveKit agent handles welcome display
+  useEffect(() => {
+    if (hasInitialized.current) return;
+    hasInitialized.current = true;
+
+    async function initSession() {
+      try {
+        const { conversation } = await initializeChatSession({
+          userId,
+          moduleId: module.id,
+          contextType: "welcome",
+          // No welcomeMessage - LiveKit agent handles welcome
+        });
+
+        // Notify parent that conversation is ready
+        onConversationReady?.(conversation.id);
+
+        // Load history messages for returning users
+        // Note: Welcome message is stored for first-time users
+        // Welcome_back message is NOT stored for returning users
+        if (conversation.messages.length > 0) {
+          setHistoryMessages(conversation.messages);
+        }
+      } catch (error) {
+        console.error("Failed to initialize chat session:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    initSession();
+  }, [userId, module.id, onConversationReady]);
+
+  // Typing effect for agent transcript (live transcription feel)
+  // Speed: 15ms per character = ~67 chars/sec for natural reading pace
+  const typedAgentTranscript = useTypingEffect(
+    agentTranscript,
+    isLiveKitConnected && (isAgentSpeaking || agentTranscript.length > 0),
+    15
+  );
+
   // Auto-scroll hook with smart scrolling (respects user scroll position)
-  const { scrollRef, scrollToBottom, forceScrollToBottom, isAtBottom } = useAutoScroll({
+  const { scrollRef, scrollToBottom, forceScrollToBottom } = useAutoScroll({
     threshold: 150, // Consider "at bottom" if within 150px
   });
 
-  // Chat initialization hook (with streaming support)
-  const { historyMessages, latestMessage, isLoading, isStreaming, isReturningUser } =
-    useChatInitialization({
-      course,
-      module,
-      userId,
-      firstLesson,
-      onConversationReady,
+  // Filter out chatMessages that already exist in historyMessages to avoid duplicate keys
+  // Also deduplicate within chatMessages in case the same message was added twice
+  const historyMessageIds = useMemo(
+    () => new Set(historyMessages.map((msg) => msg.id)),
+    [historyMessages]
+  );
+  const filteredChatMessages = useMemo(() => {
+    const seen = new Set<string>();
+    const filtered = chatMessages.filter((msg) => {
+      // Skip if already in history
+      if (historyMessageIds.has(msg.id)) return false;
+      // Skip if already seen in this array (deduplication)
+      if (seen.has(msg.id)) return false;
+      seen.add(msg.id);
+      return true;
     });
+    // Debug: log what's in chatMessages and filtered
+    console.log("[ChatAgent] chatMessages:", chatMessages.length, "filtered:", filtered.length,
+      "messages:", filtered.map(m => ({ id: m.id.substring(0, 20), role: m.role, content: m.content.substring(0, 30) })));
+    return filtered;
+  }, [chatMessages, historyMessageIds]);
 
   // Track previous chat messages length to detect new user messages
-  const prevChatMessagesLengthRef = useRef(chatMessages.length);
+  const prevChatMessagesLengthRef = useRef(filteredChatMessages.length);
 
-  // Auto-scroll during streaming (local or agent transcript)
+  // Auto-scroll during agent transcript with typing effect
   // Uses smart scroll - only scrolls if user is already at bottom
   useEffect(() => {
-    if ((isStreaming && latestMessage) || (isAgentSpeaking && agentTranscript)) {
+    if (isLiveKitConnected && typedAgentTranscript) {
       scrollToBottom(); // Smart scroll - respects user scroll position
     }
-  }, [isStreaming, latestMessage, isAgentSpeaking, agentTranscript, scrollToBottom]);
+  }, [isLiveKitConnected, typedAgentTranscript, scrollToBottom]);
 
   // Auto-scroll when chat messages change
   useEffect(() => {
-    if (chatMessages.length > 0) {
-      const latestMsg = chatMessages[chatMessages.length - 1];
-      const isNewMessage = chatMessages.length > prevChatMessagesLengthRef.current;
-      prevChatMessagesLengthRef.current = chatMessages.length;
+    if (filteredChatMessages.length > 0) {
+      const latestMsg = filteredChatMessages[filteredChatMessages.length - 1];
+      const isNewMessage = filteredChatMessages.length > prevChatMessagesLengthRef.current;
+      prevChatMessagesLengthRef.current = filteredChatMessages.length;
 
       // Force scroll when USER sends a new message (they expect to see the response)
       if (isNewMessage && latestMsg.role === "user") {
@@ -171,7 +294,7 @@ export function ChatAgent({
         scrollToBottom();
       }
     }
-  }, [chatMessages, scrollToBottom, forceScrollToBottom]);
+  }, [filteredChatMessages, scrollToBottom, forceScrollToBottom]);
 
   // Force scroll to bottom when loading completes (initial load)
   useEffect(() => {
@@ -213,43 +336,51 @@ export function ChatAgent({
           </div>
         )}
 
-        {/* Current/Latest Message with streaming text */}
-        {/* When LiveKit is connected, prefer agent transcript over local generation */}
-        {(isLiveKitConnected && agentTranscript) || (!isLiveKitConnected && latestMessage) ? (
-          <div className="flex items-start gap-3">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-500">
-              <Sparkles className="h-4 w-4 text-white" />
-            </div>
-            <div className="bg-gray-50 rounded-2xl rounded-tl-sm px-4 py-3 max-w-[85%]">
-              <div className="text-sm leading-relaxed text-gray-800">
-                <MessageContent
-                  content={isLiveKitConnected && agentTranscript ? agentTranscript : latestMessage}
-                  onTimestampClick={onTimestampClick}
-                />
-                {/* Show cursor when streaming locally or agent is speaking */}
-                {(isStreaming || isAgentSpeaking) && (
-                  <span className="inline-block w-2 h-4 bg-blue-500 animate-pulse ml-0.5" />
-                )}
+        {/* Initial welcome message (only when no chat messages yet) */}
+        {/* LiveKit agent handles welcome messages - show transcript when available */}
+        {filteredChatMessages.length === 0 && (
+          <>
+            {isLiveKitConnected && agentTranscript ? (
+              <div className="flex items-start gap-3">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-500">
+                  <Sparkles className="h-4 w-4 text-white" />
+                </div>
+                <div className="bg-gray-50 rounded-2xl rounded-tl-sm px-4 py-3 max-w-[85%]">
+                  <div className="text-sm leading-relaxed text-gray-800">
+                    <MessageContent
+                      content={typedAgentTranscript}
+                      onTimestampClick={onTimestampClick}
+                    />
+                    {/* Show cursor when agent speaking or typing effect in progress */}
+                    {(isAgentSpeaking || typedAgentTranscript.length < agentTranscript.length) && (
+                      <span className="inline-block w-2 h-4 bg-blue-500 animate-pulse ml-0.5" />
+                    )}
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-        ) : isLiveKitConnected ? (
-          /* Waiting for agent to speak when LiveKit is connected but no transcript yet */
-          <div className="flex items-start gap-3">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-500">
-              <Sparkles className="h-4 w-4 text-white" />
-            </div>
-            <div className="bg-gray-50 rounded-2xl rounded-tl-sm px-4 py-3 max-w-[85%]">
-              <div className="text-sm leading-relaxed text-gray-500 italic flex items-center gap-2">
-                <span className="inline-block w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
-                Connecting to your AI assistant...
+            ) : isLiveKitConnected ? (
+              /* Waiting for agent to speak when LiveKit is connected but no transcript yet */
+              <div className="flex items-start gap-3">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-500">
+                  <Sparkles className="h-4 w-4 text-white" />
+                </div>
+                <div className="bg-gray-50 rounded-2xl rounded-tl-sm px-4 py-3 max-w-[85%]">
+                  <div className="text-sm leading-relaxed text-gray-500 italic flex items-center gap-2">
+                    <span className="inline-block w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+                    Connecting to your AI assistant...
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-        ) : null}
+            ) : null}
+          </>
+        )}
 
-        {/* Action Buttons - show after message is complete */}
-        {!isStreaming && !isAgentSpeaking && firstLesson && (
+        {/* Action Buttons - show only before user starts chatting */}
+        {/* Hide buttons if: agent speaking, waiting for agent, OR user has sent messages */}
+        {!isAgentSpeaking &&
+         firstLesson &&
+         filteredChatMessages.length === 0 &&
+         !(isLiveKitConnected && !agentTranscript) && (
           <ActionButtons
             firstLesson={firstLesson}
             module={module}
@@ -260,12 +391,34 @@ export function ChatAgent({
           />
         )}
 
-        {/* Chat Messages (from current session) */}
-        {chatMessages.length > 0 && (
-          <div className="space-y-4 pt-4 mt-4 border-t border-gray-100">
-            {expandMessagesWithSeparator(chatMessages).map((msg) => (
+        {/* Chat Messages (from current session) - flows naturally after history */}
+        {filteredChatMessages.length > 0 && (
+          <div className="space-y-4">
+            {expandMessagesWithSeparator(filteredChatMessages).map((msg) => (
               <ChatMessage key={msg.id} message={msg} onQuestionAnswer={handleQuestionAnswer} onTimestampClick={onTimestampClick} isFromHistory={false} />
             ))}
+          </div>
+        )}
+
+        {/* Live agent transcript (shows at bottom when agent is responding to user) */}
+        {/* Only show when there are chat messages (conversation has started) */}
+        {filteredChatMessages.length > 0 && isLiveKitConnected && agentTranscript && (
+          <div className="flex items-start gap-3">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-500">
+              <Sparkles className="h-4 w-4 text-white" />
+            </div>
+            <div className="bg-gray-50 rounded-2xl rounded-tl-sm px-4 py-3 max-w-[85%]">
+              <div className="text-sm leading-relaxed text-gray-800">
+                <MessageContent
+                  content={typedAgentTranscript}
+                  onTimestampClick={onTimestampClick}
+                />
+                {/* Show cursor when agent is speaking or typing effect in progress */}
+                {(isAgentSpeaking || typedAgentTranscript.length < agentTranscript.length) && (
+                  <span className="inline-block w-2 h-4 bg-blue-500 animate-pulse ml-0.5" />
+                )}
+              </div>
+            </div>
           </div>
         )}
 
@@ -273,7 +426,7 @@ export function ChatAgent({
         {isWaitingForResponse && <TypingIndicator />}
 
         {/* No lessons message */}
-        {!isStreaming && !firstLesson && (
+        {!firstLesson && (
           <p className="text-sm text-gray-500 ml-11">
             No lessons available in this module yet. Please check back later.
           </p>

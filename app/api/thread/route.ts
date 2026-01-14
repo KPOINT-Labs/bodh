@@ -25,13 +25,22 @@ export async function GET(request: NextRequest) {
     }
 
     // Find or create thread for this user + module combination
+    // Use upsert to avoid race conditions when prism agent creates thread simultaneously
     console.log("Finding thread for:", { userId, moduleId });
-    let thread = await prisma.thread.findUnique({
+    const thread = await prisma.thread.upsert({
       where: {
         userId_moduleId: {
           userId,
           moduleId,
         },
+      },
+      update: {
+        // Just touch updatedAt if exists
+        updatedAt: new Date(),
+      },
+      create: {
+        userId,
+        moduleId,
       },
       include: {
         conversations: {
@@ -45,25 +54,6 @@ export async function GET(request: NextRequest) {
         },
       },
     });
-
-    if (!thread) {
-      thread = await prisma.thread.create({
-        data: {
-          userId,
-          moduleId,
-        },
-        include: {
-          conversations: {
-            orderBy: { createdAt: "desc" },
-            include: {
-              messages: {
-                orderBy: { createdAt: "asc" },
-              },
-            },
-          },
-        },
-      });
-    }
 
     // Transform the response to use lowercase field names for frontend compatibility
     const transformedThread = {

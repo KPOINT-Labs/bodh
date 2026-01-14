@@ -22,12 +22,15 @@ interface LiveKitState {
   toggleMute: () => Promise<void>;
   startAudio: () => Promise<void>;
   sendTextToAgent: (text: string) => Promise<void>;
+  clearAgentTranscript: () => void;
 }
 
 interface ChatInputProps {
   placeholder?: string;
   disabled?: boolean;
   onSend?: (message: string) => void | Promise<void>;
+  /** Add user message to chat UI and store in DB (for LiveKit flow) */
+  onAddUserMessage?: (message: string, messageType?: string, inputType?: string) => void | Promise<void>;
   isLoading?: boolean;
   conversationId?: string;
   courseId?: string;
@@ -41,6 +44,7 @@ export function ChatInput({
   placeholder = "Tap to talk",
   disabled = false,
   onSend,
+  onAddUserMessage,
   isLoading = false,
   conversationId,
   courseId,
@@ -104,11 +108,15 @@ export function ChatInput({
     // If LiveKit is connected, send via LiveKit (agent will speak the response)
     if (isConnected && sendTextToAgent) {
       console.log("[ChatInput] Sending message via LiveKit");
+      // Add user message to chat UI and store in DB
+      if (onAddUserMessage) {
+        await onAddUserMessage(message, "general", "text");
+      }
       try {
         await sendTextToAgent(message);
       } catch (err) {
         console.error("[ChatInput] Failed to send via LiveKit:", err);
-        // Fall back to onSend if LiveKit fails
+        // Fall back to onSend if LiveKit fails (will add duplicate user message, but that's ok for error case)
         if (onSend) {
           await onSend(message);
         }

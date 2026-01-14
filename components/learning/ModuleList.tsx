@@ -84,7 +84,7 @@ function ModuleItem({ module, isExpanded, onToggle, onLessonClick, onDeleteClick
             )}
           </div>
         </button>
-        <button
+        {/* <button
           onClick={(e) => {
             e.stopPropagation();
             onDeleteClick();
@@ -93,7 +93,7 @@ function ModuleItem({ module, isExpanded, onToggle, onLessonClick, onDeleteClick
           title="Delete thread history"
         >
           <Trash2 className="h-4 w-4" />
-        </button>
+        </button> */}
       </div>
 
       {isExpanded && module.lessons && (

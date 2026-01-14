@@ -20,6 +20,7 @@ export interface LiveKitMetadata {
   lessonId?: string;
   lessonTitle?: string;
   // User profile
+  userId?: string; // Database user ID for conversation creation
   userName?: string;
   userEmail?: string;
   // Session context
@@ -75,6 +76,8 @@ interface UseLiveKitReturn {
   startAudio: () => Promise<void>;
   /** Send text message to agent (will be spoken back via TTS) */
   sendTextToAgent: (text: string) => Promise<void>;
+  /** Clear the agent transcript (call after adding to chat history) */
+  clearAgentTranscript: () => void;
 }
 
 interface TokenResponse {
@@ -178,6 +181,7 @@ export function useLiveKit({
         module_title: currentMetadata.moduleTitle,
         lesson_id: currentMetadata.lessonId,
         lesson_title: currentMetadata.lessonTitle,
+        user_id: currentMetadata.userId, // Database user ID for conversation creation
         user_name: currentMetadata.userName,
         user_email: currentMetadata.userEmail,
         conversation_id: currentMetadata.conversationId || conversationId,
@@ -185,7 +189,7 @@ export function useLiveKit({
         ...Object.fromEntries(
           Object.entries(currentMetadata).filter(([key]) =>
             !['courseId', 'courseTitle', 'courseDescription', 'learningObjectives', 'moduleId', 'moduleTitle', 'lessonId', 'lessonTitle',
-              'userName', 'userEmail', 'conversationId', 'sessionType'].includes(key)
+              'userId', 'userName', 'userEmail', 'conversationId', 'sessionType'].includes(key)
           )
         ),
       };
@@ -628,6 +632,14 @@ export function useLiveKit({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoConnect, conversationId, courseId]);
 
+  /**
+   * Clear the agent transcript (call after adding message to chat history)
+   */
+  const clearAgentTranscript = useCallback(() => {
+    setAgentTranscript("");
+    setTranscriptSegments([]);
+  }, []);
+
   return {
     isConnected,
     isConnecting,
@@ -644,5 +656,6 @@ export function useLiveKit({
     toggleMute,
     startAudio,
     sendTextToAgent,
+    clearAgentTranscript,
   };
 }

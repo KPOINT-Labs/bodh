@@ -104,26 +104,41 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // For assistant messages in welcome conversations, check if one already exists
-    // This prevents duplicate welcome messages
-    if (role === "assistant") {
+    // For assistant messages in welcome conversations, check for duplicate WELCOME messages only
+    // This prevents the initial welcome message from being duplicated, but allows subsequent responses
+    if (role === "assistant" && messageType === "general") {
       const conversation = await prisma.conversation.findUnique({
         where: { id: conversationId },
         include: {
           messages: {
-            where: { role: "assistant" },
+            where: { role: "user" },
             take: 1,
           },
         },
       });
 
-      if (conversation?.contextType === "welcome" && conversation.messages.length > 0) {
-        // Return existing message instead of creating duplicate
-        return NextResponse.json({
-          success: true,
-          message: conversation.messages[0],
-          existing: true,
+      // Only prevent duplicate if:
+      // 1. It's a welcome conversation
+      // 2. No user messages exist yet (this is the initial welcome, not a response to user)
+      // 3. Check if an assistant message with similar content already exists
+      if (conversation?.contextType === "welcome" && conversation.messages.length === 0) {
+        const existingWelcome = await prisma.message.findFirst({
+          where: {
+            conversationId,
+            role: "assistant",
+          },
+          orderBy: { createdAt: "asc" },
         });
+
+        if (existingWelcome) {
+          // Return existing welcome message instead of creating duplicate
+          console.log("[Message API] Returning existing welcome message, not creating duplicate");
+          return NextResponse.json({
+            success: true,
+            message: existingWelcome,
+            existing: true,
+          });
+        }
       }
     }
 
