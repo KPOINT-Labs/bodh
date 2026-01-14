@@ -52,7 +52,8 @@ export function ModuleContent({ course, module, userId }: ModuleContentProps) {
 
   // Get active lesson (selected or first)
   const activeLesson = selectedLesson || module.lessons.sort((a, b) => a.orderIndex - b.orderIndex)[0];
-  const videoIds = activeLesson?.kpointVideoId ? [activeLesson.kpointVideoId] : [];
+  // Use youtubeVideoId for Sarvam AI (video context), kpointVideoId for player
+  const videoIds = activeLesson?.youtubeVideoId ? [activeLesson.youtubeVideoId] : [];
 
   // Determine session type (welcome vs welcome_back) before connecting to LiveKit
   const { sessionType, isLoading: isSessionTypeLoading, isReturningUser } = useSessionType({
@@ -214,15 +215,24 @@ export function ModuleContent({ course, module, userId }: ModuleContentProps) {
   // KPoint player hook with FA trigger integration
   const { seekTo, getCurrentTime, isPlayerReady, isPlaying } = useKPointPlayer({
     kpointVideoId: selectedLesson?.kpointVideoId,
-    onFATrigger: async (message: string, timestampSeconds: number, pauseVideo?: boolean) => {
-      // Send FA message directly without showing user message in UI, with specific timestamp
-      await sendFAMessage(message, timestampSeconds);
+    onFATrigger: async (message: string, _timestampSeconds: number, _pauseVideo?: boolean) => {
+      // Send FA message via LiveKit (prism handles Sarvam API)
+      // Note: FA triggers don't show user message in chat UI
+      if (liveKit.isConnected) {
+        try {
+          await liveKit.sendTextToAgent(message);
+        } catch (err) {
+          console.error("[ModuleContent] Failed to send FA trigger via LiveKit:", err);
+        }
+      } else {
+        console.warn("[ModuleContent] LiveKit not connected, cannot send FA trigger");
+      }
       // Video is already paused by the hook when pauseVideo is true
     },
   });
 
-  // Chat session hook
-  const { chatMessages, isSending, sendMessage, sendFAMessage, addUserMessage, addAssistantMessage } = useChatSession({
+  // Chat session hook - only used for message storage, all Sarvam calls go through LiveKit
+  const { chatMessages, isSending, addUserMessage, addAssistantMessage } = useChatSession({
     courseId: course.id,
     conversationId,
     selectedLesson,
@@ -304,7 +314,6 @@ export function ModuleContent({ course, module, userId }: ModuleContentProps) {
         userId={userId}
         onLessonSelect={handleLessonSelect}
         onConversationReady={handleConversationReady}
-        onSendMessage={sendMessage}
         onTimestampClick={handleTimestampClick}
         chatMessages={chatMessages}
         isWaitingForResponse={isSending || liveKit.isWaitingForAgentResponse}
@@ -314,6 +323,9 @@ export function ModuleContent({ course, module, userId }: ModuleContentProps) {
         isAgentSpeaking={liveKit.isAgentSpeaking}
         isLiveKitConnected={liveKit.isConnected}
         isReturningUser={isReturningUser}
+        // LiveKit functions for FA answers
+        sendTextToAgent={liveKit.sendTextToAgent}
+        onAddUserMessage={handleAddUserMessage}
       />
 
       {/* Module Lessons Overview */}
@@ -330,7 +342,6 @@ export function ModuleContent({ course, module, userId }: ModuleContentProps) {
   const footer = (
     <ChatInput
       placeholder="Ask me anything about this lesson..."
-      onSend={sendMessage}
       onAddUserMessage={handleAddUserMessage}
       isLoading={isSending}
       conversationId={conversationId || undefined}

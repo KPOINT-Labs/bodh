@@ -1,3 +1,17 @@
+/**
+ * @deprecated This API route is DEPRECATED.
+ *
+ * All Sarvam API calls now go through LiveKit/prism:
+ * - User sends message via LiveKit (sendTextToAgent)
+ * - prism agent handles Sarvam TTS/STT
+ * - Messages are stored via /api/message endpoint
+ *
+ * This file is kept for reference but should be removed once confirmed
+ * that all functionality is working through LiveKit.
+ *
+ * DO NOT USE THIS ENDPOINT - use LiveKit sendTextToAgent instead.
+ */
+
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { GoogleGenerativeAI } from "@google/generative-ai";

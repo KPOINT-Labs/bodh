@@ -29,7 +29,6 @@ interface LiveKitState {
 interface ChatInputProps {
   placeholder?: string;
   disabled?: boolean;
-  onSend?: (message: string) => void | Promise<void>;
   /** Add user message to chat UI and store in DB (for LiveKit flow) */
   onAddUserMessage?: (message: string, messageType?: string, inputType?: string) => void | Promise<void>;
   isLoading?: boolean;
@@ -44,7 +43,6 @@ interface ChatInputProps {
 export function ChatInput({
   placeholder = "Tap to talk",
   disabled = false,
-  onSend,
   onAddUserMessage,
   isLoading = false,
   conversationId,
@@ -99,33 +97,28 @@ export function ChatInput({
     prevConnectedRef.current = isConnected;
   }, [isConnected, liveKitState]);
 
-  // Handle text message submit
+  // Handle text message submit - all messages go through LiveKit
   const handleSubmit = async () => {
     const message = inputValue.trim();
     if (!message) return;
 
     setInputValue("");
 
-    // If LiveKit is connected, send via LiveKit (agent will speak the response)
-    if (isConnected && sendTextToAgent) {
-      console.log("[ChatInput] Sending message via LiveKit");
-      // Add user message to chat UI and store in DB
-      if (onAddUserMessage) {
-        await onAddUserMessage(message, "general", "text");
-      }
-      try {
-        await sendTextToAgent(message);
-      } catch (err) {
-        console.error("[ChatInput] Failed to send via LiveKit:", err);
-        // Fall back to onSend if LiveKit fails (will add duplicate user message, but that's ok for error case)
-        if (onSend) {
-          await onSend(message);
-        }
-      }
-    } else if (onSend) {
-      // Fall back to direct API call
-      console.log("[ChatInput] Sending message via API");
-      await onSend(message);
+    // All messages must go through LiveKit (prism handles Sarvam API)
+    if (!isConnected) {
+      console.warn("[ChatInput] LiveKit not connected, cannot send message");
+      return;
+    }
+
+    console.log("[ChatInput] Sending message via LiveKit");
+    // Add user message to chat UI and store in DB
+    if (onAddUserMessage) {
+      await onAddUserMessage(message, "general", "text");
+    }
+    try {
+      await sendTextToAgent(message);
+    } catch (err) {
+      console.error("[ChatInput] Failed to send via LiveKit:", err);
     }
   };
 

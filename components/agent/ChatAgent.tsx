@@ -124,7 +124,6 @@ interface ChatAgentProps {
   userId: string;
   onLessonSelect: (lesson: Lesson) => void;
   onConversationReady?: (conversationId: string) => void;
-  onSendMessage?: (message: string, taskGraphType?: "QnA" | "FA", isAnswer?: boolean) => void;
   onTimestampClick?: (seconds: number, youtubeVideoId?: string | null) => void;
   chatMessages?: MessageData[];
   isWaitingForResponse?: boolean;
@@ -137,6 +136,10 @@ interface ChatAgentProps {
   isLiveKitConnected?: boolean;
   /** Whether this is a returning user (from useSessionType) */
   isReturningUser?: boolean;
+  /** Send text to LiveKit agent */
+  sendTextToAgent?: (text: string) => Promise<void>;
+  /** Add user message to chat UI and DB */
+  onAddUserMessage?: (message: string, messageType?: string, inputType?: string) => Promise<void>;
 }
 
 /**
@@ -155,7 +158,6 @@ export function ChatAgent({
   onLessonSelect,
   onConversationReady,
   onTimestampClick,
-  onSendMessage,
   chatMessages = [],
   isWaitingForResponse = false,
   isVideoPlaying = false,
@@ -163,20 +165,35 @@ export function ChatAgent({
   isAgentSpeaking = false,
   isLiveKitConnected = false,
   isReturningUser = false,
+  sendTextToAgent,
+  onAddUserMessage,
 }: ChatAgentProps) {
   // State for session initialization
   const [historyMessages, setHistoryMessages] = useState<MessageData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const hasInitialized = useRef(false);
 
-  // Handler for assessment question answers
-  const handleQuestionAnswer = useCallback((questionNumber: number, answer: string) => {
+  // Handler for assessment question answers - routes through LiveKit
+  const handleQuestionAnswer = useCallback(async (questionNumber: number, answer: string) => {
     console.log(`Question ${questionNumber} answered:`, answer);
-    // Send the answer to the FA API with isAnswer=true (don't add assessment prompt)
-    if (onSendMessage) {
-      onSendMessage(answer, "FA", true);
+
+    if (!isLiveKitConnected || !sendTextToAgent) {
+      console.warn("[ChatAgent] LiveKit not connected, cannot send FA answer");
+      return;
     }
-  }, [onSendMessage]);
+
+    // Add user message to chat and DB
+    if (onAddUserMessage) {
+      await onAddUserMessage(answer, "fa", "text");
+    }
+
+    // Send to LiveKit agent (prism handles Sarvam API)
+    try {
+      await sendTextToAgent(answer);
+    } catch (err) {
+      console.error("[ChatAgent] Failed to send FA answer via LiveKit:", err);
+    }
+  }, [isLiveKitConnected, sendTextToAgent, onAddUserMessage]);
 
   // Get the first lesson from the module
   const firstLesson = module.lessons.sort(
