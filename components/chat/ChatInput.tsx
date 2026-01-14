@@ -17,6 +17,7 @@ interface LiveKitState {
   transcriptSegments: { id: string; text: string; participantIdentity: string; isAgent: boolean; isFinal: boolean; timestamp: number }[];
   isAgentSpeaking: boolean;
   isAudioBlocked: boolean;
+  isWaitingForAgentResponse: boolean;
   connect: () => Promise<void>;
   disconnect: () => Promise<void>;
   toggleMute: () => Promise<void>;

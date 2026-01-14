@@ -422,8 +422,8 @@ export function ChatAgent({
           </div>
         )}
 
-        {/* Typing Indicator */}
-        {isWaitingForResponse && <TypingIndicator />}
+        {/* Typing Indicator - show when waiting but agent hasn't started responding yet */}
+        {isWaitingForResponse && !agentTranscript && <TypingIndicator />}
 
         {/* No lessons message */}
         {!firstLesson && (

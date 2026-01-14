@@ -307,7 +307,7 @@ export function ModuleContent({ course, module, userId }: ModuleContentProps) {
         onSendMessage={sendMessage}
         onTimestampClick={handleTimestampClick}
         chatMessages={chatMessages}
-        isWaitingForResponse={isSending}
+        isWaitingForResponse={isSending || liveKit.isWaitingForAgentResponse}
         isVideoPlaying={isPlaying}
         // LiveKit agent transcript
         agentTranscript={liveKit.agentTranscript}

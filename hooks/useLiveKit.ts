@@ -69,6 +69,8 @@ interface UseLiveKitReturn {
   isAgentSpeaking: boolean;
   /** Whether audio playback is blocked by browser autoplay policy */
   isAudioBlocked: boolean;
+  /** Whether we're waiting for agent to respond after sending a message */
+  isWaitingForAgentResponse: boolean;
   connect: () => Promise<void>;
   disconnect: () => Promise<void>;
   toggleMute: () => Promise<void>;
@@ -119,6 +121,7 @@ export function useLiveKit({
   const [transcriptSegments, setTranscriptSegments] = useState<TranscriptSegment[]>([]);
   const [isAgentSpeaking, setIsAgentSpeaking] = useState(false);
   const [isAudioBlocked, setIsAudioBlocked] = useState(false);
+  const [isWaitingForAgentResponse, setIsWaitingForAgentResponse] = useState(false);
 
   // References to persist across renders
   const roomRef = useRef<Room | null>(null);
@@ -322,6 +325,7 @@ export function useLiveKit({
           // For live streaming, read chunks as they arrive
           let accumulatedText = "";
           setIsAgentSpeaking(true);
+          setIsWaitingForAgentResponse(false); // Agent started responding
 
           // Stream chunks incrementally using for-await-of
           for await (const chunk of reader) {
@@ -510,6 +514,7 @@ export function useLiveKit({
     setAgentTranscript("");
     setTranscriptSegments([]);
     setIsAgentSpeaking(false);
+    setIsWaitingForAgentResponse(false);
 
     // Reset refs for potential reconnection
     roomNameRef.current = null;
@@ -586,13 +591,18 @@ export function useLiveKit({
     console.log("[LiveKit] Sending text to agent:", text.substring(0, 50) + (text.length > 50 ? "..." : ""));
 
     try {
+      // Clear any previous transcript and set waiting state
+      setAgentTranscript("");
+      setIsWaitingForAgentResponse(true);
+
       // Send text to the lk.chat topic - agent listens for this by default
       await roomRef.current.localParticipant.sendText(text, {
         topic: "lk.chat",
       });
-      console.log("[LiveKit] Text sent successfully");
+      console.log("[LiveKit] Text sent successfully, waiting for agent response...");
     } catch (err) {
       console.error("[LiveKit] Failed to send text:", err);
+      setIsWaitingForAgentResponse(false);
       throw err;
     }
   }, []);
@@ -651,6 +661,7 @@ export function useLiveKit({
     transcriptSegments,
     isAgentSpeaking,
     isAudioBlocked,
+    isWaitingForAgentResponse,
     connect,
     disconnect,
     toggleMute,
