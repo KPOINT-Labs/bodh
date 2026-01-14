@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Sparkles } from "lucide-react";
 import { Card } from "@/components/ui/card";
 
@@ -114,8 +114,10 @@ export function ChatAgent({
     (a, b) => a.orderIndex - b.orderIndex
   )[0];
 
-  // Auto-scroll hook
-  const { scrollRef, scrollToBottom } = useAutoScroll();
+  // Auto-scroll hook with smart scrolling (respects user scroll position)
+  const { scrollRef, scrollToBottom, forceScrollToBottom, isAtBottom } = useAutoScroll({
+    threshold: 150, // Consider "at bottom" if within 150px
+  });
 
   // Chat initialization hook (with streaming support)
   const { historyMessages, latestMessage, isLoading, isStreaming, isReturningUser } =
@@ -127,17 +129,29 @@ export function ChatAgent({
       onConversationReady,
     });
 
+  // Track previous chat messages length to detect new user messages
+  const prevChatMessagesLengthRef = useRef(chatMessages.length);
+
   // Auto-scroll during streaming (local or agent transcript)
+  // Uses smart scroll - only scrolls if user is already at bottom
   useEffect(() => {
     if ((isStreaming && latestMessage) || (isAgentSpeaking && agentTranscript)) {
-      scrollToBottom();
+      scrollToBottom(); // Smart scroll - respects user scroll position
     }
   }, [isStreaming, latestMessage, isAgentSpeaking, agentTranscript, scrollToBottom]);
 
-  // Auto-scroll when chat messages change (with delay for feedback messages)
+  // Auto-scroll when chat messages change
   useEffect(() => {
     if (chatMessages.length > 0) {
       const latestMsg = chatMessages[chatMessages.length - 1];
+      const isNewMessage = chatMessages.length > prevChatMessagesLengthRef.current;
+      prevChatMessagesLengthRef.current = chatMessages.length;
+
+      // Force scroll when USER sends a new message (they expect to see the response)
+      if (isNewMessage && latestMsg.role === "user") {
+        forceScrollToBottom();
+        return;
+      }
 
       // Check if the latest message is an FA response with feedback
       if (latestMsg.messageType === "fa" && latestMsg.role === "assistant") {
@@ -146,23 +160,25 @@ export function ChatAgent({
         // If it has feedback, delay scroll to let user see the badge first
         if (feedback.type) {
           const timer = setTimeout(() => {
-            scrollToBottom();
+            scrollToBottom(); // Smart scroll for assistant responses
           }, 2000); // Match FeedbackBadge duration
           return () => clearTimeout(timer);
         }
       }
 
-      // For non-feedback messages, scroll immediately
-      scrollToBottom();
+      // For assistant messages, use smart scroll (respect user scroll position)
+      if (isNewMessage) {
+        scrollToBottom();
+      }
     }
-  }, [chatMessages, scrollToBottom]);
+  }, [chatMessages, scrollToBottom, forceScrollToBottom]);
 
-  // Scroll to bottom when loading completes
+  // Force scroll to bottom when loading completes (initial load)
   useEffect(() => {
     if (!isLoading) {
-      setTimeout(scrollToBottom, 100);
+      setTimeout(forceScrollToBottom, 100);
     }
-  }, [isLoading, scrollToBottom]);
+  }, [isLoading, forceScrollToBottom]);
 
   // Event handlers
   const handleStartLesson = () => {

@@ -21,6 +21,7 @@ interface LiveKitState {
   disconnect: () => Promise<void>;
   toggleMute: () => Promise<void>;
   startAudio: () => Promise<void>;
+  sendTextToAgent: (text: string) => Promise<void>;
 }
 
 interface ChatInputProps {
@@ -61,7 +62,7 @@ export function ChatInput({
   });
 
   // Use parent's LiveKit state if provided, otherwise use own hook
-  const { isConnected, isConnecting, isMuted, audioLevel, error: voiceError, toggleMute } =
+  const { isConnected, isConnecting, isMuted, audioLevel, error: voiceError, toggleMute, sendTextToAgent } =
     liveKitState || ownLiveKit;
 
   // Log voice errors when they occur (only for own hook, parent handles its own)
@@ -96,8 +97,25 @@ export function ChatInput({
   // Handle text message submit
   const handleSubmit = async () => {
     const message = inputValue.trim();
-    if (message && onSend) {
-      setInputValue("");
+    if (!message) return;
+
+    setInputValue("");
+
+    // If LiveKit is connected, send via LiveKit (agent will speak the response)
+    if (isConnected && sendTextToAgent) {
+      console.log("[ChatInput] Sending message via LiveKit");
+      try {
+        await sendTextToAgent(message);
+      } catch (err) {
+        console.error("[ChatInput] Failed to send via LiveKit:", err);
+        // Fall back to onSend if LiveKit fails
+        if (onSend) {
+          await onSend(message);
+        }
+      }
+    } else if (onSend) {
+      // Fall back to direct API call
+      console.log("[ChatInput] Sending message via API");
       await onSend(message);
     }
   };

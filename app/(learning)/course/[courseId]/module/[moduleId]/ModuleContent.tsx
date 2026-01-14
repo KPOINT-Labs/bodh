@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { useKPointPlayer } from "@/hooks/useKPointPlayer";
 import { useChatSession } from "@/hooks/useChatSession";
 import { useLiveKit } from "@/hooks/useLiveKit";
+import { useSessionType } from "@/hooks/useSessionType";
 
 interface Lesson {
   id: string;
@@ -53,13 +54,20 @@ export function ModuleContent({ course, module, userId }: ModuleContentProps) {
   const activeLesson = selectedLesson || module.lessons.sort((a, b) => a.orderIndex - b.orderIndex)[0];
   const videoIds = activeLesson?.kpointVideoId ? [activeLesson.kpointVideoId] : [];
 
+  // Determine session type (welcome vs welcome_back) before connecting to LiveKit
+  const { sessionType, isLoading: isSessionTypeLoading } = useSessionType({
+    userId,
+    moduleId: module.id,
+  });
+
   // LiveKit voice session - auto-connect in listen-only mode (text-to-speech)
+  // Only auto-connect once we know the session type
   const liveKit = useLiveKit({
     conversationId: conversationId || `temp-${course.id}-${module.id}`,
     courseId: course.id,
     userId: userId,
     videoIds: videoIds,
-    autoConnect: true,
+    autoConnect: !isSessionTypeLoading, // Wait for session type check before connecting
     listenOnly: true, // Text-to-speech mode - agent speaks, user listens
     metadata: {
       courseId: course.id,
@@ -70,7 +78,7 @@ export function ModuleContent({ course, module, userId }: ModuleContentProps) {
       moduleTitle: module.title,
       lessonId: activeLesson?.id,
       lessonTitle: activeLesson?.title,
-      sessionType: "welcome",
+      sessionType: sessionType, // Dynamic: "welcome" or "welcome_back"
     },
   });
 

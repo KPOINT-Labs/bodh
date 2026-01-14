@@ -73,6 +73,8 @@ interface UseLiveKitReturn {
   toggleMute: () => Promise<void>;
   /** Call this after user interaction to enable audio playback */
   startAudio: () => Promise<void>;
+  /** Send text message to agent (will be spoken back via TTS) */
+  sendTextToAgent: (text: string) => Promise<void>;
 }
 
 interface TokenResponse {
@@ -126,11 +128,16 @@ export function useLiveKit({
   const isConnectingRef = useRef(false); // Prevent race conditions during async connect
   const roomNameRef = useRef<string | null>(null); // Stable room name across re-renders
   const onTranscriptRef = useRef(onTranscript); // Ref for callback to avoid stale closures
+  const metadataRef = useRef(metadata); // Ref for metadata to always use current values
 
-  // Keep callback ref updated
+  // Keep refs updated
   useEffect(() => {
     onTranscriptRef.current = onTranscript;
   }, [onTranscript]);
+
+  useEffect(() => {
+    metadataRef.current = metadata;
+  }, [metadata]);
 
   /**
    * Connect to LiveKit room
@@ -160,26 +167,29 @@ export function useLiveKit({
       console.log("[LiveKit] Fetching token from: /api/livekit/token");
       console.log("[LiveKit] Request payload:", { roomName, userId, videoIds });
       // Build metadata payload with course/lesson context
+      // Use metadataRef to always get the latest metadata values
+      const currentMetadata = metadataRef.current;
       const metadataPayload = {
-        course_id: metadata.courseId || courseId,
-        course_title: metadata.courseTitle,
-        course_description: metadata.courseDescription,
-        learning_objectives: metadata.learningObjectives,
-        module_id: metadata.moduleId,
-        module_title: metadata.moduleTitle,
-        lesson_id: metadata.lessonId,
-        lesson_title: metadata.lessonTitle,
-        user_name: metadata.userName,
-        user_email: metadata.userEmail,
-        conversation_id: metadata.conversationId || conversationId,
-        session_type: metadata.sessionType,
+        course_id: currentMetadata.courseId || courseId,
+        course_title: currentMetadata.courseTitle,
+        course_description: currentMetadata.courseDescription,
+        learning_objectives: currentMetadata.learningObjectives,
+        module_id: currentMetadata.moduleId,
+        module_title: currentMetadata.moduleTitle,
+        lesson_id: currentMetadata.lessonId,
+        lesson_title: currentMetadata.lessonTitle,
+        user_name: currentMetadata.userName,
+        user_email: currentMetadata.userEmail,
+        conversation_id: currentMetadata.conversationId || conversationId,
+        session_type: currentMetadata.sessionType,
         ...Object.fromEntries(
-          Object.entries(metadata).filter(([key]) =>
+          Object.entries(currentMetadata).filter(([key]) =>
             !['courseId', 'courseTitle', 'courseDescription', 'learningObjectives', 'moduleId', 'moduleTitle', 'lessonId', 'lessonTitle',
               'userName', 'userEmail', 'conversationId', 'sessionType'].includes(key)
           )
         ),
       };
+      console.log("[LiveKit] Session type:", currentMetadata.sessionType);
 
       const response = await fetch("/api/livekit/token", {
         method: "POST",
@@ -554,6 +564,35 @@ export function useLiveKit({
     }
   }, []);
 
+  /**
+   * Send text message to agent via lk.chat topic
+   * Agent will process and respond via TTS
+   */
+  const sendTextToAgent = useCallback(async (text: string) => {
+    if (!roomRef.current) {
+      console.warn("[LiveKit] Cannot send text - not connected");
+      return;
+    }
+
+    if (!text.trim()) {
+      console.warn("[LiveKit] Cannot send empty text");
+      return;
+    }
+
+    console.log("[LiveKit] Sending text to agent:", text.substring(0, 50) + (text.length > 50 ? "..." : ""));
+
+    try {
+      // Send text to the lk.chat topic - agent listens for this by default
+      await roomRef.current.localParticipant.sendText(text, {
+        topic: "lk.chat",
+      });
+      console.log("[LiveKit] Text sent successfully");
+    } catch (err) {
+      console.error("[LiveKit] Failed to send text:", err);
+      throw err;
+    }
+  }, []);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -604,5 +643,6 @@ export function useLiveKit({
     disconnect,
     toggleMute,
     startAudio,
+    sendTextToAgent,
   };
 }

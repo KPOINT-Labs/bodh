@@ -29,8 +29,20 @@ export interface ChatRequest {
 interface SarvamStep {
   node_uid: string | null;
   t: number;
-  content: string;
+  content?: string;
+  // Tool call fields (t: 17)
+  id?: string;
+  name?: string;
+  arg?: string;
+  mcp_uid?: string;
 }
+
+// Sarvam step types
+const SARVAM_STEP_TYPE = {
+  TOOL_RESULT: 15,    // Tool execution result (raw JSON)
+  TOOL_CALL: 17,      // Tool invocation (has name, arg)
+  ASSISTANT: 20,      // Assistant's response (has content)
+} as const;
 
 interface SarvamPromptResponse {
   humanTurnUid: string;
@@ -122,16 +134,51 @@ async function classifyMessageType(message: string): Promise<"QnA" | "FA"> {
 
 /**
  * Extract the assistant content from Sarvam response
- * Takes the last step's content from the steps array
+ *
+ * Sarvam returns multiple step types:
+ * - t: 17 (TOOL_CALL) - Tool invocation with name, arg fields
+ * - t: 15 (TOOL_RESULT) - Raw JSON result from tool execution
+ * - t: 20 (ASSISTANT) - The actual assistant response with content
+ *
+ * We want to extract only the assistant response (t: 20), not tool calls/results.
  */
 function extractAssistantContent(response: SarvamPromptResponse): string {
   if (!response.steps || response.steps.length === 0) {
     return "I couldn't generate a response. Please try again.";
   }
 
-  // Get the last step's content
-  const lastStep = response.steps[response.steps.length - 1];
-  return lastStep.content || "No content available.";
+  // Strategy 1: Find step with t: 20 (assistant response)
+  const assistantStep = response.steps.find(
+    (step) => step.t === SARVAM_STEP_TYPE.ASSISTANT && step.content
+  );
+
+  if (assistantStep?.content) {
+    return assistantStep.content;
+  }
+
+  // Strategy 2: Find the last step that has content but is NOT a tool call/result
+  // Tool calls have 'name' field, tool results have t: 15
+  for (let i = response.steps.length - 1; i >= 0; i--) {
+    const step = response.steps[i];
+    const isToolCall = step.name !== undefined;
+    const isToolResult = step.t === SARVAM_STEP_TYPE.TOOL_RESULT;
+
+    if (step.content && !isToolCall && !isToolResult) {
+      return step.content;
+    }
+  }
+
+  // Strategy 3: Fallback to last step with content (shouldn't reach here normally)
+  const lastStepWithContent = [...response.steps]
+    .reverse()
+    .find((step) => step.content);
+
+  if (lastStepWithContent?.content) {
+    console.warn("Using fallback: last step with content (no t:20 found)");
+    return lastStepWithContent.content;
+  }
+
+  return "I couldn't generate a response. Please try again.";
 }
 
 /**
