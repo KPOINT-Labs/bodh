@@ -46,10 +46,11 @@ export function PeerLearningPanel({
     activeModuleId,
   });
 
-  const handleLessonClick = (courseId: string, moduleId: string, _lesson: Lesson) => {
+  const handleLessonClick = (courseId: string, moduleId: string, lesson: Lesson) => {
     const course = courses.find((c) => c.id === courseId);
     const courseSlug = course?.slug || courseId;
-    router.push(`/course/${courseSlug}/module/${moduleId}`);
+    // Include lessonId in URL to auto-select the lesson
+    router.push(`/course/${courseSlug}/module/${moduleId}?lesson=${lesson.id}`);
   };
 
   const handleDeleteThread = async (moduleId: string) => {
@@ -105,6 +106,7 @@ export function PeerLearningPanel({
       courses={courses}
       selectedCourse={selectedCourse}
       expandedModules={expandedModules}
+      activeModuleId={activeModuleId}
       onSelectCourse={selectCourse}
       onToggleModule={toggleModule}
       onLessonClick={handleLessonClick}

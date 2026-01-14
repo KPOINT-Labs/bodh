@@ -20,6 +20,7 @@ interface CourseListProps {
   courses: Course[];
   selectedCourse: Course | null;
   expandedModules: string[];
+  activeModuleId?: string;
   onSelectCourse: (course: Course) => void;
   onToggleModule: (moduleId: string) => void;
   onLessonClick: (courseId: string, moduleId: string, lesson: Lesson) => void;
@@ -110,12 +111,14 @@ function LessonItem({ lesson, onClick }: { lesson: Lesson; onClick: () => void }
 function ModuleItem({
   module,
   isExpanded,
+  isActive,
   onToggle,
   onLessonClick,
   onDeleteClick,
 }: {
   module: Module;
   isExpanded: boolean;
+  isActive: boolean;
   onToggle: () => void;
   onLessonClick: (lesson: Lesson) => void;
   onDeleteClick?: () => void;
@@ -128,7 +131,11 @@ function ModuleItem({
       <div className="relative flex items-center">
         <button
           onClick={onToggle}
-          className="w-full flex items-center gap-3 py-3 px-1 hover:bg-gray-50 rounded-lg transition-colors"
+          className={`w-full flex items-center gap-3 py-3 px-1 rounded-lg transition-colors ${
+            isActive
+              ? "bg-purple-100 hover:bg-purple-150 border-l-4 border-purple-500"
+              : "hover:bg-gray-50"
+          }`}
         >
           {/* Chevron */}
           {isExpanded ? (
@@ -241,6 +248,7 @@ export function CourseList({
   courses,
   selectedCourse,
   expandedModules,
+  activeModuleId,
   onSelectCourse,
   onToggleModule,
   onLessonClick,
@@ -304,6 +312,7 @@ export function CourseList({
                         key={module.id}
                         module={module}
                         isExpanded={expandedModules.includes(module.id)}
+                        isActive={module.id === activeModuleId}
                         onToggle={() => onToggleModule(module.id)}
                         onLessonClick={(lesson) => onLessonClick(course.id, module.id, lesson)}
                         onDeleteClick={onDeleteThread ? () => handleDeleteClick(module) : undefined}

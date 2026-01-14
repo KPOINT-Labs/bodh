@@ -263,6 +263,7 @@ model SarvamSession {
   taskGraphId    String
   conversationId String
   status         String       @default("active")
+  turnCount      Int          @default(0) // Track turns for rate limit rotation (max 20 per session)
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
   taskGraph      TaskGraph    @relation(fields: [taskGraphId], references: [id], onDelete: Cascade)

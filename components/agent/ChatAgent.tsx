@@ -128,6 +128,8 @@ interface ChatAgentProps {
   chatMessages?: MessageData[];
   isWaitingForResponse?: boolean;
   isVideoPlaying?: boolean;
+  /** Whether a lesson is already selected (video player rendered) */
+  hasSelectedLesson?: boolean;
   /** Agent transcript from LiveKit (spoken text) */
   agentTranscript?: string;
   /** Whether agent is currently speaking */
@@ -161,6 +163,7 @@ export function ChatAgent({
   chatMessages = [],
   isWaitingForResponse = false,
   isVideoPlaying = false,
+  hasSelectedLesson = false,
   agentTranscript = "",
   isAgentSpeaking = false,
   isLiveKitConnected = false,
@@ -392,12 +395,14 @@ export function ChatAgent({
           </>
         )}
 
-        {/* Action Buttons - show only before user starts chatting */}
-        {/* Hide buttons if: agent speaking, waiting for agent, OR user has sent messages */}
+        {/* Action Buttons - show only after LiveKit connects and agent finishes speaking */}
+        {/* Conditions: LiveKit connected, agent has spoken, not speaking, no user messages, no lesson selected yet */}
         {!isAgentSpeaking &&
          firstLesson &&
          filteredChatMessages.length === 0 &&
-         !(isLiveKitConnected && !agentTranscript) && (
+         isLiveKitConnected &&
+         agentTranscript &&
+         !hasSelectedLesson && (
           <ActionButtons
             firstLesson={firstLesson}
             module={module}

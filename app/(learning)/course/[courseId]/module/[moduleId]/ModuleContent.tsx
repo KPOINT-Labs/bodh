@@ -43,10 +43,20 @@ interface ModuleContentProps {
   course: Course;
   module: Module;
   userId: string;
+  initialLessonId?: string;
 }
 
-export function ModuleContent({ course, module, userId }: ModuleContentProps) {
-  const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
+export function ModuleContent({ course, module, userId, initialLessonId }: ModuleContentProps) {
+  // Find initial lesson from URL parameter or default to null (will show first lesson)
+  const getInitialLesson = (): Lesson | null => {
+    if (initialLessonId) {
+      const lesson = module.lessons.find((l) => l.id === initialLessonId);
+      return lesson || null;
+    }
+    return null;
+  };
+
+  const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(getInitialLesson);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [videoStartOffset, setVideoStartOffset] = useState<number | null>(null);
 
@@ -318,6 +328,7 @@ export function ModuleContent({ course, module, userId }: ModuleContentProps) {
         chatMessages={chatMessages}
         isWaitingForResponse={isSending || liveKit.isWaitingForAgentResponse}
         isVideoPlaying={isPlaying}
+        hasSelectedLesson={!!selectedLesson}
         // LiveKit agent transcript
         agentTranscript={liveKit.agentTranscript}
         isAgentSpeaking={liveKit.isAgentSpeaking}
