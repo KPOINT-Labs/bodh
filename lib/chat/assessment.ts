@@ -146,8 +146,10 @@ export function parseAssessmentContent(content: string): ParsedAssessment {
       let questionText = stripMarkdown(questionMatch[2] || '');
 
       // If no text on same line, look for it in the next non-option lines
+      // Accumulate all lines until we hit options or another question
       if (!questionText) {
         let j = i + 1;
+        const questionLines: string[] = [];
         while (j < lines.length) {
           const nextLine = lines[j].trim();
           if (!nextLine) {
@@ -158,14 +160,22 @@ export function parseAssessmentContent(content: string): ParsedAssessment {
           if (nextLine.match(/^(-\s*)?[A-D]\)\s*/) || nextLine.match(/^Question\s+\d+/i)) {
             break;
           }
+          // Stop if we hit "What's your answer" type prompt
+          if (nextLine.toLowerCase().includes("what's your answer") ||
+              nextLine.toLowerCase().includes("what is your answer") ||
+              nextLine.toLowerCase().includes("your answer")) {
+            break;
+          }
           // Skip lines that are just markdown artifacts
           if (nextLine.match(/^[\*#\-]+\s*$/) || nextLine === '**') {
             j++;
             continue;
           }
-          questionText = stripMarkdown(nextLine);
-          break;
+          questionLines.push(stripMarkdown(nextLine));
+          j++;
         }
+        // Join all question lines into the question text
+        questionText = questionLines.join(' ').trim();
       }
 
       currentQuestion = {
@@ -268,9 +278,11 @@ export function parseAssessmentContent(content: string): ParsedAssessment {
 
 /**
  * Checks if the content contains assessment questions
+ * Matches formats like "Question 1:", "Question 1", "Question 1 (Multiple Choice):", etc.
  */
 export function isAssessmentContent(content: string): boolean {
-  return /Question\s+\d+.*?:/i.test(content) || content.toLowerCase().includes('quiz');
+  // Match "Question N" with optional type indicator and optional colon
+  return /Question\s+\d+/i.test(content) || content.toLowerCase().includes('quiz');
 }
 
 export interface FeedbackResult {

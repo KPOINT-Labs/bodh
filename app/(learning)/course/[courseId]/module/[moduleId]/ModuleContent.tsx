@@ -79,6 +79,8 @@ export function ModuleContent({ course, module, userId, initialLessonId }: Modul
   const storedSegmentsRef = useRef<Set<string>>(new Set());
   // Track if user has sent a message - used for storing subsequent agent responses
   const userHasSentMessageRef = useRef<boolean>(false);
+  // Track the last user message type (e.g., "fa", "general") for agent response typing
+  const lastUserMessageTypeRef = useRef<string>("general");
   // Track if welcome message has been stored (for first-time users only)
   const welcomeStoredRef = useRef<boolean>(false);
   // Ref for isReturningUser to use in callback
@@ -148,8 +150,10 @@ export function ModuleContent({ course, module, userId, initialLessonId }: Modul
       if (userHasSentMessageRef.current) {
         if (addAssistantMessageRef.current) {
           storedSegmentsRef.current.add(segmentKey);
-          console.log("[ModuleContent] Storing agent response to chat:", segment.text.substring(0, 50) + "...");
-          addAssistantMessageRef.current(segment.text, "general");
+          // Use the same message type as the user's last message (e.g., "fa" for FA responses)
+          const responseType = lastUserMessageTypeRef.current;
+          console.log("[ModuleContent] Storing agent response to chat with type:", responseType, segment.text.substring(0, 50) + "...");
+          addAssistantMessageRef.current(segment.text, responseType);
           if (clearAgentTranscriptRef.current) {
             clearAgentTranscriptRef.current();
           }
@@ -283,8 +287,9 @@ export function ModuleContent({ course, module, userId, initialLessonId }: Modul
   // This prevents welcome messages from being stored - only user messages and responses
   const handleAddUserMessage = useCallback(
     async (message: string, messageType: string = "general", inputType: string = "text") => {
-      console.log("[ModuleContent] User sent message, setting userHasSentMessageRef = true");
+      console.log("[ModuleContent] User sent message, setting userHasSentMessageRef = true, messageType:", messageType);
       userHasSentMessageRef.current = true; // Mark that user has interacted
+      lastUserMessageTypeRef.current = messageType; // Track message type for agent response
       await addUserMessage(message, messageType, inputType);
     },
     [addUserMessage]
@@ -396,7 +401,7 @@ export function ModuleContent({ course, module, userId, initialLessonId }: Modul
   const rightPanel = selectedLesson?.kpointVideoId ? (
     <div
       className={`h-full flex flex-col bg-white p-4 transition-all duration-300 ${
-        highlightRightPanel ? "ring-4 ring-purple-400 ring-opacity-75 bg-purple-50" : ""
+        highlightRightPanel ? "ring-5 ring-purple-500 ring-opacity-75 bg-purple-50" : ""
       }`}
     >
       {/* Video Card */}

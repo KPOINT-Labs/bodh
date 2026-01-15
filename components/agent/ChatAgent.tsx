@@ -73,9 +73,25 @@ function useTypingEffect(
 }
 
 /**
+ * Check if content looks like an assessment summary/feedback
+ * Summaries typically contain scoring, overall assessment, or completion indicators
+ */
+function looksLikeSummary(content: string): boolean {
+  const lowerContent = content.toLowerCase();
+  const summaryIndicators = [
+    'summary', 'overall', 'score', 'scored', 'out of',
+    'correct answer', 'you got', 'total', 'assessment complete',
+    'great job', 'well done', 'keep practicing', 'final score',
+    'your performance', 'you answered'
+  ];
+  return summaryIndicators.some(indicator => lowerContent.includes(indicator));
+}
+
+/**
  * Split messages that contain "---" separator into two separate messages
  * This is used for FA final feedback where we want to show the assessment summary
  * as a separate assistant message
+ * Only splits if the second part actually looks like a summary
  */
 function expandMessagesWithSeparator(messages: MessageData[]): MessageData[] {
   const expanded: MessageData[] = [];
@@ -86,20 +102,24 @@ function expandMessagesWithSeparator(messages: MessageData[]): MessageData[] {
       const [firstPart, ...restParts] = msg.content.split(/\n---+\n?/);
       const secondPart = restParts.join('\n').trim();
 
-      // First message: feedback part
-      expanded.push({
-        ...msg,
-        id: `${msg.id}-part1`,
-        content: firstPart.trim(),
-      });
+      // Only split if the second part actually looks like a summary
+      if (secondPart && looksLikeSummary(secondPart)) {
+        // First message: feedback part
+        expanded.push({
+          ...msg,
+          id: `${msg.id}-part1`,
+          content: firstPart.trim(),
+        });
 
-      // Second message: assessment summary (if exists)
-      if (secondPart) {
+        // Second message: assessment summary
         expanded.push({
           ...msg,
           id: `${msg.id}-part2`,
           content: secondPart,
         });
+      } else {
+        // Not a summary split - keep message as-is
+        expanded.push(msg);
       }
     } else {
       expanded.push(msg);
@@ -296,6 +316,16 @@ export function ChatAgent({
     return filtered;
   }, [chatMessages, historyMessageIds]);
 
+  // Get the last user message type to determine how to render the live agent transcript
+  // This ensures FA responses are rendered with assessment UI during live streaming
+  const lastUserMessageType = useMemo(() => {
+    const userMessages = filteredChatMessages.filter(msg => msg.role === "user");
+    if (userMessages.length > 0) {
+      return userMessages[userMessages.length - 1].messageType || "general";
+    }
+    return "general";
+  }, [filteredChatMessages]);
+
   // Track previous chat messages length to detect new user messages
   const prevChatMessagesLengthRef = useRef(filteredChatMessages.length);
 
@@ -457,6 +487,10 @@ export function ChatAgent({
               <div className="text-sm leading-relaxed text-gray-800">
                 <MessageContent
                   content={typedAgentTranscript}
+                  messageType={lastUserMessageType}
+                  role="assistant"
+                  onQuestionAnswer={handleQuestionAnswer}
+                  onQuestionSkip={handleQuestionSkip}
                   onTimestampClick={onTimestampClick}
                 />
                 {/* Show cursor when agent is speaking or typing effect in progress */}
