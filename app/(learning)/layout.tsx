@@ -1,19 +1,23 @@
 "use client";
 
 import { ReactNode, useMemo } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { PeerLearningPanel } from "@/components/learning/PeerLearningPanel";
 import { LearningPanelProvider, useLearningPanel } from "@/contexts/LearningPanelContext";
 
 function LearningLayoutContent({ children }: { children: ReactNode }) {
   const { isCollapsed, toggleCollapse } = useLearningPanel();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   // Extract moduleId from URL pattern: /course/[courseId]/module/[moduleId]
   const activeModuleId = useMemo(() => {
     const match = pathname?.match(/\/course\/[^/]+\/module\/([^/]+)/);
     return match?.[1] || undefined;
   }, [pathname]);
+
+  // Extract lessonId from URL query parameter: ?lesson=[lessonId]
+  const activeLessonId = searchParams.get("lesson") || undefined;
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -27,6 +31,7 @@ function LearningLayoutContent({ children }: { children: ReactNode }) {
           isCollapsed={isCollapsed}
           onToggleCollapse={toggleCollapse}
           activeModuleId={activeModuleId}
+          activeLessonId={activeLessonId}
         />
       </div>
       {/* Main Content */}

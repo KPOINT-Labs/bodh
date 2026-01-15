@@ -16,6 +16,7 @@ import { useKPointPlayer } from "@/hooks/useKPointPlayer";
 import { useChatSession } from "@/hooks/useChatSession";
 import { useLiveKit, TranscriptSegment } from "@/hooks/useLiveKit";
 import { useSessionType } from "@/hooks/useSessionType";
+import { useLearningPanel } from "@/contexts/LearningPanelContext";
 
 interface Lesson {
   id: string;
@@ -47,6 +48,9 @@ interface ModuleContentProps {
 }
 
 export function ModuleContent({ course, module, userId, initialLessonId }: ModuleContentProps) {
+  // Get highlight state from context
+  const { highlightRightPanel } = useLearningPanel();
+
   // Find initial lesson from URL parameter or default to null (will show first lesson)
   const getInitialLesson = (): Lesson | null => {
     if (initialLessonId) {
@@ -390,9 +394,19 @@ export function ModuleContent({ course, module, userId, initialLessonId }: Modul
   );
 
   const rightPanel = selectedLesson?.kpointVideoId ? (
-    <div className="h-full flex flex-col bg-white p-4">
+    <div
+      className={`h-full flex flex-col bg-white p-4 transition-all duration-300 ${
+        highlightRightPanel ? "ring-4 ring-purple-400 ring-opacity-75 bg-purple-50" : ""
+      }`}
+    >
       {/* Video Card */}
-      <div className="bg-background rounded-2xl shadow-xl overflow-hidden border-2 border-blue-200 hover:border-blue-400 hover:shadow-blue-300/40">
+      <div
+        className={`bg-background rounded-2xl shadow-xl overflow-hidden border-2 transition-all duration-300 ${
+          highlightRightPanel
+            ? "border-purple-400 shadow-purple-300/60 scale-[1.02]"
+            : "border-blue-200 hover:border-blue-400 hover:shadow-blue-300/40"
+        }`}
+      >
         {/* Video Player */}
         <div className="aspect-video">
           <KPointVideoPlayer

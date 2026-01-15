@@ -109,12 +109,21 @@ export function usePeerLearning(options: UsePeerLearningOptions): UsePeerLearnin
   }, [userId, activeCourseId, activeModuleId]);
 
   const toggleModule = useCallback((moduleId: string) => {
+    // Don't collapse if this is the active module
+    if (moduleId === activeModuleId) {
+      // Just ensure it's expanded
+      setExpandedModules((prev) =>
+        prev.includes(moduleId) ? prev : [...prev, moduleId]
+      );
+      return;
+    }
+
     setExpandedModules((prev) =>
       prev.includes(moduleId)
         ? prev.filter((id) => id !== moduleId)
         : [...prev, moduleId]
     );
-  }, []);
+  }, [activeModuleId]);
 
   const backToCourses = useCallback(() => {
     setSelectedCourse(null);

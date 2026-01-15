@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { PeerLearningPanelProps, Lesson } from "@/types/learning";
 import { usePeerLearning } from "@/hooks/usePeerLearning";
+import { useLearningPanel } from "@/contexts/LearningPanelContext";
 
 // Sub-components
 import { CollapsedPanel } from "./CollapsedPanel";
@@ -26,10 +27,12 @@ export function PeerLearningPanel({
   userId: propUserId,
   activeCourseId,
   activeModuleId,
+  activeLessonId,
   isCollapsed = false,
   onToggleCollapse,
 }: PeerLearningPanelProps) {
   const router = useRouter();
+  const { triggerRightPanelHighlight } = useLearningPanel();
 
   const {
     userId,
@@ -47,6 +50,12 @@ export function PeerLearningPanel({
   });
 
   const handleLessonClick = (courseId: string, moduleId: string, lesson: Lesson) => {
+    // If this lesson is already active, highlight the right panel to show it's already displayed
+    if (moduleId === activeModuleId && lesson.id === activeLessonId) {
+      triggerRightPanelHighlight();
+      return;
+    }
+
     const course = courses.find((c) => c.id === courseId);
     const courseSlug = course?.slug || courseId;
     // Include lessonId in URL to auto-select the lesson
@@ -107,6 +116,7 @@ export function PeerLearningPanel({
       selectedCourse={selectedCourse}
       expandedModules={expandedModules}
       activeModuleId={activeModuleId}
+      activeLessonId={activeLessonId}
       onSelectCourse={selectCourse}
       onToggleModule={toggleModule}
       onLessonClick={handleLessonClick}

@@ -21,6 +21,7 @@ interface CourseListProps {
   selectedCourse: Course | null;
   expandedModules: string[];
   activeModuleId?: string;
+  activeLessonId?: string;
   onSelectCourse: (course: Course) => void;
   onToggleModule: (moduleId: string) => void;
   onLessonClick: (courseId: string, moduleId: string, lesson: Lesson) => void;
@@ -57,14 +58,26 @@ function formatDuration(minutes?: number): string {
 /**
  * Lesson item within an expanded module
  */
-function LessonItem({ lesson, onClick }: { lesson: Lesson; onClick: () => void }) {
+function LessonItem({
+  lesson,
+  isActive,
+  onClick,
+}: {
+  lesson: Lesson;
+  isActive: boolean;
+  onClick: () => void;
+}) {
   const isCompleted = lesson.status === "completed";
   const isInProgress = lesson.status === "in_progress" || lesson.status === "seen";
 
   return (
     <button
       onClick={onClick}
-      className="w-full flex items-center gap-3 py-2.5 pl-8 pr-2 hover:bg-gray-50 rounded-lg transition-colors group"
+      className={`w-full flex items-center gap-3 py-2.5 pl-8 pr-2 rounded-lg transition-colors group cursor-pointer ${
+        isActive
+          ? "bg-purple-200 hover:bg-purple-300"
+          : "hover:bg-gray-100"
+      }`}
     >
       {/* Status circle */}
       <div
@@ -112,6 +125,7 @@ function ModuleItem({
   module,
   isExpanded,
   isActive,
+  activeLessonId,
   onToggle,
   onLessonClick,
   onDeleteClick,
@@ -119,6 +133,7 @@ function ModuleItem({
   module: Module;
   isExpanded: boolean;
   isActive: boolean;
+  activeLessonId?: string;
   onToggle: () => void;
   onLessonClick: (lesson: Lesson) => void;
   onDeleteClick?: () => void;
@@ -126,15 +141,17 @@ function ModuleItem({
   const completedCount = module.lessons.filter((l) => l.status === "completed").length;
 
   return (
-    <div className="group/module">
+    <div
+      className={`group/module rounded-lg transition-colors ${
+        isActive ? "bg-purple-100 border-l-4 border-purple-500" : ""
+      }`}
+    >
       {/* Module header */}
       <div className="relative flex items-center">
         <button
           onClick={onToggle}
-          className={`w-full flex items-center gap-3 py-3 px-1 rounded-lg transition-colors ${
-            isActive
-              ? "bg-purple-100 hover:bg-purple-150 border-l-4 border-purple-500"
-              : "hover:bg-gray-50"
+          className={`w-full flex items-center gap-3 py-3 px-1 rounded-lg transition-colors cursor-pointer ${
+            isActive ? "hover:bg-purple-200" : "hover:bg-gray-100"
           }`}
         >
           {/* Chevron */}
@@ -178,6 +195,7 @@ function ModuleItem({
             <LessonItem
               key={lesson.id}
               lesson={lesson}
+              isActive={lesson.id === activeLessonId}
               onClick={() => onLessonClick(lesson)}
             />
           ))}
@@ -249,6 +267,7 @@ export function CourseList({
   selectedCourse,
   expandedModules,
   activeModuleId,
+  activeLessonId,
   onSelectCourse,
   onToggleModule,
   onLessonClick,
@@ -312,6 +331,8 @@ export function CourseList({
                         key={module.id}
                         module={module}
                         isExpanded={expandedModules.includes(module.id)}
+                        isActive={module.id === activeModuleId}
+                        activeLessonId={activeLessonId}
                         onToggle={() => onToggleModule(module.id)}
                         onLessonClick={(lesson) => onLessonClick(course.id, module.id, lesson)}
                         onDeleteClick={onDeleteThread ? () => handleDeleteClick(module) : undefined}
