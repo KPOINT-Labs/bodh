@@ -83,6 +83,8 @@ export function ModuleContent({ course, module, userId, initialLessonId }: Modul
   const addAssistantMessageRef = useRef<((message: string, messageType?: string) => Promise<void>) | null>(null);
   // Ref for clearAgentTranscript to use in callback (set after useLiveKit)
   const clearAgentTranscriptRef = useRef<(() => void) | null>(null);
+  // Ref for handleAddUserMessage to use in onUserMessage callback (set after useChatSession)
+  const handleAddUserMessageRef = useRef<((message: string, messageType?: string, inputType?: string) => Promise<void>) | null>(null);
 
   // Keep isReturningUserRef updated
   useEffect(() => {
@@ -160,6 +162,8 @@ export function ModuleContent({ course, module, userId, initialLessonId }: Modul
 
   // LiveKit voice session - auto-connect in listen-only mode (text-to-speech)
   // Only auto-connect once we know the session type
+  // Note: User messages from FA triggers are handled directly in onFATrigger (above)
+  // rather than via data channel round-trip, for immediate display
   const liveKit = useLiveKit({
     conversationId: conversationId || `temp-${course.id}-${module.id}`,
     courseId: course.id,
@@ -226,8 +230,17 @@ export function ModuleContent({ course, module, userId, initialLessonId }: Modul
   const { seekTo, getCurrentTime, isPlayerReady, isPlaying } = useKPointPlayer({
     kpointVideoId: selectedLesson?.kpointVideoId,
     onFATrigger: async (message: string, _timestampSeconds: number, _pauseVideo?: boolean) => {
-      // Send FA message via LiveKit (prism handles Sarvam API)
-      // Note: FA triggers don't show user message in chat UI
+      // Display user message in chat UI and save to DB FIRST (before sending to LiveKit)
+      // This ensures the message appears immediately without waiting for round-trip
+      if (handleAddUserMessageRef.current) {
+        console.log("[ModuleContent] FA trigger - displaying user message in chat");
+        userHasSentMessageRef.current = true; // Mark user interaction
+        await handleAddUserMessageRef.current(message, "fa", "auto");
+      } else {
+        console.warn("[ModuleContent] Cannot display FA message - handleAddUserMessageRef not set");
+      }
+
+      // Then send FA message via LiveKit (prism handles Sarvam API)
       if (liveKit.isConnected) {
         try {
           await liveKit.sendTextToAgent(message);
@@ -265,6 +278,11 @@ export function ModuleContent({ course, module, userId, initialLessonId }: Modul
     },
     [addUserMessage]
   );
+
+  // Keep handleAddUserMessageRef updated for use in onUserMessage callback
+  useEffect(() => {
+    handleAddUserMessageRef.current = handleAddUserMessage;
+  }, [handleAddUserMessage]);
 
   // Handle lesson selection
   const handleLessonSelect = useCallback((lesson: Lesson) => {

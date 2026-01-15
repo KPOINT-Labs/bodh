@@ -52,6 +52,8 @@ interface UseLiveKitProps {
   listenOnly?: boolean;
   /** Callback when agent transcript is received */
   onTranscript?: (segment: TranscriptSegment) => void;
+  /** Callback when user message is received (for auto-triggered messages from player) */
+  onUserMessage?: (text: string, taskType: string) => void;
 }
 
 interface UseLiveKitReturn {
@@ -108,6 +110,7 @@ export function useLiveKit({
   autoConnect = false,
   listenOnly = false,
   onTranscript,
+  onUserMessage,
 }: UseLiveKitProps): UseLiveKitReturn {
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -134,12 +137,17 @@ export function useLiveKit({
   const isConnectingRef = useRef(false); // Prevent race conditions during async connect
   const roomNameRef = useRef<string | null>(null); // Stable room name across re-renders
   const onTranscriptRef = useRef(onTranscript); // Ref for callback to avoid stale closures
+  const onUserMessageRef = useRef(onUserMessage); // Ref for user message callback
   const metadataRef = useRef(metadata); // Ref for metadata to always use current values
 
   // Keep refs updated
   useEffect(() => {
     onTranscriptRef.current = onTranscript;
   }, [onTranscript]);
+
+  useEffect(() => {
+    onUserMessageRef.current = onUserMessage;
+  }, [onUserMessage]);
 
   useEffect(() => {
     metadataRef.current = metadata;
@@ -298,6 +306,50 @@ export function useLiveKit({
       room.on("disconnected", (reason) => {
         console.log("[LiveKit] Disconnected from room:", reason);
         setIsConnected(false);
+      });
+
+      // Listen for data channel messages (fallback when TTS fails, user messages)
+      room.on("dataReceived", (payload, participant) => {
+        try {
+          const data = JSON.parse(new TextDecoder().decode(payload));
+          console.log("[LiveKit] Data received:", data);
+
+          // Handle user message (for auto-triggered messages from player)
+          if (data.type === "user_message") {
+            console.log("[LiveKit] User message received:", data.text?.substring(0, 50));
+            onUserMessageRef.current?.(data.text || "", data.task_type || "QnA");
+          }
+
+          // Handle TTS fallback response
+          if (data.type === "agent_response" && data.tts_failed) {
+            console.log("[LiveKit] TTS failed fallback - displaying text:", data.text?.substring(0, 50));
+
+            const segmentId = `fallback-${Date.now()}`;
+            const participantId = participant?.identity || "agent";
+
+            // Update agent transcript
+            setAgentTranscript(data.text || "");
+            setIsWaitingForAgentResponse(false);
+
+            // Create a transcript segment for the fallback
+            const fallbackSegment: TranscriptSegment = {
+              id: segmentId,
+              text: data.text || "",
+              participantIdentity: participantId,
+              isAgent: true,
+              isFinal: true,
+              timestamp: Date.now(),
+            };
+
+            setTranscriptSegments((prev) => [...prev, fallbackSegment]);
+
+            // Call the transcript callback
+            onTranscriptRef.current?.(fallbackSegment);
+          }
+        } catch (err) {
+          // Not JSON data, ignore
+          console.log("[LiveKit] Non-JSON data received, ignoring");
+        }
       });
 
       // Connect to room

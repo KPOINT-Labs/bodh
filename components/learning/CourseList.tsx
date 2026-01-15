@@ -157,7 +157,7 @@ function ModuleItem({
             {completedCount}/{module.lessonCount}
           </span>
         </button>
-        {onDeleteClick && (
+        {/* {onDeleteClick && (
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -168,7 +168,7 @@ function ModuleItem({
           >
             <Trash2 className="h-4 w-4" />
           </button>
-        )}
+        )} */}
       </div>
 
       {/* Lessons - shown when module is expanded */}
@@ -312,7 +312,6 @@ export function CourseList({
                         key={module.id}
                         module={module}
                         isExpanded={expandedModules.includes(module.id)}
-                        isActive={module.id === activeModuleId}
                         onToggle={() => onToggleModule(module.id)}
                         onLessonClick={(lesson) => onLessonClick(course.id, module.id, lesson)}
                         onDeleteClick={onDeleteThread ? () => handleDeleteClick(module) : undefined}

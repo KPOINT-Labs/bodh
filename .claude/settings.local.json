@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "mcp__livekit-docs__get_pages",
-      "Bash(bun run build:*)"
+      "Bash(bun run build:*)",
+      "Bash(\"C:/Users/ktpl-0132/Documents/GitHub/prism awscode commit/prism/.venv/Scripts/python.exe\" -m pip install livekit-plugins-openai)",
+      "Bash(uv pip install:*)"
     ],
     "additionalDirectories": [
       "C:\\Users\\ktpl-0132\\Documents\\GitHub\\prism awscode commit\\prism"
