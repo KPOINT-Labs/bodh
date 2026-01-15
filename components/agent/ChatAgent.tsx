@@ -198,6 +198,30 @@ export function ChatAgent({
     }
   }, [isLiveKitConnected, sendTextToAgent, onAddUserMessage]);
 
+  // Handler for skipping assessment questions - routes through LiveKit
+  const handleQuestionSkip = useCallback(async (questionNumber: number) => {
+    console.log(`Question ${questionNumber} skipped`);
+
+    if (!isLiveKitConnected || !sendTextToAgent) {
+      console.warn("[ChatAgent] LiveKit not connected, cannot send skip request");
+      return;
+    }
+
+    const skipMessage = "I'd like to skip this question, give next question.";
+
+    // Add skip message to chat and DB
+    if (onAddUserMessage) {
+      await onAddUserMessage(skipMessage, "fa", "text");
+    }
+
+    // Send to LiveKit agent
+    try {
+      await sendTextToAgent(skipMessage);
+    } catch (err) {
+      console.error("[ChatAgent] Failed to send skip request via LiveKit:", err);
+    }
+  }, [isLiveKitConnected, sendTextToAgent, onAddUserMessage]);
+
   // Get the first lesson from the module
   const firstLesson = module.lessons.sort(
     (a, b) => a.orderIndex - b.orderIndex
@@ -351,7 +375,7 @@ export function ChatAgent({
         {historyMessages.length > 0 && (
           <div className="space-y-4">
             {expandMessagesWithSeparator(historyMessages).map((msg) => (
-              <ChatMessage key={msg.id} message={msg} onQuestionAnswer={handleQuestionAnswer} onTimestampClick={onTimestampClick} isFromHistory={true} />
+              <ChatMessage key={msg.id} message={msg} onQuestionAnswer={handleQuestionAnswer} onQuestionSkip={handleQuestionSkip} onTimestampClick={onTimestampClick} isFromHistory={true} />
             ))}
           </div>
         )}
@@ -417,7 +441,7 @@ export function ChatAgent({
         {filteredChatMessages.length > 0 && (
           <div className="space-y-4">
             {expandMessagesWithSeparator(filteredChatMessages).map((msg) => (
-              <ChatMessage key={msg.id} message={msg} onQuestionAnswer={handleQuestionAnswer} onTimestampClick={onTimestampClick} isFromHistory={false} />
+              <ChatMessage key={msg.id} message={msg} onQuestionAnswer={handleQuestionAnswer} onQuestionSkip={handleQuestionSkip} onTimestampClick={onTimestampClick} isFromHistory={false} />
             ))}
           </div>
         )}

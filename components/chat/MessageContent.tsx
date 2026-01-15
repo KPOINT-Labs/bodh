@@ -15,6 +15,7 @@ interface MessageContentProps {
   messageType?: string;
   role?: "user" | "assistant" | "system";
   onQuestionAnswer?: (questionNumber: number, answer: string) => void;
+  onQuestionSkip?: (questionNumber: number) => void;
   onTimestampClick?: (seconds: number, youtubeVideoId?: string | null) => void;
   isFromHistory?: boolean;
 }
@@ -27,7 +28,7 @@ interface MessageContentProps {
  * - Learning headers ("You'll learn:")
  * - Assessment questions (FA messages)
  */
-export function MessageContent({ content, messageType, role, onQuestionAnswer, onTimestampClick, isFromHistory = false }: MessageContentProps) {
+export function MessageContent({ content, messageType, role, onQuestionAnswer, onQuestionSkip, onTimestampClick, isFromHistory = false }: MessageContentProps) {
   // Check if this is an FA assistant message with feedback (correct/incorrect response)
   // Only show feedback badge for assistant messages, not user answers
   if (messageType === "fa" && role === "assistant") {
@@ -118,6 +119,7 @@ export function MessageContent({ content, messageType, role, onQuestionAnswer, o
               answerType={question.answerType}
               placeholder={question.placeholder}
               onAnswer={(answer) => onQuestionAnswer?.(question.questionNumber, answer)}
+              onSkip={() => onQuestionSkip?.(question.questionNumber)}
               isFromHistory={isFromHistory}
             />
           ))}

@@ -6,6 +6,7 @@ import type { MessageData } from "@/types/chat";
 interface ChatMessageProps {
   message: MessageData;
   onQuestionAnswer?: (questionNumber: number, answer: string) => void;
+  onQuestionSkip?: (questionNumber: number) => void;
   onTimestampClick?: (seconds: number, youtubeVideoId?: string | null) => void;
   isFromHistory?: boolean;
 }
@@ -15,7 +16,7 @@ interface ChatMessageProps {
  * Handles both user and assistant messages with appropriate styling
  * Supports special rendering for FA (formative assessment) messages
  */
-export function ChatMessage({ message, onQuestionAnswer, onTimestampClick, isFromHistory = false }: ChatMessageProps) {
+export function ChatMessage({ message, onQuestionAnswer, onQuestionSkip, onTimestampClick, isFromHistory = false }: ChatMessageProps) {
   const isUser = message.role === "user";
   // Check if this is an assessment summary (second part of a split FA message)
   const isAssessmentSummary = message.id.endsWith('-part2') && message.messageType === 'fa';
@@ -50,6 +51,7 @@ export function ChatMessage({ message, onQuestionAnswer, onTimestampClick, isFro
             messageType={message.messageType}
             role={message.role}
             onQuestionAnswer={onQuestionAnswer}
+            onQuestionSkip={onQuestionSkip}
             onTimestampClick={onTimestampClick}
             isFromHistory={isFromHistory}
           />

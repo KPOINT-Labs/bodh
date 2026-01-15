@@ -10,6 +10,7 @@ interface AssessmentQuestionProps {
   options?: string[];
   questionNumber?: number;
   onAnswer: (answer: string) => void;
+  onSkip?: () => void;
   isAnswered?: boolean;
   answerType?: 'multiple_choice' | 'short_answer' | 'numerical' | 'long_answer';
   placeholder?: string;
@@ -22,6 +23,7 @@ export function AssessmentQuestion({
   options,
   questionNumber,
   onAnswer,
+  onSkip,
   isAnswered = false,
   answerType = 'multiple_choice',
   placeholder,
@@ -31,6 +33,7 @@ export function AssessmentQuestion({
   const [selectedAnswer, setSelectedAnswer] = useState<string>("");
   const [textAnswer, setTextAnswer] = useState<string>("");
   const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [hasSkipped, setHasSkipped] = useState(false);
 
   // Initialize with submitted answer if it exists
   React.useEffect(() => {
@@ -61,9 +64,14 @@ export function AssessmentQuestion({
   };
 
   const handleOptionSelect = (optionLetter: string) => {
-    if (!hasSubmitted) {
+    if (!hasSubmitted && !hasSkipped) {
       setSelectedAnswer(optionLetter);
     }
+  };
+
+  const handleSkip = () => {
+    setHasSkipped(true);
+    onSkip?.();
   };
 
   const isMultipleChoice = answerType === 'multiple_choice' && options && options.length > 0;
@@ -91,14 +99,14 @@ export function AssessmentQuestion({
                 key={index}
                 type="button"
                 onClick={() => handleOptionSelect(optionLetter)}
-                disabled={hasSubmitted || isFromHistory}
+                disabled={hasSubmitted || hasSkipped || isFromHistory}
                 className={`
                   w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-left transition-all duration-200
                   ${isSelected
                     ? 'bg-blue-50 border-2 border-blue-400'
                     : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
                   }
-                  ${(hasSubmitted || isFromHistory) ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'}
+                  ${(hasSubmitted || hasSkipped || isFromHistory) ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'}
                 `}
               >
                 {/* Radio Circle */}
@@ -126,7 +134,7 @@ export function AssessmentQuestion({
           {/* Submit Button */}
           <Button
             onClick={handleSubmit}
-            disabled={!selectedAnswer || hasSubmitted || isFromHistory}
+            disabled={!selectedAnswer || hasSubmitted || hasSkipped || isFromHistory}
             className="w-full bg-gradient-to-r from-blue-500 to-indigo-400 hover:from-blue-600 hover:to-indigo-500 text-white px-6 py-3 rounded-xl text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed shadow-md mt-2 transform transition-all duration-150 hover:scale-[1.02] active:scale-[0.98]"
           >
             {isFromHistory ? (
@@ -148,6 +156,32 @@ export function AssessmentQuestion({
               'Submit Answer'
             )}
           </Button>
+
+          {/* Skip Button - Left aligned below submit */}
+          {!isFromHistory && !hasSubmitted && (
+            <button
+              onClick={handleSkip}
+              disabled={hasSkipped}
+              className="flex items-center gap-1 mt-2 text-xs text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {hasSkipped ? (
+                <>
+                  <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  <span>Skipping...</span>
+                </>
+              ) : (
+                <>
+                  <span>Skip this question</span>
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </>
+              )}
+            </button>
+          )}
         </div>
       )}
 
@@ -160,7 +194,7 @@ export function AssessmentQuestion({
               value={textAnswer}
               onChange={(e) => setTextAnswer(e.target.value)}
               placeholder={placeholder || "Type your answer here..."}
-              disabled={hasSubmitted || isFromHistory}
+              disabled={hasSubmitted || hasSkipped || isFromHistory}
               className="w-full min-h-[100px] px-4 py-3.5 bg-gray-50 border-2 border-transparent rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white resize-none text-sm disabled:opacity-75"
               rows={4}
             />
@@ -170,7 +204,7 @@ export function AssessmentQuestion({
               value={textAnswer}
               onChange={(e) => setTextAnswer(e.target.value)}
               placeholder={placeholder || (answerType === 'numerical' ? "Enter a number..." : "Type your answer here...")}
-              disabled={hasSubmitted || isFromHistory}
+              disabled={hasSubmitted || hasSkipped || isFromHistory}
               className="w-full px-4 py-3.5 bg-gray-50 border-2 border-transparent rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white text-sm disabled:opacity-75"
             />
           )}
@@ -178,7 +212,7 @@ export function AssessmentQuestion({
           {/* Submit Button */}
           <Button
             onClick={handleSubmit}
-            disabled={!textAnswer.trim() || hasSubmitted || isFromHistory}
+            disabled={!textAnswer.trim() || hasSubmitted || hasSkipped || isFromHistory}
             className="w-full bg-gradient-to-r from-blue-500 to-indigo-400 hover:from-blue-600 hover:to-indigo-500 text-white px-6 py-3 rounded-xl text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed shadow-md transform transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
           >
             {isFromHistory ? (
@@ -200,6 +234,32 @@ export function AssessmentQuestion({
               'Submit Answer'
             )}
           </Button>
+
+          {/* Skip Button - Left aligned below submit */}
+          {!isFromHistory && !hasSubmitted && (
+            <button
+              onClick={handleSkip}
+              disabled={hasSkipped}
+              className="flex items-center gap-1 mt-2 text-xs text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {hasSkipped ? (
+                <>
+                  <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  <span>Skipping...</span>
+                </>
+              ) : (
+                <>
+                  <span>Skip this question</span>
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </>
+              )}
+            </button>
+          )}
         </div>
       )}
 
