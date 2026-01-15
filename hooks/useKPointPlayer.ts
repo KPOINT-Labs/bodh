@@ -39,6 +39,7 @@ interface Bookmark {
   id: string;
   rel_offset: number; // milliseconds
   artifact_type: string;
+  text?: string; // Topic/title of the bookmark
   [key: string]: unknown;
 }
 
@@ -46,7 +47,7 @@ interface UseKPointPlayerOptions {
   kpointVideoId: string | null | undefined;
   onBookmarksReady?: (bookmarks: Bookmark[]) => void;
   onPlayerReady?: () => void;
-  onFATrigger?: (message: string, timestampSeconds: number, pauseVideo?: boolean) => Promise<void>;
+  onFATrigger?: (message: string, timestampSeconds: number, topic?: string, pauseVideo?: boolean) => Promise<void>;
 }
 
 /**
@@ -122,10 +123,11 @@ export function useKPointPlayer({ kpointVideoId, onBookmarksReady, onPlayerReady
           }
         }
         
-        // Trigger FA with simple message and timestamp in seconds
+        // Trigger FA with message, timestamp, and topic from bookmark
         const message = "Ask me a formative assessment";
         const timestampSeconds = bookmark.rel_offset / 1000; // Convert milliseconds to seconds
-        onFATriggerRef.current?.(message, timestampSeconds, true).catch(error => {
+        const topic = bookmark.text; // Topic from bookmark (e.g., "Introduction to Computational Thinking")
+        onFATriggerRef.current?.(message, timestampSeconds, topic, true).catch(error => {
           console.error('FA trigger failed:', error);
           // Resume video on error
           if (playerRef.current) {

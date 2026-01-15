@@ -363,9 +363,15 @@ export async function POST(request: NextRequest) {
     // Build the request body for Sarvam prompt API
     // For FA (Formative Assessment), add the assessment prompt only for NEW assessment requests
     // If isAnswerFlag is true, this is an answer to an existing question - don't add the prompt
-    const finalPrompt = taskGraphType === "FA" && !isAnswerFlag
-      ? `Be in assessment mode. Generate EXACTLY 5 questions (use mixed question types if needed). Ask questions one by one. If the user answers 3 or more questions correctly, stop the assessment and provide feedback. IMPORTANT: Do NOT tell the user about the 5 question limit or the 3 correct answers threshold. Do NOT mention "I will ask 5 questions" or similar. Just start with the first question naturally.\n\nUser request: ${message}`
-      : message;
+    let finalPrompt = message;
+    if (taskGraphType === "FA" && !isAnswerFlag) {
+      // Extract topic from message if present (e.g., 'Ask me a formative assessment on "Topic Name"')
+      const topicMatch = message.match(/on\s+"([^"]+)"/i);
+      const topic = topicMatch ? topicMatch[1] : null;
+
+      const topicText = topic ? ` on ${topic}` : "";
+      finalPrompt = `Be in assessment mode. Generate EXACTLY 3 MCQ questions${topicText} (use mixed question types if needed). Ask questions one by one. If the user answers 2 or more questions correctly, stop the assessment and provide feedback. IMPORTANT: Do NOT tell the user about the 3 question limit or the 2 correct answers threshold. Do NOT mention "I will ask 3 questions" or similar. Just start with the first question naturally.\n\nUser request: ${message}`;
+    }
 
     const promptRequestBody: {
       sessionUid: string;

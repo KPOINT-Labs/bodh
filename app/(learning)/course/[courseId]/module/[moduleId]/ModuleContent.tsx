@@ -229,21 +229,28 @@ export function ModuleContent({ course, module, userId, initialLessonId }: Modul
   // KPoint player hook with FA trigger integration
   const { seekTo, getCurrentTime, isPlayerReady, isPlaying } = useKPointPlayer({
     kpointVideoId: selectedLesson?.kpointVideoId,
-    onFATrigger: async (message: string, _timestampSeconds: number, _pauseVideo?: boolean) => {
+    onFATrigger: async (message: string, _timestampSeconds: number, topic?: string, _pauseVideo?: boolean) => {
+      // Display simple message in chat UI (without topic)
+      const displayMessage = "Ask me a formative assessment";
+      // But send message with topic to LiveKit for prompt construction
+      const agentMessage = topic
+        ? `Ask me a formative assessment on "${topic}"`
+        : message;
+
       // Display user message in chat UI and save to DB FIRST (before sending to LiveKit)
       // This ensures the message appears immediately without waiting for round-trip
       if (handleAddUserMessageRef.current) {
-        console.log("[ModuleContent] FA trigger - displaying user message in chat");
+        console.log("[ModuleContent] FA trigger - displaying user message in chat, topic:", topic);
         userHasSentMessageRef.current = true; // Mark user interaction
-        await handleAddUserMessageRef.current(message, "fa", "auto");
+        await handleAddUserMessageRef.current(displayMessage, "fa", "auto");
       } else {
         console.warn("[ModuleContent] Cannot display FA message - handleAddUserMessageRef not set");
       }
 
-      // Then send FA message via LiveKit (prism handles Sarvam API)
+      // Then send FA message with topic via LiveKit (prism handles Sarvam API)
       if (liveKit.isConnected) {
         try {
-          await liveKit.sendTextToAgent(message);
+          await liveKit.sendTextToAgent(agentMessage);
         } catch (err) {
           console.error("[ModuleContent] Failed to send FA trigger via LiveKit:", err);
         }
