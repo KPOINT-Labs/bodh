@@ -64,13 +64,6 @@ function LoginForm() {
         Sign in to continue learning
       </p>
 
-      {/* OAuth Error Message */}
-      {errorParam === "AccessDenied" && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm text-center">
-          Access denied. Only @kpoint.com email addresses are allowed.
-        </div>
-      )}
-
       {/* Error Message */}
       {error && (
         <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm text-center">

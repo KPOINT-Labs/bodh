@@ -66,23 +66,28 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
   callbacks: {
     async signIn({ user, account }) {
-      // For Google sign-in, restrict to @kpoint.com emails
+      // For Google sign-in, create user if not exists
       if (account?.provider === "google") {
         const email = user.email;
-        if (!email?.endsWith("@kpoint.com")) {
-          return false; // Reject non-kpoint emails
+        if (!email) {
+          return false;
         }
 
-        // Create user if not exists, update last login either way
-        await prisma.user.upsert({
-          where: { email },
-          update: { lastLoginAt: new Date() },
-          create: {
-            email,
-            name: user.name || email.split("@")[0],
-            passwordHash: null,
-          },
-        });
+        try {
+          // Create user if not exists, update last login either way
+          await prisma.user.upsert({
+            where: { email },
+            update: { lastLoginAt: new Date() },
+            create: {
+              email,
+              name: user.name || email.split("@")[0],
+              passwordHash: null,
+            },
+          });
+        } catch (error) {
+          console.error("[Auth] Database error during Google sign-in:", error);
+          return false;
+        }
       }
       return true;
     },
