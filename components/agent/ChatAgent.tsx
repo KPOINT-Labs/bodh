@@ -431,7 +431,7 @@ export function ChatAgent({
   }
 
   return (
-    <Card className="bg-white border border-gray-200 shadow-sm p-6">
+    <Card className="bg-transparent border-none shadow-none p-6">
       <ChatHeader />
 
       <div className="space-y-4">

@@ -430,7 +430,7 @@ export function ModuleContent({ course, module, userId, initialLessonId }: Modul
   );
 
   const content = (
-    <div className="space-y-6 p-6 pb-3">
+    <div className="space-y-6 pb-3">
       {/* AI Welcome Agent */}
       <ChatAgent
         course={course}

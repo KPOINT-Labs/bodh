@@ -25,7 +25,7 @@ export function WelcomeContent({ firstCourse, lastCourse }: WelcomeContentProps)
   );
 
   const content = (
-    <div className="space-y-6 p-6 pb-3">
+    <div className="space-y-6 pb-3">
       <Card className="bg-white border border-gray-200 shadow-sm p-6">
         {/* Chat Header */}
         <div className="flex items-center gap-3 mb-6 pb-4 border-b border-gray-100">
