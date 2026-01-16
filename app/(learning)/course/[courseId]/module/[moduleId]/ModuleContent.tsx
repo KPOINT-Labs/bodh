@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import Script from "next/script";
 import { Card } from "@/components/ui/card";
 import { ResizableContent } from "@/components/layout/resizable-content";
@@ -8,7 +9,7 @@ import { LessonHeader } from "@/components/course/LessonHeader";
 import { ChatAgent } from "@/components/agent/ChatAgent";
 import { ChatInput } from "@/components/chat/ChatInput";
 import { KPointVideoPlayer } from "@/components/video/KPointVideoPlayer";
-import { BookOpen } from "lucide-react";
+import { BookOpen, X } from "lucide-react";
 import { toast } from "sonner";
 
 // Hooks
@@ -48,8 +49,11 @@ interface ModuleContentProps {
 }
 
 export function ModuleContent({ course, module, userId, initialLessonId }: ModuleContentProps) {
-  // Get highlight state from context
-  const { highlightRightPanel } = useLearningPanel();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // Get panel state and controls from context
+  const { highlightRightPanel, collapsePanel, expandPanel } = useLearningPanel();
 
   // Find initial lesson from URL parameter or default to null (will show first lesson)
   const getInitialLesson = (): Lesson | null => {
@@ -63,6 +67,25 @@ export function ModuleContent({ course, module, userId, initialLessonId }: Modul
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(getInitialLesson);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [videoStartOffset, setVideoStartOffset] = useState<number | null>(null);
+
+  // Sync selectedLesson with URL when initialLessonId changes (e.g., clicking lesson in sidebar)
+  useEffect(() => {
+    if (initialLessonId) {
+      const lesson = module.lessons.find((l) => l.id === initialLessonId);
+      if (lesson) {
+        setSelectedLesson(lesson);
+      }
+    }
+  }, [initialLessonId, module.lessons]);
+
+  // Collapse left panel when video panel opens, expand when closed
+  useEffect(() => {
+    if (selectedLesson?.kpointVideoId) {
+      collapsePanel();
+    } else {
+      expandPanel();
+    }
+  }, [selectedLesson?.kpointVideoId, collapsePanel, expandPanel]);
 
   // Get active lesson (selected or first)
   const activeLesson = selectedLesson || module.lessons.sort((a, b) => a.orderIndex - b.orderIndex)[0];
@@ -416,7 +439,7 @@ export function ModuleContent({ course, module, userId, initialLessonId }: Modul
   );
 
   const content = (
-    <div className="space-y-6 p-6 pb-3">
+    <div className="space-y-6 pb-3">
       {/* AI Welcome Agent */}
       <ChatAgent
         course={course}
@@ -468,6 +491,13 @@ export function ModuleContent({ course, module, userId, initialLessonId }: Modul
     />
   );
 
+  // Handle closing the right panel (video player)
+  const handleCloseRightPanel = useCallback(() => {
+    setSelectedLesson(null);
+    // Also update URL to remove the lesson param so clicking on lessons works again
+    router.replace(pathname, { scroll: false });
+  }, [router, pathname]);
+
   const rightPanel = selectedLesson?.kpointVideoId ? (
     <div
       className={`h-full flex flex-col bg-white p-4 transition-all duration-300 ${
@@ -476,12 +506,21 @@ export function ModuleContent({ course, module, userId, initialLessonId }: Modul
     >
       {/* Video Card */}
       <div
-        className={`bg-background rounded-2xl shadow-xl overflow-hidden border-2 transition-all duration-300 ${
+        className={`bg-background rounded-2xl shadow-xl overflow-hidden border-2 transition-all duration-300 relative ${
           highlightRightPanel
             ? "border-purple-400 shadow-purple-300/60 scale-[1.02]"
             : "border-blue-200 hover:border-blue-400 hover:shadow-blue-300/40"
         }`}
       >
+        {/* Close Button - positioned on top of video */}
+        <button
+          onClick={handleCloseRightPanel}
+          className="absolute top-3 right-3 z-10 p-2 rounded-xl bg-gray-900/80 hover:bg-gray-900 text-white transition-colors cursor-pointer shadow-lg"
+          title="Close video panel"
+        >
+          <X className="h-5 w-5" />
+        </button>
+
         {/* Video Player */}
         <div className="aspect-video">
           <KPointVideoPlayer

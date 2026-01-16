@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { GripVerticalIcon } from "lucide-react"
+import { MoreVerticalIcon } from "lucide-react"
 import * as ResizablePrimitive from "react-resizable-panels"
 
 import { cn } from "@/lib/utils"
@@ -39,14 +39,14 @@ function ResizableHandle({
     <ResizablePrimitive.PanelResizeHandle
       data-slot="resizable-handle"
       className={cn(
-        "bg-border focus-visible:ring-ring relative flex w-px items-center justify-center after:absolute after:inset-y-0 after:left-1/2 after:w-1 after:-translate-x-1/2 focus-visible:ring-1 focus-visible:ring-offset-1 focus-visible:outline-hidden data-[panel-group-direction=vertical]:h-px data-[panel-group-direction=vertical]:w-full data-[panel-group-direction=vertical]:after:left-0 data-[panel-group-direction=vertical]:after:h-1 data-[panel-group-direction=vertical]:after:w-full data-[panel-group-direction=vertical]:after:translate-x-0 data-[panel-group-direction=vertical]:after:-translate-y-1/2 [&[data-panel-group-direction=vertical]>div]:rotate-90 cursor-col-resize hover:bg-primary/20 active:bg-primary/30 transition-colors duration-150",
+        "bg-blue-100 focus-visible:ring-blue-400 relative flex w-px items-center justify-center after:absolute after:inset-y-0 after:left-1/2 after:w-1 after:-translate-x-1/2 focus-visible:ring-1 focus-visible:ring-offset-1 focus-visible:outline-hidden data-[panel-group-direction=vertical]:h-px data-[panel-group-direction=vertical]:w-full data-[panel-group-direction=vertical]:after:left-0 data-[panel-group-direction=vertical]:after:h-1 data-[panel-group-direction=vertical]:after:w-full data-[panel-group-direction=vertical]:after:translate-x-0 data-[panel-group-direction=vertical]:after:-translate-y-1/2 [&[data-panel-group-direction=vertical]>div]:rotate-90 cursor-col-resize hover:bg-blue-200 active:bg-blue-300 transition-colors duration-150",
         className
       )}
       {...props}
     >
       {withHandle && (
-        <div className="bg-background border-border z-10 flex h-6 w-4 items-center justify-center rounded-sm border shadow-sm hover:shadow-md transition-shadow duration-200">
-          <GripVerticalIcon className="size-3 text-muted-foreground hover:text-foreground transition-colors duration-200" />
+        <div className="bg-blue-50 border-blue-200 z-10 flex h-6 w-4 items-center justify-center rounded-sm border shadow-sm hover:shadow-md hover:bg-blue-100 transition-all duration-200">
+          <MoreVerticalIcon className="size-3 text-blue-400 hover:text-blue-500 transition-colors duration-200" />
         </div>
       )}
     </ResizablePrimitive.PanelResizeHandle>

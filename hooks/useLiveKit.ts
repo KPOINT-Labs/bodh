@@ -383,6 +383,9 @@ export function useLiveKit({
               // Store this as the last final transcript
               lastFinalTranscriptRef.current = transcription.text;
               console.log("[LiveKit] Final user transcription - calling callback");
+
+              // Set waiting state since agent will now process the voice input
+              setIsWaitingForAgentResponse(true);
             }
 
             // Call callback (for interim updates or deduplicated final)

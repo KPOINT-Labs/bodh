@@ -10,7 +10,8 @@
       "WebSearch",
       "Bash(npx tsc:*)",
       "mcp__next-devtools__nextjs_call",
-      "mcp__next-devtools__browser_eval"
+      "mcp__next-devtools__browser_eval",
+      "mcp__livekit-docs__code_search"
     ],
     "additionalDirectories": [
       "C:\\Users\\ktpl-0132\\Documents\\GitHub\\prism awscode commit\\prism"
