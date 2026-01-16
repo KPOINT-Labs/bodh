@@ -369,9 +369,89 @@ export function ModuleContent({ course, module, userId, initialLessonId }: Modul
     }
   }, [liveKit.isAudioBlocked, liveKit.startAudio]);
 
+  // Handle video end - auto-play next lesson
+  const handleVideoEnd = useCallback(async () => {
+    console.log("[ModuleContent] handleVideoEnd called", {
+      selectedLesson: selectedLesson?.title,
+      lessonsCount: module.lessons.length,
+    });
+
+    if (!selectedLesson || !module.lessons.length) {
+      console.log("[ModuleContent] handleVideoEnd early return - no selected lesson or lessons");
+      return;
+    }
+
+    // Sort lessons by orderIndex to find the next one
+    const sortedLessons = [...module.lessons].sort((a, b) => a.orderIndex - b.orderIndex);
+    const currentIndex = sortedLessons.findIndex((l) => l.id === selectedLesson.id);
+
+    // Check if there's a next lesson
+    if (currentIndex >= 0 && currentIndex < sortedLessons.length - 1) {
+      const nextLesson = sortedLessons[currentIndex + 1];
+      console.log(`[ModuleContent] Video ended, auto-playing next lesson: ${nextLesson.title}`);
+
+      // Select the next lesson (this will trigger the video player to load)
+      setSelectedLesson(nextLesson);
+
+      // Notify the agent about the new lesson to start a new conversation
+      if (liveKit.isConnected) {
+        try {
+          const message = `The user has started watching the next lesson: "${nextLesson.title}". Please greet them briefly and let them know you're here to help with any questions about this lesson.`;
+          await liveKit.sendTextToAgent(message);
+        } catch (err) {
+          console.error("[ModuleContent] Failed to notify agent about next lesson:", err);
+        }
+      }
+
+      toast.success("Playing next lesson", {
+        description: nextLesson.title,
+        duration: 2000,
+      });
+    } else {
+      // No more lessons in current module - try to get next module
+      console.log("[ModuleContent] Video ended, no more lessons in module. Checking for next module...");
+
+      try {
+        const response = await fetch(
+          `/api/courses/${course.id}/next-module?currentModuleId=${module.id}`
+        );
+        const data = await response.json();
+
+        if (data.success && data.hasNextModule && data.nextModule?.firstLesson) {
+          const nextModule = data.nextModule;
+          console.log(`[ModuleContent] Found next module: ${nextModule.title}`);
+
+          toast.success("Moving to next module", {
+            description: nextModule.title,
+            duration: 2000,
+          });
+
+          // Navigate to the next module's first lesson
+          // The new page will auto-connect to LiveKit and start the conversation
+          router.push(
+            `${pathname.replace(module.id, nextModule.id)}?lesson=${nextModule.firstLesson.id}`
+          );
+        } else {
+          console.log("[ModuleContent] No more modules in course");
+          toast.info("Course complete!", {
+            description: "Congratulations! You've finished all modules in this course",
+            duration: 5000,
+          });
+        }
+      } catch (err) {
+        console.error("[ModuleContent] Failed to fetch next module:", err);
+        toast.info("Module complete!", {
+          description: "You've finished all lessons in this module",
+          duration: 3000,
+        });
+      }
+    }
+  }, [selectedLesson, module.lessons, module.id, course.id, liveKit.isConnected, liveKit.sendTextToAgent, router, pathname]);
+
   // KPoint player hook with FA trigger integration
   const { seekTo, getCurrentTime, isPlayerReady, isPlaying, playerRef } = useKPointPlayer({
     kpointVideoId: selectedLesson?.kpointVideoId,
+    onVideoEnd: handleVideoEnd,
     onFATrigger: async (_message: string, _timestampSeconds: number, topic?: string, _pauseVideo?: boolean) => {
       // NEW FLOW: Instead of directly starting FA, first show intro with buttons
       // 1. Send FA_INTRO:topic to agent - agent speaks intro message

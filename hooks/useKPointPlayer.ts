@@ -69,12 +69,14 @@ export function useKPointPlayer({ kpointVideoId, onBookmarksReady, onPlayerReady
   const onBookmarksReadyRef = useRef(onBookmarksReady);
   const onPlayerReadyRef = useRef(onPlayerReady);
   const onFATriggerRef = useRef(onFATrigger);
+  const onVideoEndRef = useRef(onVideoEnd);
 
   // Keep refs updated
   useEffect(() => {
     onBookmarksReadyRef.current = onBookmarksReady;
     onPlayerReadyRef.current = onPlayerReady;
     onFATriggerRef.current = onFATrigger;
+    onVideoEndRef.current = onVideoEnd;
   });
   
   // Keep state refs updated
@@ -159,14 +161,20 @@ export function useKPointPlayer({ kpointVideoId, onBookmarksReady, onPlayerReady
 
   // Listen for KPoint player ready event - runs only once on mount
   useEffect(() => {
-    const handlePlayerStateChange = (data: unknown) => {
-      console.log("KPoint player state change:", data);
-      
-      // Update playing state based on player state
-      if (playerRef.current) {
-        const currentState = playerRef.current.getPlayState();
-        const nowPlaying = currentState === PLAYER_STATE.PLAYING;
-        setIsPlaying(nowPlaying);
+    const handlePlayerStateChange = (event: unknown) => {
+      // KPoint passes { data: number, target: Player } - extract state from event.data
+      const eventObj = event as { data: number };
+      const stateValue = eventObj.data;
+      console.log("KPoint player state change:", stateValue);
+
+      // Update playing state
+      const nowPlaying = stateValue === PLAYER_STATE.PLAYING;
+      setIsPlaying(nowPlaying);
+
+      // Detect video end and trigger callback
+      if (stateValue === PLAYER_STATE.ENDED) {
+        console.log("KPoint video ENDED, triggering onVideoEnd callback");
+        onVideoEndRef.current?.();
       }
     };
 
