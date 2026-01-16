@@ -48,13 +48,14 @@ interface UseKPointPlayerOptions {
   onBookmarksReady?: (bookmarks: Bookmark[]) => void;
   onPlayerReady?: () => void;
   onFATrigger?: (message: string, timestampSeconds: number, topic?: string, pauseVideo?: boolean) => Promise<void>;
+  onVideoEnd?: () => void;
 }
 
 /**
  * Hook to manage KPoint video player lifecycle
  * Handles player initialization, event subscriptions, and cleanup
  */
-export function useKPointPlayer({ kpointVideoId, onBookmarksReady, onPlayerReady, onFATrigger }: UseKPointPlayerOptions) {
+export function useKPointPlayer({ kpointVideoId, onBookmarksReady, onPlayerReady, onFATrigger, onVideoEnd }: UseKPointPlayerOptions) {
   const playerRef = useRef<KPointPlayer | null>(null);
   const eventHandlersRef = useRef<Map<string, (data: unknown) => void>>(new Map());
   const kpointVideoIdRef = useRef<string | null>(null);

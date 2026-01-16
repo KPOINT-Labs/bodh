@@ -47,6 +47,13 @@ export interface UserTranscription {
   timestamp: number;
 }
 
+/** FA intro complete data from agent */
+export interface FAIntroData {
+  topic: string;
+  introMessage: string;
+  ttsFailed?: boolean;
+}
+
 interface UseLiveKitProps {
   conversationId: string;
   courseId: string;
@@ -64,6 +71,8 @@ interface UseLiveKitProps {
   onUserMessage?: (text: string, taskType: string) => void;
   /** Callback when user speech is transcribed (voice mode) */
   onUserTranscript?: (transcription: UserTranscription) => void;
+  /** Callback when FA intro is complete and buttons should be shown */
+  onFAIntroComplete?: (data: FAIntroData) => void;
 }
 
 interface UseLiveKitReturn {
@@ -134,6 +143,7 @@ export function useLiveKit({
   onTranscript,
   onUserMessage,
   onUserTranscript,
+  onFAIntroComplete,
 }: UseLiveKitProps): UseLiveKitReturn {
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -167,6 +177,7 @@ export function useLiveKit({
   const onTranscriptRef = useRef(onTranscript); // Ref for callback to avoid stale closures
   const onUserMessageRef = useRef(onUserMessage); // Ref for user message callback
   const onUserTranscriptRef = useRef(onUserTranscript); // Ref for user transcript callback
+  const onFAIntroCompleteRef = useRef(onFAIntroComplete); // Ref for FA intro complete callback
   const metadataRef = useRef(metadata); // Ref for metadata to always use current values
   const agentIdentityRef = useRef<string | null>(null); // Store agent identity for RPC calls
   const lastFinalTranscriptRef = useRef<string>(""); // Track last final transcript to prevent duplicates
@@ -183,6 +194,10 @@ export function useLiveKit({
   useEffect(() => {
     onUserTranscriptRef.current = onUserTranscript;
   }, [onUserTranscript]);
+
+  useEffect(() => {
+    onFAIntroCompleteRef.current = onFAIntroComplete;
+  }, [onFAIntroComplete]);
 
   useEffect(() => {
     metadataRef.current = metadata;
@@ -396,6 +411,19 @@ export function useLiveKit({
           if (data.type === "voice_mode_changed") {
             console.log("[LiveKit] Voice mode changed:", data.enabled);
             setIsVoiceModeEnabled(data.enabled === true);
+          }
+
+          // Handle FA intro complete (agent finished speaking intro, show buttons)
+          if (data.type === "fa_intro_complete") {
+            console.log("[LiveKit] FA intro complete received:", { topic: data.topic, intro_message: data.intro_message });
+            setIsWaitingForAgentResponse(false);
+            const introData = {
+              topic: data.topic || "",
+              introMessage: data.intro_message || "",
+              ttsFailed: data.tts_failed === true,
+            };
+            console.log("[LiveKit] Calling onFAIntroComplete with:", introData);
+            onFAIntroCompleteRef.current?.(introData);
           }
 
           // Handle TTS fallback response
