@@ -158,6 +158,188 @@
   animation: sound-wave-3 0.9s ease-in-out infinite;
 }
 
+/* Product tour (driver.js) */
+.driver-overlay {
+  backdrop-filter: blur(3px);
+}
+
+.driver-popover.bodh-tour-popover {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(255, 255, 255, 0.9));
+  border: 2px solid #93c5fd;
+  border-radius: 16px;
+  padding: 20px 22px;
+  min-width: 340px;
+  max-width: 420px;
+  box-shadow: 0 30px 80px rgba(59, 130, 246, 0.2);
+}
+
+.driver-popover.bodh-tour-popover--center {
+  border-color: #c4b5fd;
+  border-radius: 24px;
+  padding: 28px 30px;
+  min-width: 420px;
+  max-width: 520px;
+  box-shadow: 0 35px 90px rgba(139, 92, 246, 0.25);
+}
+
+.bodh-tour-popover .driver-popover-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 10px;
+  background: linear-gradient(90deg, #2563eb, #7c3aed);
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+.bodh-tour-popover--center .driver-popover-title {
+  font-size: 22px;
+  text-align: center;
+  background: linear-gradient(90deg, #7c3aed, #d946ef);
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+.bodh-tour-popover .driver-popover-description {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #334155;
+}
+
+.bodh-tour-popover--center .driver-popover-description {
+  text-align: center;
+}
+
+.bodh-tour-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 16px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #8b5cf6, #d946ef);
+  box-shadow: 0 15px 35px rgba(139, 92, 246, 0.35);
+  font-size: 28px;
+}
+
+.bodh-tour-progress {
+  margin: 16px 0;
+}
+
+.bodh-tour-progress--center {
+  margin: 18px 0 12px;
+}
+
+.bodh-tour-progress-bar {
+  height: 8px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.bodh-tour-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #8b5cf6, #d946ef);
+  transition: width 0.3s ease;
+}
+
+.bodh-tour-dots {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+.bodh-tour-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #d1d5db;
+  transition: all 0.3s ease;
+}
+
+.bodh-tour-dot.is-complete {
+  background: #c4b5fd;
+}
+
+.bodh-tour-dot.is-active {
+  background: #8b5cf6;
+  width: 16px;
+}
+
+.bodh-tour-popover .driver-popover-footer {
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.bodh-tour-popover .driver-popover-prev-btn {
+  border: 2px solid #e2e8f0;
+  color: #475569;
+  border-radius: 12px;
+  padding: 10px 18px;
+  background: #f8fafc;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  transition: all 0.2s ease;
+}
+
+.bodh-tour-popover .driver-popover-next-btn {
+  border: none;
+  color: #ffffff;
+  border-radius: 12px;
+  padding: 10px 20px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+  box-shadow: 0 14px 28px rgba(59, 130, 246, 0.28);
+  transition: all 0.2s ease;
+}
+
+.bodh-tour-popover--center .driver-popover-next-btn {
+  background: linear-gradient(90deg, #8b5cf6, #d946ef);
+  box-shadow: 0 16px 30px rgba(139, 92, 246, 0.32);
+}
+
+.bodh-tour-popover .driver-popover-prev-btn:hover {
+  border-color: #cbd5f5;
+  color: #334155;
+  background: #ffffff;
+  box-shadow: 0 8px 18px rgba(148, 163, 184, 0.25);
+}
+
+.bodh-tour-popover .driver-popover-next-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 18px 32px rgba(59, 130, 246, 0.32);
+  filter: saturate(1.1);
+}
+
+.bodh-tour-popover .driver-popover-close-btn {
+  color: #94a3b8;
+}
+
+.bodh-tour-popover .driver-popover-close-btn:hover {
+  color: #64748b;
+}
+
+.bodh-tour-skip {
+  margin-top: 8px;
+  width: 100%;
+  font-size: 12px;
+  color: #64748b;
+  text-align: center;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.bodh-tour-skip:hover {
+  color: #475569;
+}
+
 .animate-sound-wave-4 {
   animation: sound-wave-4 0.6s ease-in-out infinite;
 }
@@ -196,4 +378,234 @@
 
 .animate-scale-in {
   animation: scale-in 0.3s ease-out;
+}
+
+/* Color rotation animations for animated gradient blobs */
+@keyframes rotate-colors-1 {
+  0%, 100% { background-color: oklch(0.7 0.15 290 / 0.3); } /* Purple */
+  33% { background-color: oklch(0.9 0.1 160 / 0.3); } /* Mint */
+  66% { background-color: oklch(0.85 0.12 340 / 0.3); } /* Pink */
+}
+
+@keyframes rotate-colors-2 {
+  0%, 100% { background-color: oklch(0.88 0.1 200 / 0.3); } /* Cyan */
+  33% { background-color: oklch(0.92 0.12 90 / 0.3); } /* Yellow */
+  66% { background-color: oklch(0.7 0.15 290 / 0.3); } /* Purple */
+}
+
+@keyframes rotate-colors-3 {
+  0%, 100% { background-color: oklch(0.85 0.12 340 / 0.3); } /* Pink */
+  33% { background-color: oklch(0.88 0.1 200 / 0.3); } /* Cyan */
+  66% { background-color: oklch(0.9 0.1 160 / 0.3); } /* Mint */
+}
+
+.animate-color-rotate-1 {
+  animation: rotate-colors-1 15s ease-in-out infinite;
+  will-change: background-color;
+}
+
+.animate-color-rotate-2 {
+  animation: rotate-colors-2 18s ease-in-out infinite;
+  will-change: background-color;
+}
+
+.animate-color-rotate-3 {
+  animation: rotate-colors-3 20s ease-in-out infinite;
+  will-change: background-color;
+}
+
+/* Dark mode adjustments for color rotation */
+.dark .animate-color-rotate-1 {
+  animation: rotate-colors-1-dark 15s ease-in-out infinite;
+}
+
+.dark .animate-color-rotate-2 {
+  animation: rotate-colors-2-dark 18s ease-in-out infinite;
+}
+
+.dark .animate-color-rotate-3 {
+  animation: rotate-colors-3-dark 20s ease-in-out infinite;
+}
+
+@keyframes rotate-colors-1-dark {
+  0%, 100% { background-color: oklch(0.5 0.15 290 / 0.2); } /* Darker purple */
+  33% { background-color: oklch(0.6 0.1 160 / 0.2); } /* Darker mint */
+  66% { background-color: oklch(0.6 0.12 340 / 0.2); } /* Darker pink */
+}
+
+@keyframes rotate-colors-2-dark {
+  0%, 100% { background-color: oklch(0.6 0.1 200 / 0.2); } /* Darker cyan */
+  33% { background-color: oklch(0.65 0.12 90 / 0.2); } /* Darker yellow */
+  66% { background-color: oklch(0.5 0.15 290 / 0.2); } /* Darker purple */
+}
+
+@keyframes rotate-colors-3-dark {
+  0%, 100% { background-color: oklch(0.6 0.12 340 / 0.2); } /* Darker pink */
+  33% { background-color: oklch(0.6 0.1 200 / 0.2); } /* Darker cyan */
+  66% { background-color: oklch(0.6 0.1 160 / 0.2); } /* Darker mint */
+}
+
+/* Float animations for floating symbols */
+@keyframes float-1 {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  25% { transform: translate(20px, -30px) rotate(5deg); }
+  50% { transform: translate(-15px, 20px) rotate(-3deg); }
+  75% { transform: translate(10px, -10px) rotate(2deg); }
+}
+
+@keyframes float-2 {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  33% { transform: translate(-25px, 15px) rotate(-4deg); }
+  66% { transform: translate(18px, -22px) rotate(6deg); }
+}
+
+@keyframes float-3 {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  25% { transform: translate(15px, 25px) rotate(3deg); }
+  50% { transform: translate(-20px, -18px) rotate(-5deg); }
+  75% { transform: translate(22px, 12px) rotate(4deg); }
+}
+
+@keyframes float-4 {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  30% { transform: translate(-18px, -25px) rotate(-6deg); }
+  70% { transform: translate(25px, 20px) rotate(5deg); }
+}
+
+@keyframes float-5 {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  25% { transform: translate(22px, -15px) rotate(4deg); }
+  50% { transform: translate(-12px, 28px) rotate(-3deg); }
+  75% { transform: translate(16px, -20px) rotate(5deg); }
+}
+
+@keyframes float-6 {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  33% { transform: translate(-20px, 18px) rotate(-5deg); }
+  66% { transform: translate(15px, -25px) rotate(6deg); }
+}
+
+@keyframes float-7 {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  25% { transform: translate(18px, 22px) rotate(3deg); }
+  50% { transform: translate(-25px, -15px) rotate(-4deg); }
+  75% { transform: translate(20px, 10px) rotate(2deg); }
+}
+
+@keyframes float-8 {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  30% { transform: translate(-22px, -20px) rotate(-5deg); }
+  70% { transform: translate(28px, 16px) rotate(4deg); }
+}
+
+@keyframes float-9 {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  25% { transform: translate(25px, -18px) rotate(5deg); }
+  50% { transform: translate(-15px, 25px) rotate(-6deg); }
+  75% { transform: translate(12px, -22px) rotate(3deg); }
+}
+
+@keyframes float-10 {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  33% { transform: translate(-16px, 20px) rotate(-4deg); }
+  66% { transform: translate(20px, -28px) rotate(5deg); }
+}
+
+@keyframes float-11 {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  25% { transform: translate(20px, 25px) rotate(4deg); }
+  50% { transform: translate(-22px, -12px) rotate(-3deg); }
+  75% { transform: translate(15px, 18px) rotate(5deg); }
+}
+
+@keyframes float-12 {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  30% { transform: translate(-25px, -16px) rotate(-6deg); }
+  70% { transform: translate(30px, 22px) rotate(4deg); }
+}
+
+.animate-float-1 {
+  animation: float-1 20s ease-in-out infinite;
+  will-change: transform;
+}
+
+.animate-float-2 {
+  animation: float-2 22s ease-in-out infinite;
+  will-change: transform;
+}
+
+.animate-float-3 {
+  animation: float-3 24s ease-in-out infinite;
+  will-change: transform;
+}
+
+.animate-float-4 {
+  animation: float-4 21s ease-in-out infinite;
+  will-change: transform;
+}
+
+.animate-float-5 {
+  animation: float-5 26s ease-in-out infinite;
+  will-change: transform;
+}
+
+.animate-float-6 {
+  animation: float-6 23s ease-in-out infinite;
+  will-change: transform;
+}
+
+.animate-float-7 {
+  animation: float-7 25s ease-in-out infinite;
+  will-change: transform;
+}
+
+.animate-float-8 {
+  animation: float-8 27s ease-in-out infinite;
+  will-change: transform;
+}
+
+.animate-float-9 {
+  animation: float-9 29s ease-in-out infinite;
+  will-change: transform;
+}
+
+.animate-float-10 {
+  animation: float-10 24s ease-in-out infinite;
+  will-change: transform;
+}
+
+.animate-float-11 {
+  animation: float-11 28s ease-in-out infinite;
+  will-change: transform;
+}
+
+.animate-float-12 {
+  animation: float-12 26s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* Fade-in animation for smooth component appearances */
+@keyframes fade-in {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.4s ease-out;
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .animate-float-1, .animate-float-2, .animate-float-3, .animate-float-4,
+  .animate-float-5, .animate-float-6, .animate-float-7, .animate-float-8,
+  .animate-float-9, .animate-float-10, .animate-float-11, .animate-float-12,
+  .animate-color-rotate-1, .animate-color-rotate-2, .animate-color-rotate-3 {
+    animation: none;
+  }
 }
