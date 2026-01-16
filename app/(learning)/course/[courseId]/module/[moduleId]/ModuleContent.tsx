@@ -471,7 +471,21 @@ export function ModuleContent({ course, module, userId, initialLessonId }: Modul
     // 5. Send the actual FA request to agent
     if (liveKit.isConnected) {
       try {
-        const agentMessage = `Ask me a formative assessment on "${topic}"`;
+        const agentMessage = `
+          Be in assessment mode.
+
+          Generate EXACTLY 3 questions on Iteration (use mixed question types if needed).
+          Ask questions one by one.
+          If the user answers 2 questions correctly, stop the assessment and provide feedback.
+
+          IMPORTANT:
+          - Do NOT tell the user about the 3 question limit or the 2 correct answers threshold.
+          - Do NOT mention "I will ask 3 questions" or similar.
+          - Just start with the first question naturally.
+          - Give answer explanation in strictly 2 sentences.
+
+          User query: Ask me a formative assessment on "${topic}".
+        `.trim();
         await liveKit.sendTextToAgent(agentMessage);
       } catch (err) {
         console.error("[ModuleContent] Failed to send FA request:", err);
