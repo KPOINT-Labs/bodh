@@ -19,7 +19,15 @@ const CreateCourseSchema = z.object({
   }),
 });
 
-export async function createCourse(prevState: any, formData: FormData) {
+type CreateCourseState = {
+  errors?: Record<string, string[]>;
+  message?: string;
+};
+
+export async function createCourse(
+  prevState: CreateCourseState | undefined,
+  formData: FormData
+) {
   const validatedFields = CreateCourseSchema.safeParse({
     title: formData.get("title"),
     slug: formData.get("slug"),

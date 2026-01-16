@@ -12,12 +12,12 @@ function generateSlug(title: string) {
 
 export async function createLesson(moduleId: string, title: string) {
   try {
-    const module = await prisma.module.findUnique({
+    const courseModule = await prisma.module.findUnique({
       where: { id: moduleId },
       select: { courseId: true }
     });
 
-    if (!module) {
+    if (!courseModule) {
       throw new Error("Module not found");
     }
 
@@ -38,12 +38,12 @@ export async function createLesson(moduleId: string, title: string) {
         title,
         slug,
         moduleId,
-        courseId: module.courseId,
+        courseId: courseModule.courseId,
         orderIndex: newOrderIndex,
       },
     });
 
-    revalidatePath(`/teacher/courses/${module.courseId}/modules/${moduleId}`);
+    revalidatePath(`/teacher/courses/${courseModule.courseId}/modules/${moduleId}`);
     return lesson;
   } catch (error) {
     console.log("[LESSON_CREATE]", error);
@@ -63,10 +63,10 @@ export async function updateLesson(lessonId: string, moduleId: string, values: {
       },
     });
     
-    const module = await prisma.module.findUnique({ where: { id: moduleId } });
-    if (module) {
-        revalidatePath(`/teacher/courses/${module.courseId}/modules/${moduleId}`);
-        revalidatePath(`/teacher/courses/${module.courseId}/modules/${moduleId}/lessons/${lessonId}`);
+    const courseModule = await prisma.module.findUnique({ where: { id: moduleId } });
+    if (courseModule) {
+        revalidatePath(`/teacher/courses/${courseModule.courseId}/modules/${moduleId}`);
+        revalidatePath(`/teacher/courses/${courseModule.courseId}/modules/${moduleId}/lessons/${lessonId}`);
     }
     return lesson;
   } catch (error) {
@@ -84,9 +84,9 @@ export async function deleteLesson(lessonId: string, moduleId: string) {
       },
     });
 
-    const module = await prisma.module.findUnique({ where: { id: moduleId } });
-    if (module) {
-        revalidatePath(`/teacher/courses/${module.courseId}/modules/${moduleId}`);
+    const courseModule = await prisma.module.findUnique({ where: { id: moduleId } });
+    if (courseModule) {
+        revalidatePath(`/teacher/courses/${courseModule.courseId}/modules/${moduleId}`);
     }
     return lesson;
   } catch (error) {
@@ -104,9 +104,9 @@ export async function reorderLessons(moduleId: string, updateData: { id: string;
       });
     }
 
-    const module = await prisma.module.findUnique({ where: { id: moduleId } });
-    if (module) {
-        revalidatePath(`/teacher/courses/${module.courseId}/modules/${moduleId}`);
+    const courseModule = await prisma.module.findUnique({ where: { id: moduleId } });
+    if (courseModule) {
+        revalidatePath(`/teacher/courses/${courseModule.courseId}/modules/${moduleId}`);
     }
   } catch (error) {
     console.log("[LESSON_REORDER]", error);

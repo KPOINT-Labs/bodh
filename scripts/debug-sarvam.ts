@@ -63,13 +63,13 @@ async function debugSarvam() {
     });
   }
 
-  // 3. Check recent Conversations to see what courseId is being used
-  console.log("\n3. Recent Conversations (to check contextData):");
+  // 3. Check recent Conversations
+  console.log("\n3. Recent Conversations:");
   const conversations = await prisma.conversation.findMany({
     select: {
       id: true,
       contextType: true,
-      contextData: true,
+      currentTopic: true,
       thread: {
         select: {
           moduleId: true,
@@ -87,7 +87,7 @@ async function debugSarvam() {
       console.log(`   - id: ${c.id}`);
       console.log(`     contextType: ${c.contextType}`);
       console.log(`     moduleId: ${c.thread?.moduleId}`);
-      console.log(`     contextData: ${JSON.stringify(c.contextData)}`);
+      console.log(`     currentTopic: ${c.currentTopic}`);
       console.log("");
     });
   }

@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronRight, ChevronDown, Clock, Layers, BookAIcon, CirclePlay, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { ChevronRight, ChevronDown, Clock, Layers, BookAIcon, CirclePlay } from "lucide-react";
 import type { Course, CourseStatus, Module, Lesson } from "@/types/learning";
 import { PanelHeader } from "./PanelHeader";
+import { ProfileActions } from "@/components/profile-actions";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -343,6 +345,13 @@ export function CourseList({
               </div>
             );
           })}
+        </div>
+      </div>
+
+      {/* Footer with Profile and Logout */}
+      <div className="border-t border-gray-200 p-4">
+        <div className="flex items-center justify-between">
+          <ProfileActions linkClassName="text-sm" logoutVariant="text" />
         </div>
       </div>
 

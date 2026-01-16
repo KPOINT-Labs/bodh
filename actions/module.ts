@@ -24,7 +24,7 @@ export async function createModule(courseId: string, title: string) {
     const newOrderIndex = lastModule ? lastModule.orderIndex + 1 : 1;
     const slug = generateSlug(title);
 
-    const module = await prisma.module.create({
+    const createdModule = await prisma.module.create({
       data: {
         title,
         slug,
@@ -34,7 +34,7 @@ export async function createModule(courseId: string, title: string) {
     });
 
     revalidatePath(`/teacher/courses/${courseId}`);
-    return module;
+    return createdModule;
   } catch (error) {
     console.log("[MODULE_CREATE]", error);
     throw new Error("Internal Error");
@@ -47,7 +47,7 @@ export async function updateModule(moduleId: string, courseId: string, values: {
     // We'll let slug be updated explicitly or not at all.
     // If user provides slug in values, use it.
     
-    const module = await prisma.module.update({
+    const updatedModule = await prisma.module.update({
       where: {
         id: moduleId,
         courseId: courseId,
@@ -58,7 +58,7 @@ export async function updateModule(moduleId: string, courseId: string, values: {
     });
 
     revalidatePath(`/teacher/courses/${courseId}`);
-    return module;
+    return updatedModule;
   } catch (error) {
     console.log("[MODULE_UPDATE]", error);
     throw new Error("Internal Error");
@@ -67,7 +67,7 @@ export async function updateModule(moduleId: string, courseId: string, values: {
 
 export async function deleteModule(moduleId: string, courseId: string) {
   try {
-    const module = await prisma.module.delete({
+    const deletedModule = await prisma.module.delete({
       where: {
         id: moduleId,
         courseId: courseId,
@@ -75,7 +75,7 @@ export async function deleteModule(moduleId: string, courseId: string) {
     });
 
     revalidatePath(`/teacher/courses/${courseId}`);
-    return module;
+    return deletedModule;
   } catch (error) {
     console.log("[MODULE_DELETE]", error);
     throw new Error("Internal Error");

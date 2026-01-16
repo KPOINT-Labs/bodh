@@ -70,7 +70,7 @@ const CreatePage = () => {
 
     startTransition(async () => {
       try {
-         const result = await createCourse(null, formData);
+         const result = await createCourse(undefined, formData);
          if (result?.errors) {
             // Handle validation errors from server
             if (result.errors.slug) {

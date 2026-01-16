@@ -1,11 +1,14 @@
 "use client";
 
+import Link from "next/link";
 import {
   Sidebar,
   SidebarContent,
   SidebarHeader,
+  SidebarFooter,
 } from "@/components/ui/sidebar";
 import { SidebarRoutes } from "./sidebar-routes";
+import { ProfileActions } from "@/components/profile-actions";
 
 export function AppSidebar() {
   return (
@@ -16,6 +19,9 @@ export function AppSidebar() {
       <SidebarContent className="pt-4">
         <SidebarRoutes />
       </SidebarContent>
+      <SidebarFooter className="border-t p-4">
+        <ProfileActions logoutVariant="text" className="flex items-center justify-between" />
+      </SidebarFooter>
     </Sidebar>
   );
 }
