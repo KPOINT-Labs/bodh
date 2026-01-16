@@ -1,3 +1,17 @@
+/**
+ * @deprecated This API route is DEPRECATED.
+ *
+ * All Sarvam API calls now go through LiveKit/prism:
+ * - User sends message via LiveKit (sendTextToAgent)
+ * - prism agent handles Sarvam TTS/STT
+ * - Messages are stored via /api/message endpoint
+ *
+ * This file is kept for reference but should be removed once confirmed
+ * that all functionality is working through LiveKit.
+ *
+ * DO NOT USE THIS ENDPOINT - use LiveKit sendTextToAgent instead.
+ */
+
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { GoogleGenerativeAI } from "@google/generative-ai";
@@ -29,8 +43,20 @@ export interface ChatRequest {
 interface SarvamStep {
   node_uid: string | null;
   t: number;
-  content: string;
+  content?: string;
+  // Tool call fields (t: 17)
+  id?: string;
+  name?: string;
+  arg?: string;
+  mcp_uid?: string;
 }
+
+// Sarvam step types
+const SARVAM_STEP_TYPE = {
+  TOOL_RESULT: 15,    // Tool execution result (raw JSON)
+  TOOL_CALL: 17,      // Tool invocation (has name, arg)
+  ASSISTANT: 20,      // Assistant's response (has content)
+} as const;
 
 interface SarvamPromptResponse {
   humanTurnUid: string;
@@ -122,16 +148,51 @@ async function classifyMessageType(message: string): Promise<"QnA" | "FA"> {
 
 /**
  * Extract the assistant content from Sarvam response
- * Takes the last step's content from the steps array
+ *
+ * Sarvam returns multiple step types:
+ * - t: 17 (TOOL_CALL) - Tool invocation with name, arg fields
+ * - t: 15 (TOOL_RESULT) - Raw JSON result from tool execution
+ * - t: 20 (ASSISTANT) - The actual assistant response with content
+ *
+ * We want to extract only the assistant response (t: 20), not tool calls/results.
  */
 function extractAssistantContent(response: SarvamPromptResponse): string {
   if (!response.steps || response.steps.length === 0) {
     return "I couldn't generate a response. Please try again.";
   }
 
-  // Get the last step's content
-  const lastStep = response.steps[response.steps.length - 1];
-  return lastStep.content || "No content available.";
+  // Strategy 1: Find step with t: 20 (assistant response)
+  const assistantStep = response.steps.find(
+    (step) => step.t === SARVAM_STEP_TYPE.ASSISTANT && step.content
+  );
+
+  if (assistantStep?.content) {
+    return assistantStep.content;
+  }
+
+  // Strategy 2: Find the last step that has content but is NOT a tool call/result
+  // Tool calls have 'name' field, tool results have t: 15
+  for (let i = response.steps.length - 1; i >= 0; i--) {
+    const step = response.steps[i];
+    const isToolCall = step.name !== undefined;
+    const isToolResult = step.t === SARVAM_STEP_TYPE.TOOL_RESULT;
+
+    if (step.content && !isToolCall && !isToolResult) {
+      return step.content;
+    }
+  }
+
+  // Strategy 3: Fallback to last step with content (shouldn't reach here normally)
+  const lastStepWithContent = [...response.steps]
+    .reverse()
+    .find((step) => step.content);
+
+  if (lastStepWithContent?.content) {
+    console.warn("Using fallback: last step with content (no t:20 found)");
+    return lastStepWithContent.content;
+  }
+
+  return "I couldn't generate a response. Please try again.";
 }
 
 /**
@@ -302,9 +363,15 @@ export async function POST(request: NextRequest) {
     // Build the request body for Sarvam prompt API
     // For FA (Formative Assessment), add the assessment prompt only for NEW assessment requests
     // If isAnswerFlag is true, this is an answer to an existing question - don't add the prompt
-    const finalPrompt = taskGraphType === "FA" && !isAnswerFlag
-      ? `Be in assessment mode. Generate EXACTLY 5 questions (use mixed question types if needed). Ask questions one by one. If the user answers 3 or more questions correctly, stop the assessment and provide feedback. IMPORTANT: Do NOT tell the user about the 5 question limit or the 3 correct answers threshold. Do NOT mention "I will ask 5 questions" or similar. Just start with the first question naturally.\n\nUser request: ${message}`
-      : message;
+    let finalPrompt = message;
+    if (taskGraphType === "FA" && !isAnswerFlag) {
+      // Extract topic from message if present (e.g., 'Ask me a formative assessment on "Topic Name"')
+      const topicMatch = message.match(/on\s+"([^"]+)"/i);
+      const topic = topicMatch ? topicMatch[1] : null;
+
+      const topicText = topic ? ` on ${topic}` : "";
+      finalPrompt = `Be in assessment mode. Generate EXACTLY 3 MCQ questions${topicText} (use mixed question types if needed). Ask questions one by one. If the user answers 2 or more questions correctly, stop the assessment and provide feedback. IMPORTANT: Do NOT tell the user about the 3 question limit or the 2 correct answers threshold. Do NOT mention "I will ask 3 questions" or similar. Just start with the first question naturally.\n\nUser request: ${message}`;
+    }
 
     const promptRequestBody: {
       sessionUid: string;

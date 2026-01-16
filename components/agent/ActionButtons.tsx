@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Play, RotateCcw } from "lucide-react";
+import { Play, RotateCcw, Pause } from "lucide-react";
 import { useLearningPanel } from "@/contexts/LearningPanelContext";
 import type { Lesson, Module } from "@/types/chat";
 
@@ -9,6 +9,7 @@ interface ActionButtonsProps {
   firstLesson: Lesson;
   module: Module;
   isReturningUser: boolean;
+  isVideoPlaying?: boolean;
   onStartLesson: () => void;
   onContinueLearning: () => void;
 }
@@ -21,6 +22,7 @@ export function ActionButtons({
   firstLesson,
   module,
   isReturningUser,
+  isVideoPlaying = false,
   onStartLesson,
   onContinueLearning,
 }: ActionButtonsProps) {
@@ -35,6 +37,20 @@ export function ActionButtons({
     collapsePanel();
     onContinueLearning();
   };
+
+  // Show video playing state
+  if (isVideoPlaying) {
+    return (
+      <div className="pt-4 ml-11 space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-500">
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 bg-green-50 text-green-700 px-4 py-2 rounded-full border border-green-200">
+            <Pause className="h-4 w-4 animate-pulse" />
+            <span className="text-sm font-medium">Video Playing</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (isReturningUser) {
     return (

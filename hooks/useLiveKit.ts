@@ -9,8 +9,43 @@ import {
   Track,
 } from "livekit-client";
 
-// Prism API base URL (must use NEXT_PUBLIC_ prefix for client-side access)
-const PRISM_API_URL = process.env.NEXT_PUBLIC_PRISM_API_URL ;
+export interface LiveKitMetadata {
+  // Course info
+  courseId?: string;
+  courseTitle?: string;
+  // Module info
+  moduleId?: string;
+  moduleTitle?: string;
+  // Lesson info
+  lessonId?: string;
+  lessonTitle?: string;
+  // User profile
+  userId?: string; // Database user ID for conversation creation
+  userName?: string;
+  userEmail?: string;
+  // Session context
+  conversationId?: string;
+  sessionType?: string; // e.g., "qna", "fa", "general"
+  // Custom data
+  [key: string]: string | number | boolean | undefined;
+}
+
+export interface TranscriptSegment {
+  id: string;
+  text: string;
+  participantIdentity: string;
+  isAgent: boolean;
+  isFinal: boolean;
+  timestamp: number;
+}
+
+/** User transcription data from voice mode */
+export interface UserTranscription {
+  text: string;
+  isFinal: boolean;
+  inputType: "voice";
+  timestamp: number;
+}
 
 interface UseLiveKitProps {
   conversationId: string;
@@ -18,6 +53,17 @@ interface UseLiveKitProps {
   userId?: string;
   videoIds?: string[];
   serviceDomain?: string;
+  metadata?: LiveKitMetadata;
+  /** Auto-connect when the hook mounts */
+  autoConnect?: boolean;
+  /** Listen-only mode - don't enable microphone, only receive agent audio (text-to-speech) */
+  listenOnly?: boolean;
+  /** Callback when agent transcript is received */
+  onTranscript?: (segment: TranscriptSegment) => void;
+  /** Callback when user message is received (for auto-triggered messages from player) */
+  onUserMessage?: (text: string, taskType: string) => void;
+  /** Callback when user speech is transcribed (voice mode) */
+  onUserTranscript?: (transcription: UserTranscription) => void;
 }
 
 interface UseLiveKitReturn {
@@ -27,9 +73,37 @@ interface UseLiveKitReturn {
   isSpeaking: boolean;
   audioLevel: number;
   error: string | null;
+  /** Current agent transcript text (accumulated) */
+  agentTranscript: string;
+  /** All transcript segments */
+  transcriptSegments: TranscriptSegment[];
+  /** Whether agent is currently speaking */
+  isAgentSpeaking: boolean;
+  /** Whether audio playback is blocked by browser autoplay policy */
+  isAudioBlocked: boolean;
+  /** Whether we're waiting for agent to respond after sending a message */
+  isWaitingForAgentResponse: boolean;
+  /** Whether voice mode is enabled (user can speak) */
+  isVoiceModeEnabled: boolean;
+  /** Current user transcript (when speaking in voice mode) */
+  userTranscript: string;
+  /** Whether user is currently speaking (in voice mode) */
+  isUserSpeaking: boolean;
   connect: () => Promise<void>;
   disconnect: () => Promise<void>;
   toggleMute: () => Promise<void>;
+  /** Call this after user interaction to enable audio playback */
+  startAudio: () => Promise<void>;
+  /** Send text message to agent (will be spoken back via TTS) */
+  sendTextToAgent: (text: string) => Promise<void>;
+  /** Clear the agent transcript (call after adding to chat history) */
+  clearAgentTranscript: () => void;
+  /** Enable voice mode - user can speak to agent */
+  enableVoiceMode: () => Promise<boolean>;
+  /** Disable voice mode - back to text-to-speech mode */
+  disableVoiceMode: () => Promise<boolean>;
+  /** Clear the user transcript */
+  clearUserTranscript: () => void;
 }
 
 interface TokenResponse {
@@ -40,7 +114,7 @@ interface TokenResponse {
 }
 
 /**
- * Simple hook to connect to LiveKit voice agent via Prism backend
+ * Hook to connect to LiveKit voice agent
  *
  * Usage:
  *   const { isConnected, isConnecting, connect, disconnect } = useLiveKit({
@@ -54,6 +128,12 @@ export function useLiveKit({
   userId = "anonymous",
   videoIds = [],
   serviceDomain = "bodh.kpoint.com",
+  metadata = {},
+  autoConnect = false,
+  listenOnly = false,
+  onTranscript,
+  onUserMessage,
+  onUserTranscript,
 }: UseLiveKitProps): UseLiveKitReturn {
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -62,6 +142,18 @@ export function useLiveKit({
   const [audioLevel, setAudioLevel] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
+  // Transcript state
+  const [agentTranscript, setAgentTranscript] = useState("");
+  const [transcriptSegments, setTranscriptSegments] = useState<TranscriptSegment[]>([]);
+  const [isAgentSpeaking, setIsAgentSpeaking] = useState(false);
+  const [isAudioBlocked, setIsAudioBlocked] = useState(false);
+  const [isWaitingForAgentResponse, setIsWaitingForAgentResponse] = useState(false);
+
+  // Voice mode state
+  const [isVoiceModeEnabled, setIsVoiceModeEnabled] = useState(false);
+  const [userTranscript, setUserTranscript] = useState("");
+  const [isUserSpeaking, setIsUserSpeaking] = useState(false);
+
   // References to persist across renders
   const roomRef = useRef<Room | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -69,37 +161,96 @@ export function useLiveKit({
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const speakingCounterRef = useRef(0); // Debounce counter for speaking detection
+  const hasAutoConnectedRef = useRef(false); // Track if we've already auto-connected
+  const isConnectingRef = useRef(false); // Prevent race conditions during async connect
+  const roomNameRef = useRef<string | null>(null); // Stable room name across re-renders
+  const onTranscriptRef = useRef(onTranscript); // Ref for callback to avoid stale closures
+  const onUserMessageRef = useRef(onUserMessage); // Ref for user message callback
+  const onUserTranscriptRef = useRef(onUserTranscript); // Ref for user transcript callback
+  const metadataRef = useRef(metadata); // Ref for metadata to always use current values
+  const agentIdentityRef = useRef<string | null>(null); // Store agent identity for RPC calls
+  const lastFinalTranscriptRef = useRef<string>(""); // Track last final transcript to prevent duplicates
+
+  // Keep refs updated
+  useEffect(() => {
+    onTranscriptRef.current = onTranscript;
+  }, [onTranscript]);
+
+  useEffect(() => {
+    onUserMessageRef.current = onUserMessage;
+  }, [onUserMessage]);
+
+  useEffect(() => {
+    onUserTranscriptRef.current = onUserTranscript;
+  }, [onUserTranscript]);
+
+  useEffect(() => {
+    metadataRef.current = metadata;
+  }, [metadata]);
 
   /**
    * Connect to LiveKit room
    */
   const connect = useCallback(async () => {
-    if (isConnecting || isConnected) {
+    // Use ref to prevent race conditions (state updates are async)
+    if (isConnectingRef.current || isConnected || roomRef.current) {
       console.log("[LiveKit] Already connecting or connected, skipping");
       return;
     }
+
+    // Set connecting flag immediately via ref
+    isConnectingRef.current = true;
 
     try {
       setIsConnecting(true);
       setError(null);
 
-      // Generate unique room name
-      const roomName = `voice-${conversationId}-${Date.now()}`;
+      // Generate stable room name (only once per session)
+      if (!roomNameRef.current) {
+        roomNameRef.current = `voice-${conversationId}-${Date.now()}`;
+      }
+      const roomName = roomNameRef.current;
       console.log("[LiveKit] Starting connection", { roomName, courseId, userId });
 
-      // Get token from Prism backend
-      console.log("[LiveKit] Fetching token from:", `${PRISM_API_URL}/api/v1/adi2/token`);
+      // Get token from local API endpoint
+      console.log("[LiveKit] Fetching token from: /api/livekit/token");
       console.log("[LiveKit] Request payload:", { roomName, userId, videoIds });
-      const response = await fetch(`${PRISM_API_URL}/api/v1/adi2/token`, {
+      // Build metadata payload with course/lesson context
+      // Use metadataRef to always get the latest metadata values
+      const currentMetadata = metadataRef.current;
+      const metadataPayload = {
+        course_id: currentMetadata.courseId || courseId,
+        course_title: currentMetadata.courseTitle,
+        course_description: currentMetadata.courseDescription,
+        learning_objectives: currentMetadata.learningObjectives,
+        module_id: currentMetadata.moduleId,
+        module_title: currentMetadata.moduleTitle,
+        lesson_id: currentMetadata.lessonId,
+        lesson_title: currentMetadata.lessonTitle,
+        user_id: currentMetadata.userId, // Database user ID for conversation creation
+        user_name: currentMetadata.userName,
+        user_email: currentMetadata.userEmail,
+        conversation_id: currentMetadata.conversationId || conversationId,
+        session_type: currentMetadata.sessionType,
+        ...Object.fromEntries(
+          Object.entries(currentMetadata).filter(([key]) =>
+            !['courseId', 'courseTitle', 'courseDescription', 'learningObjectives', 'moduleId', 'moduleTitle', 'lessonId', 'lessonTitle',
+              'userId', 'userName', 'userEmail', 'conversationId', 'sessionType'].includes(key)
+          )
+        ),
+      };
+      console.log("[LiveKit] Session type:", currentMetadata.sessionType);
+
+      const response = await fetch("/api/livekit/token", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           room_name: roomName,
           participant_name: userId,
-          user_id: userId,
           agent_type: "bodh-agent",
           video_ids: videoIds,
           domain: serviceDomain,
+          metadata: metadataPayload,
         }),
       });
 
@@ -129,12 +280,27 @@ export function useLiveKit({
         _publication: RemoteTrackPublication,
         participant: RemoteParticipant
       ) => {
-        if (track.kind !== "audio" || !participant.isAgent) {
-          console.log("[LiveKit] Track received but skipping:", { kind: track.kind, isAgent: participant.isAgent });
+        console.log("[LiveKit] Track subscribed:", {
+          kind: track.kind,
+          participantIdentity: participant.identity,
+          isAgent: participant.isAgent,
+          participantName: participant.name,
+        });
+
+        // Only handle audio tracks
+        if (track.kind !== "audio") {
+          console.log("[LiveKit] Skipping non-audio track");
           return;
         }
 
-        console.log("[LiveKit] Agent audio track received");
+        // Accept audio from agent OR from any non-local participant (agent might not have isAgent flag)
+        const isLocalUser = participant.identity === userId;
+        if (isLocalUser) {
+          console.log("[LiveKit] Skipping audio from local user");
+          return;
+        }
+
+        console.log("[LiveKit] Agent audio track received, attaching...");
 
         // Remove old audio element
         if (audioRef.current) {
@@ -147,10 +313,23 @@ export function useLiveKit({
         audio.volume = 1.0;
         document.body.appendChild(audio);
 
-        // Try to play (may need user interaction)
-        audio.play().catch((err) => {
-          console.warn("Audio autoplay blocked:", err);
+        console.log("[LiveKit] Audio element created:", {
+          autoplay: audio.autoplay,
+          volume: audio.volume,
+          paused: audio.paused,
+          muted: audio.muted,
         });
+
+        // Try to play (may need user interaction)
+        audio.play()
+          .then(() => {
+            console.log("[LiveKit] Audio playback started successfully");
+            setIsAudioBlocked(false);
+          })
+          .catch((err) => {
+            console.warn("[LiveKit] Audio autoplay blocked:", err);
+            setIsAudioBlocked(true);
+          });
 
         audioRef.current = audio;
       };
@@ -164,57 +343,265 @@ export function useLiveKit({
         setIsConnected(false);
       });
 
+      // Listen for data channel messages (fallback when TTS fails, user messages, user transcription)
+      room.on("dataReceived", (payload, participant) => {
+        try {
+          const data = JSON.parse(new TextDecoder().decode(payload));
+          console.log("[LiveKit] Data received:", data);
+
+          // Handle user message (for auto-triggered messages from player)
+          if (data.type === "user_message") {
+            console.log("[LiveKit] User message received:", data.text?.substring(0, 50));
+            onUserMessageRef.current?.(data.text || "", data.task_type || "QnA");
+          }
+
+          // Handle user transcription from voice mode (sent by agent when user speaks)
+          if (data.type === "user_transcription") {
+            const transcription: UserTranscription = {
+              text: data.text || "",
+              isFinal: data.is_final === true,
+              inputType: "voice",
+              timestamp: Date.now(),
+            };
+
+            console.log("[LiveKit] User transcription received:", {
+              text: transcription.text.substring(0, 50),
+              isFinal: transcription.isFinal,
+            });
+
+            // Update user transcript state for live display
+            setUserTranscript(transcription.text);
+            setIsUserSpeaking(!transcription.isFinal);
+
+            // For final transcriptions, check for duplicates before calling callback
+            if (transcription.isFinal && transcription.text.trim()) {
+              // Check if this is a duplicate of the last final transcript
+              if (lastFinalTranscriptRef.current === transcription.text) {
+                console.log("[LiveKit] Duplicate final transcription, skipping callback");
+                return;
+              }
+              // Store this as the last final transcript
+              lastFinalTranscriptRef.current = transcription.text;
+              console.log("[LiveKit] Final user transcription - calling callback");
+            }
+
+            // Call callback (for interim updates or deduplicated final)
+            onUserTranscriptRef.current?.(transcription);
+          }
+
+          // Handle voice mode change notification from agent
+          if (data.type === "voice_mode_changed") {
+            console.log("[LiveKit] Voice mode changed:", data.enabled);
+            setIsVoiceModeEnabled(data.enabled === true);
+          }
+
+          // Handle TTS fallback response
+          if (data.type === "agent_response" && data.tts_failed) {
+            console.log("[LiveKit] TTS failed fallback - displaying text:", data.text?.substring(0, 50));
+
+            const segmentId = `fallback-${Date.now()}`;
+            const participantId = participant?.identity || "agent";
+
+            // Update agent transcript
+            setAgentTranscript(data.text || "");
+            setIsWaitingForAgentResponse(false);
+
+            // Create a transcript segment for the fallback
+            const fallbackSegment: TranscriptSegment = {
+              id: segmentId,
+              text: data.text || "",
+              participantIdentity: participantId,
+              isAgent: true,
+              isFinal: true,
+              timestamp: Date.now(),
+            };
+
+            setTranscriptSegments((prev) => [...prev, fallbackSegment]);
+
+            // Call the transcript callback
+            onTranscriptRef.current?.(fallbackSegment);
+          }
+        } catch (err) {
+          // Not JSON data, ignore
+          console.log("[LiveKit] Non-JSON data received, ignoring");
+        }
+      });
+
+      // Listen for participant connected to capture agent identity
+      room.on("participantConnected", (participant) => {
+        console.log("[LiveKit] Participant connected:", participant.identity, "isAgent:", participant.isAgent);
+        // Store agent identity for RPC calls
+        if (participant.isAgent || participant.identity.includes("agent")) {
+          agentIdentityRef.current = participant.identity;
+          console.log("[LiveKit] Agent identity stored:", participant.identity);
+        }
+      });
+
+      // Check existing participants for agent
+      room.remoteParticipants.forEach((participant) => {
+        if (participant.isAgent || participant.identity.includes("agent")) {
+          agentIdentityRef.current = participant.identity;
+          console.log("[LiveKit] Found existing agent:", participant.identity);
+        }
+      });
+
       // Connect to room
       await room.connect(url, token);
       console.log("[LiveKit] Connected to room successfully");
 
-      // Enable microphone
-      await room.localParticipant.setMicrophoneEnabled(true);
-      console.log("[LiveKit] Microphone enabled");
+      // Register text stream handler for agent transcriptions (streaming)
+      room.registerTextStreamHandler("lk.transcription", async (reader, participantIdentity) => {
+        try {
+          const info = reader.info;
+          const attributes = info?.attributes || {};
+          const isFinal = attributes["lk.transcription_final"] === "true";
+          const segmentId = attributes["lk.segment_id"] || `seg-${Date.now()}`;
+          const transcribedTrackId = attributes["lk.transcribed_track_id"];
 
-      // Set up audio level monitoring
-      const micTrack = room.localParticipant.getTrackPublication(Track.Source.Microphone);
-      if (micTrack?.track) {
-        const mediaStream = new MediaStream([micTrack.track.mediaStreamTrack]);
-        const audioContext = new AudioContext();
-        const source = audioContext.createMediaStreamSource(mediaStream);
-        const analyser = audioContext.createAnalyser();
-        analyser.fftSize = 256;
-        analyser.smoothingTimeConstant = 0.5;
-        source.connect(analyser);
+          // Check if this is from an agent (has transcribed track ID and is not from local participant)
+          const participantId = typeof participantIdentity === "string" ? participantIdentity : participantIdentity.identity;
+          const isFromAgent = !!transcribedTrackId && participantId !== userId;
 
-        audioContextRef.current = audioContext;
-        analyserRef.current = analyser;
-
-        // Start monitoring audio levels
-        const dataArray = new Uint8Array(analyser.frequencyBinCount);
-        const SPEAKING_THRESHOLD = 0.15; // Higher threshold to filter noise
-        const DEBOUNCE_FRAMES = 5; // Require consistent signal for N frames
-
-        const monitorAudio = () => {
-          if (!analyserRef.current) return;
-
-          analyserRef.current.getByteFrequencyData(dataArray);
-          const average = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
-          const normalizedLevel = Math.min(average / 128, 1); // Normalize to 0-1
-
-          setAudioLevel(normalizedLevel);
-
-          // Debounced speaking detection to prevent rapid toggling
-          if (normalizedLevel > SPEAKING_THRESHOLD) {
-            speakingCounterRef.current = Math.min(speakingCounterRef.current + 1, DEBOUNCE_FRAMES + 1);
-          } else {
-            speakingCounterRef.current = Math.max(speakingCounterRef.current - 1, 0);
+          if (!isFromAgent) {
+            // Skip non-agent transcripts
+            return;
           }
 
-          // Only change state after consistent readings
-          const shouldBeSpeaking = speakingCounterRef.current >= DEBOUNCE_FRAMES;
-          setIsSpeaking(shouldBeSpeaking);
+          // For live streaming, read chunks as they arrive
+          let accumulatedText = "";
+          setIsAgentSpeaking(true);
+          setIsWaitingForAgentResponse(false); // Agent started responding
 
-          animationFrameRef.current = requestAnimationFrame(monitorAudio);
-        };
-        monitorAudio();
-        console.log("[LiveKit] Audio level monitoring started");
+          // Stream chunks incrementally using for-await-of
+          for await (const chunk of reader) {
+            accumulatedText += chunk;
+
+            // Update agentTranscript in real-time for UI display
+            setAgentTranscript(accumulatedText);
+
+            // Update transcript in real-time with each chunk
+            const segment: TranscriptSegment = {
+              id: segmentId,
+              text: accumulatedText,
+              participantIdentity: participantId,
+              isAgent: true,
+              isFinal: false, // Still streaming
+              timestamp: Date.now(),
+            };
+
+            // Update segments state with streaming text
+            setTranscriptSegments((prev) => {
+              const existing = prev.findIndex((s) => s.id === segmentId);
+              if (existing >= 0) {
+                const updated = [...prev];
+                updated[existing] = segment;
+                return updated;
+              }
+              return [...prev, segment];
+            });
+
+            // Call callback for each chunk
+            onTranscriptRef.current?.(segment);
+          }
+
+          // Stream complete - mark as final
+          if (accumulatedText.trim()) {
+            const finalSegment: TranscriptSegment = {
+              id: segmentId,
+              text: accumulatedText,
+              participantIdentity: participantId,
+              isAgent: true,
+              isFinal: true,
+              timestamp: Date.now(),
+            };
+
+            console.log("[LiveKit] Transcript complete:", {
+              participantIdentity: participantId,
+              isFinal: true,
+              segmentId,
+              text: accumulatedText.substring(0, 50) + (accumulatedText.length > 50 ? "..." : ""),
+            });
+
+            // Update with final segment
+            setTranscriptSegments((prev) => {
+              const existing = prev.findIndex((s) => s.id === segmentId);
+              if (existing >= 0) {
+                const updated = [...prev];
+                updated[existing] = finalSegment;
+                return updated;
+              }
+              return [...prev, finalSegment];
+            });
+
+            // Accumulate to full transcript only when final
+            if (isFinal) {
+              setAgentTranscript((prev) => (prev ? prev + " " + accumulatedText : accumulatedText));
+            }
+
+            // Call callback with final
+            onTranscriptRef.current?.(finalSegment);
+          }
+
+          setIsAgentSpeaking(false);
+        } catch (err) {
+          console.error("[LiveKit] Error processing transcript:", err);
+          setIsAgentSpeaking(false);
+        }
+      });
+      console.log("[LiveKit] Registered streaming transcription handler");
+
+      // Enable microphone only if not in listen-only mode
+      if (!listenOnly) {
+        await room.localParticipant.setMicrophoneEnabled(true);
+        console.log("[LiveKit] Microphone enabled");
+
+        // Set up audio level monitoring
+        const micTrack = room.localParticipant.getTrackPublication(Track.Source.Microphone);
+        if (micTrack?.track) {
+          const mediaStream = new MediaStream([micTrack.track.mediaStreamTrack]);
+          const audioContext = new AudioContext();
+          const source = audioContext.createMediaStreamSource(mediaStream);
+          const analyser = audioContext.createAnalyser();
+          analyser.fftSize = 256;
+          analyser.smoothingTimeConstant = 0.5;
+          source.connect(analyser);
+
+          audioContextRef.current = audioContext;
+          analyserRef.current = analyser;
+
+          // Start monitoring audio levels
+          const dataArray = new Uint8Array(analyser.frequencyBinCount);
+          const SPEAKING_THRESHOLD = 0.15; // Higher threshold to filter noise
+          const DEBOUNCE_FRAMES = 5; // Require consistent signal for N frames
+
+          const monitorAudio = () => {
+            if (!analyserRef.current) return;
+
+            analyserRef.current.getByteFrequencyData(dataArray);
+            const average = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
+            const normalizedLevel = Math.min(average / 128, 1); // Normalize to 0-1
+
+            setAudioLevel(normalizedLevel);
+
+            // Debounced speaking detection to prevent rapid toggling
+            if (normalizedLevel > SPEAKING_THRESHOLD) {
+              speakingCounterRef.current = Math.min(speakingCounterRef.current + 1, DEBOUNCE_FRAMES + 1);
+            } else {
+              speakingCounterRef.current = Math.max(speakingCounterRef.current - 1, 0);
+            }
+
+            // Only change state after consistent readings
+            const shouldBeSpeaking = speakingCounterRef.current >= DEBOUNCE_FRAMES;
+            setIsSpeaking(shouldBeSpeaking);
+
+            animationFrameRef.current = requestAnimationFrame(monitorAudio);
+          };
+          monitorAudio();
+          console.log("[LiveKit] Audio level monitoring started");
+        }
+      } else {
+        console.log("[LiveKit] Listen-only mode - microphone disabled");
+        setIsMuted(true); // Mark as muted in listen-only mode
       }
 
       roomRef.current = room;
@@ -222,10 +609,15 @@ export function useLiveKit({
     } catch (err) {
       console.error("[LiveKit] Connection error:", err);
       setError(err instanceof Error ? err.message : "Connection failed");
+      // Reset room name on error so next attempt gets a fresh room
+      roomNameRef.current = null;
     } finally {
       setIsConnecting(false);
+      isConnectingRef.current = false;
     }
-  }, [conversationId, courseId, userId, videoIds, isConnecting, isConnected]);
+    // Note: Using refs for connection state, so fewer deps needed
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversationId, courseId, userId, listenOnly]);
 
   /**
    * Disconnect from LiveKit room
@@ -264,6 +656,23 @@ export function useLiveKit({
     setIsSpeaking(false);
     setAudioLevel(0);
     setError(null);
+    setAgentTranscript("");
+    setTranscriptSegments([]);
+    setIsAgentSpeaking(false);
+    setIsWaitingForAgentResponse(false);
+
+    // Reset voice mode state
+    setIsVoiceModeEnabled(false);
+    setUserTranscript("");
+    setIsUserSpeaking(false);
+
+    // Reset refs for potential reconnection
+    roomNameRef.current = null;
+    hasAutoConnectedRef.current = false;
+    isConnectingRef.current = false;
+    agentIdentityRef.current = null;
+    lastFinalTranscriptRef.current = "";
+
     console.log("[LiveKit] Disconnected and cleaned up");
   }, []);
 
@@ -288,12 +697,226 @@ export function useLiveKit({
     }
   }, [isMuted]);
 
+  /**
+   * Start audio playback after user interaction (to bypass autoplay policy)
+   */
+  const startAudio = useCallback(async () => {
+    console.log("[LiveKit] startAudio called");
+
+    // Try to start the room's audio context
+    if (roomRef.current) {
+      try {
+        await roomRef.current.startAudio();
+        console.log("[LiveKit] Room audio started");
+      } catch (err) {
+        console.warn("[LiveKit] Failed to start room audio:", err);
+      }
+    }
+
+    // Also try to play any existing audio element
+    if (audioRef.current) {
+      try {
+        await audioRef.current.play();
+        console.log("[LiveKit] Audio element playback started");
+        setIsAudioBlocked(false);
+      } catch (err) {
+        console.error("[LiveKit] Failed to play audio:", err);
+      }
+    }
+  }, []);
+
+  /**
+   * Send text message to agent via lk.chat topic
+   * Agent will process and respond via TTS
+   */
+  const sendTextToAgent = useCallback(async (text: string) => {
+    if (!roomRef.current) {
+      console.warn("[LiveKit] Cannot send text - not connected");
+      return;
+    }
+
+    if (!text.trim()) {
+      console.warn("[LiveKit] Cannot send empty text");
+      return;
+    }
+
+    console.log("[LiveKit] Sending text to agent:", text.substring(0, 50) + (text.length > 50 ? "..." : ""));
+
+    try {
+      // Clear any previous transcript and set waiting state
+      setAgentTranscript("");
+      setIsWaitingForAgentResponse(true);
+
+      // Send text to the lk.chat topic - agent listens for this by default
+      await roomRef.current.localParticipant.sendText(text, {
+        topic: "lk.chat",
+      });
+      console.log("[LiveKit] Text sent successfully, waiting for agent response...");
+    } catch (err) {
+      console.error("[LiveKit] Failed to send text:", err);
+      setIsWaitingForAgentResponse(false);
+      throw err;
+    }
+  }, []);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       disconnect();
     };
   }, [disconnect]);
+
+  // Auto-connect on mount if enabled and we have required props (only once)
+  useEffect(() => {
+    // Use refs to prevent race conditions from React StrictMode double-mounting
+    const shouldConnect = autoConnect &&
+      conversationId &&
+      courseId &&
+      !roomRef.current &&
+      !isConnectingRef.current &&
+      !hasAutoConnectedRef.current;
+
+    console.log("[LiveKit] Auto-connect check:", {
+      autoConnect,
+      conversationId,
+      courseId,
+      hasRoom: !!roomRef.current,
+      isConnectingRef: isConnectingRef.current,
+      hasAutoConnected: hasAutoConnectedRef.current,
+      shouldConnect
+    });
+
+    if (shouldConnect) {
+      console.log("[LiveKit] Auto-connecting...");
+      hasAutoConnectedRef.current = true;
+      connect();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoConnect, conversationId, courseId]);
+
+  /**
+   * Clear the agent transcript (call after adding message to chat history)
+   */
+  const clearAgentTranscript = useCallback(() => {
+    setAgentTranscript("");
+    setTranscriptSegments([]);
+  }, []);
+
+  /**
+   * Clear the user transcript
+   */
+  const clearUserTranscript = useCallback(() => {
+    setUserTranscript("");
+    setIsUserSpeaking(false);
+  }, []);
+
+  /**
+   * Enable voice mode - user can speak to agent via microphone
+   * Calls RPC method on agent to enable audio input processing
+   */
+  const enableVoiceMode = useCallback(async (): Promise<boolean> => {
+    if (!roomRef.current) {
+      console.warn("[LiveKit] Cannot enable voice mode - not connected");
+      return false;
+    }
+
+    const agentIdentity = agentIdentityRef.current;
+    if (!agentIdentity) {
+      console.warn("[LiveKit] Cannot enable voice mode - agent identity not found");
+      // Try to find agent from participants
+      roomRef.current.remoteParticipants.forEach((participant) => {
+        if (participant.isAgent || participant.identity.includes("agent")) {
+          agentIdentityRef.current = participant.identity;
+        }
+      });
+      if (!agentIdentityRef.current) {
+        console.error("[LiveKit] No agent found in room");
+        return false;
+      }
+    }
+
+    console.log("[LiveKit] Enabling voice mode via RPC to agent:", agentIdentityRef.current);
+
+    try {
+      // First enable the local microphone
+      await roomRef.current.localParticipant.setMicrophoneEnabled(true);
+      setIsMuted(false);
+      console.log("[LiveKit] Local microphone enabled");
+
+      // Call RPC method on agent to enable voice mode (STT processing)
+      const response = await roomRef.current.localParticipant.performRpc({
+        destinationIdentity: agentIdentityRef.current!,
+        method: "enable_voice_mode",
+        payload: JSON.stringify({}),
+      });
+
+      const result = JSON.parse(response);
+      console.log("[LiveKit] Voice mode enable response:", result);
+
+      if (result.success) {
+        setIsVoiceModeEnabled(true);
+        console.log("[LiveKit] Voice mode ENABLED - user can now speak");
+        return true;
+      } else {
+        console.error("[LiveKit] Failed to enable voice mode on agent");
+        return false;
+      }
+    } catch (err) {
+      console.error("[LiveKit] Failed to enable voice mode:", err);
+      return false;
+    }
+  }, []);
+
+  /**
+   * Disable voice mode - back to text-to-speech mode
+   * Calls RPC method on agent to disable audio input processing
+   */
+  const disableVoiceMode = useCallback(async (): Promise<boolean> => {
+    if (!roomRef.current) {
+      console.warn("[LiveKit] Cannot disable voice mode - not connected");
+      return false;
+    }
+
+    const agentIdentity = agentIdentityRef.current;
+    if (!agentIdentity) {
+      console.warn("[LiveKit] Cannot disable voice mode - agent identity not found");
+      return false;
+    }
+
+    console.log("[LiveKit] Disabling voice mode via RPC to agent:", agentIdentity);
+
+    try {
+      // Call RPC method on agent to disable voice mode
+      const response = await roomRef.current.localParticipant.performRpc({
+        destinationIdentity: agentIdentity,
+        method: "disable_voice_mode",
+        payload: JSON.stringify({}),
+      });
+
+      const result = JSON.parse(response);
+      console.log("[LiveKit] Voice mode disable response:", result);
+
+      if (result.success) {
+        setIsVoiceModeEnabled(false);
+        setIsUserSpeaking(false);
+        setUserTranscript(""); // Clear user transcript
+        lastFinalTranscriptRef.current = ""; // Reset for next voice session
+        console.log("[LiveKit] Voice mode DISABLED - back to text mode");
+
+        // Optionally mute microphone when voice mode is disabled
+        await roomRef.current.localParticipant.setMicrophoneEnabled(false);
+        setIsMuted(true);
+
+        return true;
+      } else {
+        console.error("[LiveKit] Failed to disable voice mode on agent");
+        return false;
+      }
+    } catch (err) {
+      console.error("[LiveKit] Failed to disable voice mode:", err);
+      return false;
+    }
+  }, []);
 
   return {
     isConnected,
@@ -302,8 +925,25 @@ export function useLiveKit({
     isSpeaking,
     audioLevel,
     error,
+    agentTranscript,
+    transcriptSegments,
+    isAgentSpeaking,
+    isAudioBlocked,
+    isWaitingForAgentResponse,
+    // Voice mode state
+    isVoiceModeEnabled,
+    userTranscript,
+    isUserSpeaking,
+    // Actions
     connect,
     disconnect,
     toggleMute,
+    startAudio,
+    sendTextToAgent,
+    clearAgentTranscript,
+    // Voice mode actions
+    enableVoiceMode,
+    disableVoiceMode,
+    clearUserTranscript,
   };
 }

@@ -1,0 +1,81 @@
+import { prisma } from "@/lib/prisma";
+import { WelcomeContent } from "./WelcomeContent";
+
+// Render at request time (database required)
+export const dynamic = "force-dynamic";
+
+async function getLastAttendedCourse() {
+  // Get the sample user
+  const user = await prisma.user.findFirst({
+    where: { email: "learner@bodh.app" },
+  });
+
+  if (!user) {
+    return null;
+  }
+
+  // Find the most recent thread (conversation) for this user to get the last attended module
+  const lastThread = await prisma.thread.findFirst({
+    where: { userId: user.id },
+    orderBy: { updatedAt: "desc" },
+    include: {
+      module: {
+        include: {
+          course: true,
+        },
+      },
+    },
+  });
+
+  if (!lastThread?.module?.course) {
+    return null;
+  }
+
+  return {
+    courseId: lastThread.module.course.id,
+    courseTitle: lastThread.module.course.title,
+    moduleId: lastThread.module.id,
+  };
+}
+
+async function getFirstAvailableCourse() {
+  const course = await prisma.course.findFirst({
+    where: {
+      isPublished: true,
+      modules: {
+        some: {
+          isPublished: true,
+          lessons: {
+            some: { isPublished: true },
+          },
+        },
+      },
+    },
+    include: {
+      modules: {
+        where: { isPublished: true },
+        orderBy: { orderIndex: "asc" },
+        take: 1,
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  if (!course || course.modules.length === 0) {
+    return null;
+  }
+
+  return {
+    courseId: course.id,
+    moduleId: course.modules[0].id,
+  };
+}
+
+export default async function CoursesPage() {
+  const [lastCourse, firstCourse] = await Promise.all([
+    getLastAttendedCourse(),
+    getFirstAvailableCourse(),
+  ]);
+
+  return <WelcomeContent firstCourse={firstCourse} lastCourse={lastCourse} />;
+}

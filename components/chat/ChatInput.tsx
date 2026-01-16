@@ -1,56 +1,107 @@
 "use client";
 
 import { useRef, useState, useEffect } from "react";
-import { Loader2, Send, Mic, MicOff, X } from "lucide-react";
+import { Loader2, Send, Mic, MicOff } from "lucide-react";
 import { toast } from "sonner";
 import { useLiveKit } from "@/hooks/useLiveKit";
+
+// LiveKit state type for when passed from parent
+interface LiveKitState {
+  isConnected: boolean;
+  isConnecting: boolean;
+  isMuted: boolean;
+  isSpeaking: boolean;
+  audioLevel: number;
+  error: string | null;
+  agentTranscript: string;
+  transcriptSegments: { id: string; text: string; participantIdentity: string; isAgent: boolean; isFinal: boolean; timestamp: number }[];
+  isAgentSpeaking: boolean;
+  isAudioBlocked: boolean;
+  isWaitingForAgentResponse: boolean;
+  // Voice mode state
+  isVoiceModeEnabled: boolean;
+  userTranscript: string;
+  isUserSpeaking: boolean;
+  // Actions
+  connect: () => Promise<void>;
+  disconnect: () => Promise<void>;
+  toggleMute: () => Promise<void>;
+  startAudio: () => Promise<void>;
+  sendTextToAgent: (text: string) => Promise<void>;
+  clearAgentTranscript: () => void;
+  // Voice mode actions
+  enableVoiceMode: () => Promise<boolean>;
+  disableVoiceMode: () => Promise<boolean>;
+  clearUserTranscript: () => void;
+}
 
 interface ChatInputProps {
   placeholder?: string;
   disabled?: boolean;
-  onSend?: (message: string) => void | Promise<void>;
+  /** Add user message to chat UI and store in DB (for LiveKit flow) */
+  onAddUserMessage?: (message: string, messageType?: string, inputType?: string) => void | Promise<void>;
   isLoading?: boolean;
   conversationId?: string;
   courseId?: string;
   userId?: string;
   videoIds?: string[];
+  /** Optional: LiveKit state passed from parent (for shared session) */
+  liveKitState?: LiveKitState;
 }
 
 export function ChatInput({
   placeholder = "Tap to talk",
   disabled = false,
-  onSend,
+  onAddUserMessage,
   isLoading = false,
   conversationId,
   courseId,
   userId,
   videoIds,
+  liveKitState,
 }: ChatInputProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [inputValue, setInputValue] = useState("");
 
-  // LiveKit voice hook - connects to Prism backend
-  const { isConnected, isConnecting, isMuted, audioLevel, error: voiceError, connect, disconnect, toggleMute } = useLiveKit({
-    conversationId: conversationId || "",
-    courseId: courseId || "",
-    userId: userId,
-    videoIds: videoIds,
+  // LiveKit voice hook - only used if no state passed from parent
+  // When liveKitState is provided, we skip creating our own hook to avoid interference
+  const ownLiveKit = useLiveKit({
+    conversationId: liveKitState ? "" : (conversationId || ""),
+    courseId: liveKitState ? "" : (courseId || ""),
+    userId: liveKitState ? undefined : userId,
+    videoIds: liveKitState ? undefined : videoIds,
+    autoConnect: false, // Never auto-connect from ChatInput
   });
 
-  // Log voice errors when they occur
+  // Use parent's LiveKit state if provided, otherwise use own hook
+  const {
+    isConnected,
+    isConnecting,
+    isMuted,
+    audioLevel,
+    error: voiceError,
+    sendTextToAgent,
+    isVoiceModeEnabled,
+    enableVoiceMode,
+    disableVoiceMode,
+  } = liveKitState || ownLiveKit;
+
+  // Log voice errors when they occur (only for own hook, parent handles its own)
   useEffect(() => {
-    if (voiceError) {
+    if (!liveKitState && voiceError) {
       console.error("[Voice] Error:", voiceError);
       toast.error("Voice connection failed", {
         description: voiceError,
         duration: 2000
       });
     }
-  }, [voiceError]);
+  }, [voiceError, liveKitState]);
 
-  // Track previous connection state to detect changes
+  // Track previous connection state to detect changes (only for own hook)
   const prevConnectedRef = useRef(false);
   useEffect(() => {
+    if (liveKitState) return; // Parent handles its own toast notifications
+
     if (isConnected && !prevConnectedRef.current) {
       // Just connected
       toast.success("Voice session started", {
@@ -62,41 +113,67 @@ export function ChatInput({
       toast.info("Voice session ended", { duration: 2000 });
     }
     prevConnectedRef.current = isConnected;
-  }, [isConnected]);
+  }, [isConnected, liveKitState]);
 
-  // Handle text message submit
+  // Handle text message submit - all messages go through LiveKit
   const handleSubmit = async () => {
     const message = inputValue.trim();
-    if (message && onSend) {
-      setInputValue("");
-      await onSend(message);
-    }
-  };
+    if (!message) return;
 
-  // Handle voice button click - connects or toggles mute
-  const handleVoiceClick = async () => {
-    console.log("[Voice] Button clicked", { conversationId, courseId, isConnected, isMuted });
+    setInputValue("");
 
-    if (!conversationId || !courseId) {
-      console.warn("[Voice] Missing required props:", { conversationId, courseId });
+    // All messages must go through LiveKit (prism handles Sarvam API)
+    if (!isConnected) {
+      console.warn("[ChatInput] LiveKit not connected, cannot send message");
       return;
     }
 
-    if (isConnected) {
-      // Toggle mute when connected
-      console.log("[Voice] Toggling mute...");
-      await toggleMute();
-    } else {
-      // Start voice session
-      console.log("[Voice] Starting session...");
-      await connect();
+    console.log("[ChatInput] Sending message via LiveKit");
+    // Add user message to chat UI and store in DB
+    if (onAddUserMessage) {
+      await onAddUserMessage(message, "general", "text");
+    }
+    try {
+      await sendTextToAgent(message);
+    } catch (err) {
+      console.error("[ChatInput] Failed to send via LiveKit:", err);
     }
   };
 
-  // Handle end session button click
-  const handleEndSession = async () => {
-    console.log("[Voice] Ending session...");
-    await disconnect();
+  // Handle voice button click - toggle voice mode (enables/disables STT on agent)
+  const handleVoiceClick = async () => {
+    console.log("[Voice] Button clicked", { isConnected, isMuted, isVoiceModeEnabled });
+
+    if (!isConnected) {
+      console.log("[Voice] Session not connected yet, waiting...");
+      return;
+    }
+
+    if (isVoiceModeEnabled) {
+      // Currently in voice mode - disable it
+      console.log("[Voice] Disabling voice mode...");
+      const success = await disableVoiceMode();
+      if (success) {
+        toast.info("Voice mode disabled", {
+          description: "Switched back to text input",
+          duration: 2000,
+        });
+      } else {
+        toast.error("Failed to disable voice mode", { duration: 2000 });
+      }
+    } else {
+      // Not in voice mode - enable it
+      console.log("[Voice] Enabling voice mode...");
+      const success = await enableVoiceMode();
+      if (success) {
+        toast.success("Voice mode enabled", {
+          description: "You can now speak to the AI assistant",
+          duration: 2000,
+        });
+      } else {
+        toast.error("Failed to enable voice mode", { duration: 2000 });
+      }
+    }
   };
 
   // Handle Enter key
@@ -112,15 +189,15 @@ export function ChatInput({
   // Determine placeholder text
   const getPlaceholder = () => {
     if (isLoading) return "Thinking...";
-    if (isConnected) return isMuted ? "Mic muted" : "Listening...";
+    if (isConnected) return isVoiceModeEnabled ? "Listening..." : "Type your question here";
     return placeholder;
   };
 
   return (
     <div className="flex items-center justify-center px-6 py-4">
       <div className="bg-white border border-gray-200 flex h-[58px] items-center justify-between pl-[25px] pr-[8px] py-[7px] relative rounded-full shadow-sm w-full">
-        {/* Show animated listening indicator when connected and not muted */}
-        {isConnected && !isMuted ? (
+        {/* Show animated listening indicator when voice mode is enabled */}
+        {isConnected && isVoiceModeEnabled ? (
           <div className="flex-1 flex items-center justify-center h-full relative overflow-hidden">
             {/* Full width audio visualization - bars respond to audio level */}
             <div className="absolute inset-0 flex items-end justify-center gap-1 px-4 py-2">
@@ -152,41 +229,31 @@ export function ChatInput({
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             placeholder={getPlaceholder()}
-            disabled={isDisabled || isConnected}
+            disabled={isDisabled || (isConnected && isVoiceModeEnabled)}
             onKeyDown={handleKeyDown}
             className="flex-1 bg-transparent border-none outline-none font-normal text-[16px] text-gray-900 placeholder-[#99a1af] tracking-[-0.3125px] leading-[24px] disabled:opacity-50"
           />
         )}
         <div className="flex items-center gap-2">
-          {/* End session button - only shown when connected */}
-          {isConnected && (
-            <button
-              onClick={handleEndSession}
-              className="flex items-center justify-center w-[36px] h-[36px] rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
-              title="End voice session"
-            >
-              <X className="h-4 w-4 text-gray-600" />
-            </button>
-          )}
-          {/* Main action button */}
+          {/* Main action button - toggles voice mode or sends text */}
           <button
             onClick={inputValue.trim() ? handleSubmit : handleVoiceClick}
             disabled={isDisabled || isConnecting}
             className="flex items-center justify-center w-[44px] h-[44px] rounded-full shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
             style={{
               background: isConnected
-                ? isMuted
-                  ? "linear-gradient(135deg, #6B7280 0%, #4B5563 100%)" // Gray when muted
-                  : "linear-gradient(135deg, #22C55E 0%, #16A34A 100%)" // Green when listening
+                ? isVoiceModeEnabled
+                  ? "linear-gradient(135deg, #22C55E 0%, #16A34A 100%)" // Green when voice mode active
+                  : "linear-gradient(135deg, #6B7280 0%, #4B5563 100%)" // Gray when voice mode off
                 : "linear-gradient(135deg, #FB64B6 0%, #C27AFF 50%, #51A2FF 100%)", // Default gradient
             }}
-            title={isConnected ? (isMuted ? "Unmute" : "Mute") : "Start voice"}
+            title={isConnected ? (isVoiceModeEnabled ? "Disable voice mode" : "Enable voice mode") : "Connecting..."}
           >
             {isLoading || isConnecting ? (
               <Loader2 className="h-5 w-5 text-white animate-spin" />
             ) : inputValue.trim() ? (
               <Send className="h-5 w-5 text-white" />
-            ) : isConnected && isMuted ? (
+            ) : isConnected && !isVoiceModeEnabled ? (
               <MicOff className="h-5 w-5 text-white" />
             ) : (
               <Mic className="h-5 w-5 text-white" />

@@ -1,7 +1,10 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import { type MessageData } from "@/lib/chat/message-store";
+import { type MessageData, storeMessage } from "@/lib/chat/message-store";
+
+// Counter for generating unique temp IDs (prevents duplicates when called in same millisecond)
+let tempIdCounter = 0;
 
 interface Lesson {
   id: string;
@@ -187,10 +190,97 @@ export function useChatSession({
     [] // Empty deps - sendFAMessage is now stable
   );
 
+  // Add user message to chat and store in DB (for LiveKit flow)
+  const addUserMessage = useCallback(
+    async (message: string, messageType: string = "general", inputType: string = "text") => {
+      const convId = conversationIdRef.current;
+      if (!convId) {
+        console.error("Conversation not ready");
+        return;
+      }
+
+      // Optimistically add to UI with temp ID (use counter to ensure uniqueness)
+      const tempId = `user-${Date.now()}-${++tempIdCounter}`;
+      const userMessage: MessageData = {
+        id: tempId,
+        conversationId: convId,
+        role: "user",
+        content: message,
+        inputType: inputType,
+        messageType: messageType,
+        createdAt: new Date().toISOString(),
+      };
+
+      setChatMessages((prev) => [...prev, userMessage]);
+
+      // Store in database
+      try {
+        const savedMessage = await storeMessage(convId, "user", message, {
+          inputType,
+          messageType,
+        });
+        console.log("[ChatSession] User message stored in DB:", savedMessage.id);
+
+        // Update the temp ID with the real ID
+        setChatMessages((prev) =>
+          prev.map((msg) => (msg.id === tempId ? { ...msg, id: savedMessage.id } : msg))
+        );
+      } catch (error) {
+        console.error("[ChatSession] Failed to store user message:", error);
+      }
+    },
+    []
+  );
+
+  // Add assistant message to chat and store in DB (for LiveKit agent transcript)
+  const addAssistantMessage = useCallback(
+    async (message: string, messageType: string = "general") => {
+      const convId = conversationIdRef.current;
+      if (!convId) {
+        console.error("Conversation not ready");
+        return;
+      }
+
+      // Optimistically add to UI with temp ID (use counter to ensure uniqueness)
+      const tempId = `assistant-${Date.now()}-${++tempIdCounter}`;
+      const assistantMessage: MessageData = {
+        id: tempId,
+        conversationId: convId,
+        role: "assistant",
+        content: message,
+        inputType: "text",
+        messageType: messageType,
+        createdAt: new Date().toISOString(),
+      };
+
+      setChatMessages((prev) => [...prev, assistantMessage]);
+
+      // Store in database
+      try {
+        const savedMessage = await storeMessage(convId, "assistant", message, {
+          inputType: "text",
+          messageType,
+        });
+        console.log("[ChatSession] Assistant message stored in DB:", savedMessage.id);
+
+        // Update the temp ID with the real ID
+        setChatMessages((prev) =>
+          prev.map((msg) => (msg.id === tempId ? { ...msg, id: savedMessage.id } : msg))
+        );
+      } catch (error) {
+        console.error("[ChatSession] Failed to store assistant message:", error);
+      }
+    },
+    []
+  );
+
   return {
     chatMessages,
+    setChatMessages,
     isSending,
     sendMessage,
     sendFAMessage,
+    addUserMessage,
+    addAssistantMessage,
   };
 }

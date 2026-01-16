@@ -1,16 +1,32 @@
-import { ChevronRight, ChevronDown, Clock, Layers, BookAIcon, CirclePlay } from "lucide-react";
+"use client";
+
+import { useState } from "react";
+import { ChevronRight, ChevronDown, Clock, Layers, BookAIcon, CirclePlay, Trash2 } from "lucide-react";
 import type { Course, CourseStatus, Module, Lesson } from "@/types/learning";
 import { PanelHeader } from "./PanelHeader";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface CourseListProps {
   className?: string;
   courses: Course[];
   selectedCourse: Course | null;
   expandedModules: string[];
+  activeModuleId?: string;
+  activeLessonId?: string;
   onSelectCourse: (course: Course) => void;
   onToggleModule: (moduleId: string) => void;
   onLessonClick: (courseId: string, moduleId: string, lesson: Lesson) => void;
   onToggleCollapse?: () => void;
+  onDeleteThread?: (moduleId: string) => Promise<void>;
 }
 
 /**
@@ -42,14 +58,26 @@ function formatDuration(minutes?: number): string {
 /**
  * Lesson item within an expanded module
  */
-function LessonItem({ lesson, onClick }: { lesson: Lesson; onClick: () => void }) {
+function LessonItem({
+  lesson,
+  isActive,
+  onClick,
+}: {
+  lesson: Lesson;
+  isActive: boolean;
+  onClick: () => void;
+}) {
   const isCompleted = lesson.status === "completed";
   const isInProgress = lesson.status === "in_progress" || lesson.status === "seen";
 
   return (
     <button
       onClick={onClick}
-      className="w-full flex items-center gap-3 py-2.5 pl-8 pr-2 hover:bg-gray-50 rounded-lg transition-colors group"
+      className={`w-full flex items-center gap-3 py-2.5 pl-8 pr-2 rounded-lg transition-colors group cursor-pointer ${
+        isActive
+          ? "bg-purple-200 hover:bg-purple-300"
+          : "hover:bg-gray-100"
+      }`}
     >
       {/* Status circle */}
       <div
@@ -96,43 +124,69 @@ function LessonItem({ lesson, onClick }: { lesson: Lesson; onClick: () => void }
 function ModuleItem({
   module,
   isExpanded,
+  isActive,
+  activeLessonId,
   onToggle,
   onLessonClick,
+  onDeleteClick,
 }: {
   module: Module;
   isExpanded: boolean;
+  isActive: boolean;
+  activeLessonId?: string;
   onToggle: () => void;
   onLessonClick: (lesson: Lesson) => void;
+  onDeleteClick?: () => void;
 }) {
   const completedCount = module.lessons.filter((l) => l.status === "completed").length;
 
   return (
-    <div>
+    <div
+      className={`group/module rounded-lg transition-colors ${
+        isActive ? "bg-purple-100 border-l-4 border-purple-500" : ""
+      }`}
+    >
       {/* Module header */}
-      <button
-        onClick={onToggle}
-        className="w-full flex items-center gap-3 py-3 px-1 hover:bg-gray-50 rounded-lg transition-colors"
-      >
-        {/* Chevron */}
-        {isExpanded ? (
-          <ChevronDown className="h-4 w-4 text-gray-400 shrink-0" />
-        ) : (
-          <ChevronRight className="h-4 w-4 text-gray-400 shrink-0" />
-        )}
+      <div className="relative flex items-center">
+        <button
+          onClick={onToggle}
+          className={`w-full flex items-center gap-3 py-3 px-1 rounded-lg transition-colors cursor-pointer ${
+            isActive ? "hover:bg-purple-200" : "hover:bg-gray-100"
+          }`}
+        >
+          {/* Chevron */}
+          {isExpanded ? (
+            <ChevronDown className="h-4 w-4 text-gray-400 shrink-0" />
+          ) : (
+            <ChevronRight className="h-4 w-4 text-gray-400 shrink-0" />
+          )}
 
-        {/* Purple stacked layers icon */}
-        <Layers className="h-5 w-5 text-purple-500 shrink-0" />
+          {/* Purple stacked layers icon */}
+          <Layers className="h-5 w-5 text-purple-500 shrink-0" />
 
-        {/* Module title */}
-        <span className="flex-1 text-sm font-medium text-gray-900 text-left">
-          {module.title}
-        </span>
+          {/* Module title */}
+          <span className="flex-1 text-sm font-medium text-gray-900 text-left">
+            {module.title}
+          </span>
 
-        {/* Progress count */}
-        <span className="text-sm text-gray-400 shrink-0">
-          {completedCount}/{module.lessonCount}
-        </span>
-      </button>
+          {/* Progress count */}
+          <span className="text-sm text-gray-400 shrink-0 pr-8">
+            {completedCount}/{module.lessonCount}
+          </span>
+        </button>
+        {/* {onDeleteClick && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDeleteClick();
+            }}
+            className="absolute right-1 p-1.5 rounded-md hover:bg-red-50 text-gray-400 hover:text-red-500 opacity-0 group-hover/module:opacity-100 transition-all duration-200"
+            title="Delete thread history"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        )} */}
+      </div>
 
       {/* Lessons - shown when module is expanded */}
       {isExpanded && module.lessons && module.lessons.length > 0 && (
@@ -141,6 +195,7 @@ function ModuleItem({
             <LessonItem
               key={lesson.id}
               lesson={lesson}
+              isActive={lesson.id === activeLessonId}
               onClick={() => onLessonClick(lesson)}
             />
           ))}
@@ -211,11 +266,36 @@ export function CourseList({
   courses,
   selectedCourse,
   expandedModules,
+  activeModuleId,
+  activeLessonId,
   onSelectCourse,
   onToggleModule,
   onLessonClick,
   onToggleCollapse,
+  onDeleteThread,
 }: CourseListProps) {
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [moduleToDelete, setModuleToDelete] = useState<Module | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDeleteClick = (module: Module) => {
+    setModuleToDelete(module);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!moduleToDelete || !onDeleteThread) return;
+
+    setIsDeleting(true);
+    try {
+      await onDeleteThread(moduleToDelete.id);
+    } finally {
+      setIsDeleting(false);
+      setDeleteDialogOpen(false);
+      setModuleToDelete(null);
+    }
+  };
+
   return (
     <div className={`flex h-full flex-col bg-white ${className}`}>
       <PanelHeader onToggleCollapse={onToggleCollapse} />
@@ -251,8 +331,11 @@ export function CourseList({
                         key={module.id}
                         module={module}
                         isExpanded={expandedModules.includes(module.id)}
+                        isActive={module.id === activeModuleId}
+                        activeLessonId={activeLessonId}
                         onToggle={() => onToggleModule(module.id)}
                         onLessonClick={(lesson) => onLessonClick(course.id, module.id, lesson)}
+                        onDeleteClick={onDeleteThread ? () => handleDeleteClick(module) : undefined}
                       />
                     ))}
                   </div>
@@ -262,6 +345,28 @@ export function CourseList({
           })}
         </div>
       </div>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Thread History</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete all conversation history for &quot;{moduleToDelete?.title}&quot;?
+              This will permanently delete the thread, all conversations, and messages. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+            >
+              {isDeleting ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

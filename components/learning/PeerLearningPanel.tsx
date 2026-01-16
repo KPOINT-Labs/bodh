@@ -1,8 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import type { PeerLearningPanelProps, Lesson } from "@/types/learning";
 import { usePeerLearning } from "@/hooks/usePeerLearning";
+import { useLearningPanel } from "@/contexts/LearningPanelContext";
 
 // Sub-components
 import { CollapsedPanel } from "./CollapsedPanel";
@@ -25,12 +27,15 @@ export function PeerLearningPanel({
   userId: propUserId,
   activeCourseId,
   activeModuleId,
+  activeLessonId,
   isCollapsed = false,
   onToggleCollapse,
 }: PeerLearningPanelProps) {
   const router = useRouter();
+  const { triggerRightPanelHighlight } = useLearningPanel();
 
   const {
+    userId,
     courses,
     selectedCourse,
     expandedModules,
@@ -44,10 +49,43 @@ export function PeerLearningPanel({
     activeModuleId,
   });
 
-  const handleLessonClick = (courseId: string, moduleId: string, _lesson: Lesson) => {
+  const handleLessonClick = (courseId: string, moduleId: string, lesson: Lesson) => {
+    // If this lesson is already active, highlight the right panel to show it's already displayed
+    if (moduleId === activeModuleId && lesson.id === activeLessonId) {
+      triggerRightPanelHighlight();
+      return;
+    }
+
     const course = courses.find((c) => c.id === courseId);
     const courseSlug = course?.slug || courseId;
-    router.push(`/course/${courseSlug}/module/${moduleId}`);
+    // Include lessonId in URL to auto-select the lesson
+    router.push(`/course/${courseSlug}/module/${moduleId}?lesson=${lesson.id}`);
+  };
+
+  const handleDeleteThread = async (moduleId: string) => {
+    if (!userId) {
+      toast.error("User not found");
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/thread?userId=${userId}&moduleId=${moduleId}`, {
+        method: "DELETE",
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        toast.success("Thread history deleted successfully");
+        // Refresh the page to reset the chat state
+        router.refresh();
+      } else {
+        toast.error(data.error || "Failed to delete thread");
+      }
+    } catch (err) {
+      console.error("Failed to delete thread:", err);
+      toast.error("Failed to delete thread");
+    }
   };
 
   // Collapsed view
@@ -77,10 +115,13 @@ export function PeerLearningPanel({
       courses={courses}
       selectedCourse={selectedCourse}
       expandedModules={expandedModules}
+      activeModuleId={activeModuleId}
+      activeLessonId={activeLessonId}
       onSelectCourse={selectCourse}
       onToggleModule={toggleModule}
       onLessonClick={handleLessonClick}
       onToggleCollapse={onToggleCollapse}
+      onDeleteThread={handleDeleteThread}
     />
   );
 }

@@ -8,11 +8,13 @@ export const dynamic = "force-dynamic";
 
 interface ModulePageProps {
   params: Promise<{ courseId: string; moduleId: string }>;
+  searchParams: Promise<{ lesson?: string }>;
 }
 
-async function getModuleData(courseId: string, moduleId: string) {
-  const course = await prisma.course.findUnique({
-    where: { id: courseId },
+async function getModuleData(courseIdOrSlug: string, moduleId: string) {
+  // Try to find course by ID first, then by slug
+  let course = await prisma.course.findUnique({
+    where: { id: courseIdOrSlug },
     select: {
       id: true,
       title: true,
@@ -20,6 +22,19 @@ async function getModuleData(courseId: string, moduleId: string) {
       learningObjectives: true,
     },
   });
+
+  // If not found by ID, try by slug
+  if (!course) {
+    course = await prisma.course.findUnique({
+      where: { slug: courseIdOrSlug },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        learningObjectives: true,
+      },
+    });
+  }
 
   if (!course) {
     return null;
@@ -42,7 +57,8 @@ async function getModuleData(courseId: string, moduleId: string) {
     },
   });
 
-  if (!foundModule || foundModule.courseId !== courseId) {
+  // Compare with course.id (not the slug parameter)
+  if (!foundModule || foundModule.courseId !== course.id) {
     return null;
   }
 
@@ -61,8 +77,9 @@ async function getModuleData(courseId: string, moduleId: string) {
   return { course, module: foundModule, userId: user.id };
 }
 
-export default async function ModulePage({ params }: ModulePageProps) {
+export default async function ModulePage({ params, searchParams }: ModulePageProps) {
   const { courseId, moduleId } = await params;
+  const { lesson: initialLessonId } = await searchParams;
   const data = await getModuleData(courseId, moduleId);
 
   if (!data) {
@@ -86,6 +103,7 @@ export default async function ModulePage({ params }: ModulePageProps) {
         course={course}
         module={module}
         userId={userId}
+        initialLessonId={initialLessonId}
       />
     </Suspense>
   );
