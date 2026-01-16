@@ -39,6 +39,14 @@ export interface TranscriptSegment {
   timestamp: number;
 }
 
+/** User transcription data from voice mode */
+export interface UserTranscription {
+  text: string;
+  isFinal: boolean;
+  inputType: "voice";
+  timestamp: number;
+}
+
 interface UseLiveKitProps {
   conversationId: string;
   courseId: string;
@@ -54,6 +62,8 @@ interface UseLiveKitProps {
   onTranscript?: (segment: TranscriptSegment) => void;
   /** Callback when user message is received (for auto-triggered messages from player) */
   onUserMessage?: (text: string, taskType: string) => void;
+  /** Callback when user speech is transcribed (voice mode) */
+  onUserTranscript?: (transcription: UserTranscription) => void;
 }
 
 interface UseLiveKitReturn {
@@ -73,6 +83,12 @@ interface UseLiveKitReturn {
   isAudioBlocked: boolean;
   /** Whether we're waiting for agent to respond after sending a message */
   isWaitingForAgentResponse: boolean;
+  /** Whether voice mode is enabled (user can speak) */
+  isVoiceModeEnabled: boolean;
+  /** Current user transcript (when speaking in voice mode) */
+  userTranscript: string;
+  /** Whether user is currently speaking (in voice mode) */
+  isUserSpeaking: boolean;
   connect: () => Promise<void>;
   disconnect: () => Promise<void>;
   toggleMute: () => Promise<void>;
@@ -82,6 +98,12 @@ interface UseLiveKitReturn {
   sendTextToAgent: (text: string) => Promise<void>;
   /** Clear the agent transcript (call after adding to chat history) */
   clearAgentTranscript: () => void;
+  /** Enable voice mode - user can speak to agent */
+  enableVoiceMode: () => Promise<boolean>;
+  /** Disable voice mode - back to text-to-speech mode */
+  disableVoiceMode: () => Promise<boolean>;
+  /** Clear the user transcript */
+  clearUserTranscript: () => void;
 }
 
 interface TokenResponse {
@@ -111,6 +133,7 @@ export function useLiveKit({
   listenOnly = false,
   onTranscript,
   onUserMessage,
+  onUserTranscript,
 }: UseLiveKitProps): UseLiveKitReturn {
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -126,6 +149,11 @@ export function useLiveKit({
   const [isAudioBlocked, setIsAudioBlocked] = useState(false);
   const [isWaitingForAgentResponse, setIsWaitingForAgentResponse] = useState(false);
 
+  // Voice mode state
+  const [isVoiceModeEnabled, setIsVoiceModeEnabled] = useState(false);
+  const [userTranscript, setUserTranscript] = useState("");
+  const [isUserSpeaking, setIsUserSpeaking] = useState(false);
+
   // References to persist across renders
   const roomRef = useRef<Room | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -138,7 +166,10 @@ export function useLiveKit({
   const roomNameRef = useRef<string | null>(null); // Stable room name across re-renders
   const onTranscriptRef = useRef(onTranscript); // Ref for callback to avoid stale closures
   const onUserMessageRef = useRef(onUserMessage); // Ref for user message callback
+  const onUserTranscriptRef = useRef(onUserTranscript); // Ref for user transcript callback
   const metadataRef = useRef(metadata); // Ref for metadata to always use current values
+  const agentIdentityRef = useRef<string | null>(null); // Store agent identity for RPC calls
+  const lastFinalTranscriptRef = useRef<string>(""); // Track last final transcript to prevent duplicates
 
   // Keep refs updated
   useEffect(() => {
@@ -148,6 +179,10 @@ export function useLiveKit({
   useEffect(() => {
     onUserMessageRef.current = onUserMessage;
   }, [onUserMessage]);
+
+  useEffect(() => {
+    onUserTranscriptRef.current = onUserTranscript;
+  }, [onUserTranscript]);
 
   useEffect(() => {
     metadataRef.current = metadata;
@@ -308,7 +343,7 @@ export function useLiveKit({
         setIsConnected(false);
       });
 
-      // Listen for data channel messages (fallback when TTS fails, user messages)
+      // Listen for data channel messages (fallback when TTS fails, user messages, user transcription)
       room.on("dataReceived", (payload, participant) => {
         try {
           const data = JSON.parse(new TextDecoder().decode(payload));
@@ -318,6 +353,46 @@ export function useLiveKit({
           if (data.type === "user_message") {
             console.log("[LiveKit] User message received:", data.text?.substring(0, 50));
             onUserMessageRef.current?.(data.text || "", data.task_type || "QnA");
+          }
+
+          // Handle user transcription from voice mode (sent by agent when user speaks)
+          if (data.type === "user_transcription") {
+            const transcription: UserTranscription = {
+              text: data.text || "",
+              isFinal: data.is_final === true,
+              inputType: "voice",
+              timestamp: Date.now(),
+            };
+
+            console.log("[LiveKit] User transcription received:", {
+              text: transcription.text.substring(0, 50),
+              isFinal: transcription.isFinal,
+            });
+
+            // Update user transcript state for live display
+            setUserTranscript(transcription.text);
+            setIsUserSpeaking(!transcription.isFinal);
+
+            // For final transcriptions, check for duplicates before calling callback
+            if (transcription.isFinal && transcription.text.trim()) {
+              // Check if this is a duplicate of the last final transcript
+              if (lastFinalTranscriptRef.current === transcription.text) {
+                console.log("[LiveKit] Duplicate final transcription, skipping callback");
+                return;
+              }
+              // Store this as the last final transcript
+              lastFinalTranscriptRef.current = transcription.text;
+              console.log("[LiveKit] Final user transcription - calling callback");
+            }
+
+            // Call callback (for interim updates or deduplicated final)
+            onUserTranscriptRef.current?.(transcription);
+          }
+
+          // Handle voice mode change notification from agent
+          if (data.type === "voice_mode_changed") {
+            console.log("[LiveKit] Voice mode changed:", data.enabled);
+            setIsVoiceModeEnabled(data.enabled === true);
           }
 
           // Handle TTS fallback response
@@ -349,6 +424,24 @@ export function useLiveKit({
         } catch (err) {
           // Not JSON data, ignore
           console.log("[LiveKit] Non-JSON data received, ignoring");
+        }
+      });
+
+      // Listen for participant connected to capture agent identity
+      room.on("participantConnected", (participant) => {
+        console.log("[LiveKit] Participant connected:", participant.identity, "isAgent:", participant.isAgent);
+        // Store agent identity for RPC calls
+        if (participant.isAgent || participant.identity.includes("agent")) {
+          agentIdentityRef.current = participant.identity;
+          console.log("[LiveKit] Agent identity stored:", participant.identity);
+        }
+      });
+
+      // Check existing participants for agent
+      room.remoteParticipants.forEach((participant) => {
+        if (participant.isAgent || participant.identity.includes("agent")) {
+          agentIdentityRef.current = participant.identity;
+          console.log("[LiveKit] Found existing agent:", participant.identity);
         }
       });
 
@@ -568,10 +661,17 @@ export function useLiveKit({
     setIsAgentSpeaking(false);
     setIsWaitingForAgentResponse(false);
 
+    // Reset voice mode state
+    setIsVoiceModeEnabled(false);
+    setUserTranscript("");
+    setIsUserSpeaking(false);
+
     // Reset refs for potential reconnection
     roomNameRef.current = null;
     hasAutoConnectedRef.current = false;
     isConnectingRef.current = false;
+    agentIdentityRef.current = null;
+    lastFinalTranscriptRef.current = "";
 
     console.log("[LiveKit] Disconnected and cleaned up");
   }, []);
@@ -702,6 +802,122 @@ export function useLiveKit({
     setTranscriptSegments([]);
   }, []);
 
+  /**
+   * Clear the user transcript
+   */
+  const clearUserTranscript = useCallback(() => {
+    setUserTranscript("");
+    setIsUserSpeaking(false);
+  }, []);
+
+  /**
+   * Enable voice mode - user can speak to agent via microphone
+   * Calls RPC method on agent to enable audio input processing
+   */
+  const enableVoiceMode = useCallback(async (): Promise<boolean> => {
+    if (!roomRef.current) {
+      console.warn("[LiveKit] Cannot enable voice mode - not connected");
+      return false;
+    }
+
+    const agentIdentity = agentIdentityRef.current;
+    if (!agentIdentity) {
+      console.warn("[LiveKit] Cannot enable voice mode - agent identity not found");
+      // Try to find agent from participants
+      roomRef.current.remoteParticipants.forEach((participant) => {
+        if (participant.isAgent || participant.identity.includes("agent")) {
+          agentIdentityRef.current = participant.identity;
+        }
+      });
+      if (!agentIdentityRef.current) {
+        console.error("[LiveKit] No agent found in room");
+        return false;
+      }
+    }
+
+    console.log("[LiveKit] Enabling voice mode via RPC to agent:", agentIdentityRef.current);
+
+    try {
+      // First enable the local microphone
+      await roomRef.current.localParticipant.setMicrophoneEnabled(true);
+      setIsMuted(false);
+      console.log("[LiveKit] Local microphone enabled");
+
+      // Call RPC method on agent to enable voice mode (STT processing)
+      const response = await roomRef.current.localParticipant.performRpc({
+        destinationIdentity: agentIdentityRef.current!,
+        method: "enable_voice_mode",
+        payload: JSON.stringify({}),
+      });
+
+      const result = JSON.parse(response);
+      console.log("[LiveKit] Voice mode enable response:", result);
+
+      if (result.success) {
+        setIsVoiceModeEnabled(true);
+        console.log("[LiveKit] Voice mode ENABLED - user can now speak");
+        return true;
+      } else {
+        console.error("[LiveKit] Failed to enable voice mode on agent");
+        return false;
+      }
+    } catch (err) {
+      console.error("[LiveKit] Failed to enable voice mode:", err);
+      return false;
+    }
+  }, []);
+
+  /**
+   * Disable voice mode - back to text-to-speech mode
+   * Calls RPC method on agent to disable audio input processing
+   */
+  const disableVoiceMode = useCallback(async (): Promise<boolean> => {
+    if (!roomRef.current) {
+      console.warn("[LiveKit] Cannot disable voice mode - not connected");
+      return false;
+    }
+
+    const agentIdentity = agentIdentityRef.current;
+    if (!agentIdentity) {
+      console.warn("[LiveKit] Cannot disable voice mode - agent identity not found");
+      return false;
+    }
+
+    console.log("[LiveKit] Disabling voice mode via RPC to agent:", agentIdentity);
+
+    try {
+      // Call RPC method on agent to disable voice mode
+      const response = await roomRef.current.localParticipant.performRpc({
+        destinationIdentity: agentIdentity,
+        method: "disable_voice_mode",
+        payload: JSON.stringify({}),
+      });
+
+      const result = JSON.parse(response);
+      console.log("[LiveKit] Voice mode disable response:", result);
+
+      if (result.success) {
+        setIsVoiceModeEnabled(false);
+        setIsUserSpeaking(false);
+        setUserTranscript(""); // Clear user transcript
+        lastFinalTranscriptRef.current = ""; // Reset for next voice session
+        console.log("[LiveKit] Voice mode DISABLED - back to text mode");
+
+        // Optionally mute microphone when voice mode is disabled
+        await roomRef.current.localParticipant.setMicrophoneEnabled(false);
+        setIsMuted(true);
+
+        return true;
+      } else {
+        console.error("[LiveKit] Failed to disable voice mode on agent");
+        return false;
+      }
+    } catch (err) {
+      console.error("[LiveKit] Failed to disable voice mode:", err);
+      return false;
+    }
+  }, []);
+
   return {
     isConnected,
     isConnecting,
@@ -714,11 +930,20 @@ export function useLiveKit({
     isAgentSpeaking,
     isAudioBlocked,
     isWaitingForAgentResponse,
+    // Voice mode state
+    isVoiceModeEnabled,
+    userTranscript,
+    isUserSpeaking,
+    // Actions
     connect,
     disconnect,
     toggleMute,
     startAudio,
     sendTextToAgent,
     clearAgentTranscript,
+    // Voice mode actions
+    enableVoiceMode,
+    disableVoiceMode,
+    clearUserTranscript,
   };
 }

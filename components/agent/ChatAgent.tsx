@@ -162,6 +162,12 @@ interface ChatAgentProps {
   sendTextToAgent?: (text: string) => Promise<void>;
   /** Add user message to chat UI and DB */
   onAddUserMessage?: (message: string, messageType?: string, inputType?: string) => Promise<void>;
+  /** Whether voice mode is enabled (user can speak to agent) */
+  isVoiceModeEnabled?: boolean;
+  /** Current user transcript from voice input (live transcription) */
+  userTranscript?: string;
+  /** Whether user is currently speaking in voice mode */
+  isUserSpeaking?: boolean;
 }
 
 /**
@@ -190,11 +196,19 @@ export function ChatAgent({
   isReturningUser = false,
   sendTextToAgent,
   onAddUserMessage,
+  isVoiceModeEnabled = false,
+  userTranscript = "",
+  isUserSpeaking = false,
 }: ChatAgentProps) {
   // State for session initialization
   const [historyMessages, setHistoryMessages] = useState<MessageData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const hasInitialized = useRef(false);
+
+  // Store the welcome message locally (not in DB) so it persists in UI
+  // This captures the welcome/welcome_back transcript when agent finishes speaking
+  const [welcomeMessage, setWelcomeMessage] = useState<string | null>(null);
+  const welcomeCapturedRef = useRef(false);
 
   // Handler for assessment question answers - routes through LiveKit
   const handleQuestionAnswer = useCallback(async (questionNumber: number, answer: string) => {
@@ -329,6 +343,26 @@ export function ChatAgent({
   // Track previous chat messages length to detect new user messages
   const prevChatMessagesLengthRef = useRef(filteredChatMessages.length);
 
+  // Capture welcome message when agent finishes speaking (before any user interaction)
+  // This keeps the welcome visible in UI without storing in DB
+  useEffect(() => {
+    // Only capture if:
+    // 1. Agent has finished speaking (!isAgentSpeaking)
+    // 2. There's a transcript
+    // 3. No chat messages yet (this is the welcome, not a response)
+    // 4. Haven't captured yet
+    if (
+      !isAgentSpeaking &&
+      agentTranscript &&
+      filteredChatMessages.length === 0 &&
+      !welcomeCapturedRef.current
+    ) {
+      console.log("[ChatAgent] Capturing welcome message for UI persistence");
+      setWelcomeMessage(agentTranscript);
+      welcomeCapturedRef.current = true;
+    }
+  }, [isAgentSpeaking, agentTranscript, filteredChatMessages.length]);
+
   // Auto-scroll during agent transcript with typing effect
   // Uses smart scroll - only scrolls if user is already at bottom
   useEffect(() => {
@@ -410,9 +444,9 @@ export function ChatAgent({
           </div>
         )}
 
-        {/* Initial welcome message (only when no chat messages yet) */}
-        {/* LiveKit agent handles welcome messages - show transcript when available */}
-        {filteredChatMessages.length === 0 && (
+        {/* Welcome message - show captured welcome or live transcript */}
+        {/* Case 1: No chat messages yet - show live transcript or connecting state */}
+        {filteredChatMessages.length === 0 && !welcomeMessage && (
           <>
             {isLiveKitConnected && agentTranscript ? (
               <div className="flex items-start gap-3">
@@ -449,13 +483,30 @@ export function ChatAgent({
           </>
         )}
 
+        {/* Case 2: Welcome captured - show it persistently (even when chat messages exist) */}
+        {welcomeMessage && (
+          <div className="flex items-start gap-3">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-500">
+              <Sparkles className="h-4 w-4 text-white" />
+            </div>
+            <div className="bg-gray-50 rounded-2xl rounded-tl-sm px-4 py-3 max-w-[85%]">
+              <div className="text-sm leading-relaxed text-gray-800">
+                <MessageContent
+                  content={welcomeMessage}
+                  onTimestampClick={onTimestampClick}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Action Buttons - show only after LiveKit connects and agent finishes speaking */}
         {/* Conditions: LiveKit connected, agent has spoken, not speaking, no user messages, no lesson selected yet */}
         {!isAgentSpeaking &&
          firstLesson &&
          filteredChatMessages.length === 0 &&
          isLiveKitConnected &&
-         agentTranscript &&
+         (welcomeMessage || agentTranscript) &&
          !hasSelectedLesson && (
           <ActionButtons
             firstLesson={firstLesson}
@@ -473,6 +524,30 @@ export function ChatAgent({
             {expandMessagesWithSeparator(filteredChatMessages).map((msg) => (
               <ChatMessage key={msg.id} message={msg} onQuestionAnswer={handleQuestionAnswer} onQuestionSkip={handleQuestionSkip} onTimestampClick={onTimestampClick} isFromHistory={false} />
             ))}
+          </div>
+        )}
+
+        {/* User voice transcript - shows when user is speaking in voice mode */}
+        {isVoiceModeEnabled && userTranscript && (
+          <div className="flex items-start gap-3 justify-end">
+            <div className="bg-blue-500 text-white rounded-2xl rounded-tr-sm px-4 py-3 max-w-[85%]">
+              <div className="text-sm leading-relaxed">
+                {userTranscript}
+                {/* Show pulsing microphone indicator when user is speaking */}
+                {isUserSpeaking && (
+                  <span className="inline-flex items-center ml-2">
+                    <span className="inline-block w-2 h-2 bg-white rounded-full animate-pulse" />
+                    <span className="inline-block w-2 h-2 bg-white rounded-full animate-pulse ml-0.5 animation-delay-150" />
+                    <span className="inline-block w-2 h-2 bg-white rounded-full animate-pulse ml-0.5 animation-delay-300" />
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-green-500">
+              <svg className="h-4 w-4 text-white" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/>
+              </svg>
+            </div>
           </div>
         )}
 

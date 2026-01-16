@@ -14,7 +14,7 @@ import { toast } from "sonner";
 // Hooks
 import { useKPointPlayer } from "@/hooks/useKPointPlayer";
 import { useChatSession } from "@/hooks/useChatSession";
-import { useLiveKit, TranscriptSegment } from "@/hooks/useLiveKit";
+import { useLiveKit, TranscriptSegment, UserTranscription } from "@/hooks/useLiveKit";
 import { useSessionType } from "@/hooks/useSessionType";
 import { useLearningPanel } from "@/contexts/LearningPanelContext";
 
@@ -77,6 +77,8 @@ export function ModuleContent({ course, module, userId, initialLessonId }: Modul
 
   // Track which transcript segments have been stored to avoid duplicates
   const storedSegmentsRef = useRef<Set<string>>(new Set());
+  // Track which voice messages have been stored to avoid duplicates
+  const storedVoiceMessagesRef = useRef<Set<string>>(new Set());
   // Track if user has sent a message - used for storing subsequent agent responses
   const userHasSentMessageRef = useRef<boolean>(false);
   // Track the last user message type (e.g., "fa", "general") for agent response typing
@@ -91,11 +93,58 @@ export function ModuleContent({ course, module, userId, initialLessonId }: Modul
   const clearAgentTranscriptRef = useRef<(() => void) | null>(null);
   // Ref for handleAddUserMessage to use in onUserMessage callback (set after useChatSession)
   const handleAddUserMessageRef = useRef<((message: string, messageType?: string, inputType?: string) => Promise<void>) | null>(null);
+  // Ref for clearUserTranscript to use after storing voice message
+  const clearUserTranscriptRef = useRef<(() => void) | null>(null);
 
   // Keep isReturningUserRef updated
   useEffect(() => {
     isReturningUserRef.current = isReturningUser;
   }, [isReturningUser]);
+
+  // Handle user voice transcription - store final transcriptions in DB
+  const handleUserTranscriptCallback = useCallback(
+    (transcription: UserTranscription) => {
+      console.log("[ModuleContent] User transcription:", {
+        text: transcription.text.substring(0, 50),
+        isFinal: transcription.isFinal,
+        inputType: transcription.inputType,
+      });
+
+      // Only store and display final transcriptions
+      if (!transcription.isFinal || !transcription.text.trim()) {
+        return;
+      }
+
+      // Check if this voice message was already stored (deduplication)
+      const messageKey = transcription.text.trim();
+      if (storedVoiceMessagesRef.current.has(messageKey)) {
+        console.log("[ModuleContent] Voice message already stored, skipping:", messageKey.substring(0, 30));
+        return;
+      }
+      storedVoiceMessagesRef.current.add(messageKey);
+
+      // Mark that user has interacted (for welcome message logic)
+      userHasSentMessageRef.current = true;
+      lastUserMessageTypeRef.current = "general"; // Voice input is general Q&A
+
+      // Add to chat and store in DB
+      if (handleAddUserMessageRef.current) {
+        console.log("[ModuleContent] Storing voice message:", transcription.text.substring(0, 50));
+        handleAddUserMessageRef.current(transcription.text, "general", "voice");
+
+        // Clear the user transcript from useLiveKit to avoid showing duplicate
+        // (the message is now stored in chatMessages)
+        if (clearUserTranscriptRef.current) {
+          setTimeout(() => {
+            clearUserTranscriptRef.current?.();
+          }, 100); // Small delay to let UI update smoothly
+        }
+      } else {
+        console.warn("[ModuleContent] Cannot store voice message - handleAddUserMessageRef not set");
+      }
+    },
+    [] // No deps needed - uses refs for all dynamic values
+  );
 
   // Handle LiveKit agent transcript - store in DB and add to chat when final
   // Welcome message: Store for first-time users, skip for returning users
@@ -126,22 +175,33 @@ export function ModuleContent({ course, module, userId, initialLessonId }: Modul
       // Case 1: First agent message (welcome/welcome_back)
       if (!userHasSentMessageRef.current && !welcomeStoredRef.current) {
         if (!isReturningUserRef.current) {
-          // First-time user: Store the welcome message
+          // First-time user: Store the welcome message in DB
           if (addAssistantMessageRef.current) {
             storedSegmentsRef.current.add(segmentKey);
             welcomeStoredRef.current = true;
             console.log("[ModuleContent] Storing welcome message for first-time user:", segment.text.substring(0, 50) + "...");
             addAssistantMessageRef.current(segment.text, "general");
-            if (clearAgentTranscriptRef.current) {
-              clearAgentTranscriptRef.current();
-            }
+            // Clear after a delay to allow ChatAgent to capture and state to update
+            setTimeout(() => {
+              if (clearAgentTranscriptRef.current) {
+                clearAgentTranscriptRef.current();
+              }
+            }, 500);
           } else {
             console.warn("[ModuleContent] Cannot store welcome - addAssistantMessageRef not set");
           }
         } else {
-          // Returning user: Skip welcome_back message (don't store)
-          welcomeStoredRef.current = true; // Mark as handled so we don't try again
-          console.log("[ModuleContent] Skipping welcome_back message for returning user (not storing)");
+          // Returning user: Don't store welcome_back in DB, but mark as handled
+          // The welcome_back will be kept in UI via ChatAgent's welcomeMessage state
+          welcomeStoredRef.current = true;
+          console.log("[ModuleContent] Welcome_back message handled for returning user (not storing in DB)");
+          // Clear the agent transcript after a delay so ChatAgent can capture it first
+          // (React batches state updates, so we need to wait for the capture useEffect to run)
+          setTimeout(() => {
+            if (clearAgentTranscriptRef.current) {
+              clearAgentTranscriptRef.current();
+            }
+          }, 500);
         }
         return;
       }
@@ -178,8 +238,9 @@ export function ModuleContent({ course, module, userId, initialLessonId }: Modul
     userId: userId,
     videoIds: videoIds,
     autoConnect: !isSessionTypeLoading, // Wait for session type check before connecting
-    listenOnly: true, // Text-to-speech mode - agent speaks, user listens
+    listenOnly: true, // Text-to-speech mode - agent speaks, user listens (voice mode can be enabled dynamically)
     onTranscript: handleTranscriptCallback, // Store agent transcripts in DB
+    onUserTranscript: handleUserTranscriptCallback, // Handle user voice transcription
     metadata: {
       courseId: course.id,
       courseTitle: course.title,
@@ -198,6 +259,11 @@ export function ModuleContent({ course, module, userId, initialLessonId }: Modul
   useEffect(() => {
     clearAgentTranscriptRef.current = liveKit.clearAgentTranscript;
   }, [liveKit.clearAgentTranscript]);
+
+  // Keep clearUserTranscriptRef updated for use in voice transcript callback
+  useEffect(() => {
+    clearUserTranscriptRef.current = liveKit.clearUserTranscript;
+  }, [liveKit.clearUserTranscript]);
 
   // Show toast notifications for LiveKit connection status
   useEffect(() => {
@@ -371,6 +437,10 @@ export function ModuleContent({ course, module, userId, initialLessonId }: Modul
         // LiveKit functions for FA answers
         sendTextToAgent={liveKit.sendTextToAgent}
         onAddUserMessage={handleAddUserMessage}
+        // Voice mode state for user speech display
+        isVoiceModeEnabled={liveKit.isVoiceModeEnabled}
+        userTranscript={liveKit.userTranscript}
+        isUserSpeaking={liveKit.isUserSpeaking}
       />
 
       {/* Module Lessons Overview */}
