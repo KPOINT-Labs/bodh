@@ -85,9 +85,15 @@ export function useKPointPlayer({ kpointVideoId, onBookmarksReady, onPlayerReady
     bookmarksRef.current = bookmarks;
   }, [bookmarks]);
 
-  // Store kpointVideoId in ref for cleanup
+  // Store kpointVideoId in ref for cleanup and reset state when video changes/removed
   useEffect(() => {
     kpointVideoIdRef.current = kpointVideoId ?? null;
+
+    // Reset playing state when video is removed (kpointVideoId becomes null/undefined)
+    if (!kpointVideoId) {
+      setIsPlaying(false);
+      playerRef.current = null;
+    }
   }, [kpointVideoId]);
 
   // Internal function to check for FA triggers with explicit bookmarks parameter
