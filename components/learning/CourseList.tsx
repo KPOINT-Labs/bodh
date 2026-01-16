@@ -351,7 +351,7 @@ export function CourseList({
       {/* Footer with Profile and Logout */}
       <div className="border-t border-gray-200 p-4">
         <div className="flex items-center justify-between">
-          <ProfileActions linkClassName="text-sm" logoutVariant="text" />
+          <ProfileActions className="w-full" linkClassName="text-sm" logoutVariant="text" />
         </div>
       </div>
 
