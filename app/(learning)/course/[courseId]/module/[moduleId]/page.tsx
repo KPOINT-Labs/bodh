@@ -12,9 +12,9 @@ interface ModulePageProps {
 }
 
 async function getModuleData(courseIdOrSlug: string, moduleId: string) {
-  // Try to find course by ID first, then by slug
+  // Try to find course by course_id first (e.g. "BSCCS1001"), then ID, then slug
   let course = await prisma.course.findUnique({
-    where: { id: courseIdOrSlug },
+    where: { course_id: courseIdOrSlug },
     select: {
       id: true,
       title: true,
@@ -22,6 +22,19 @@ async function getModuleData(courseIdOrSlug: string, moduleId: string) {
       learningObjectives: true,
     },
   });
+
+  // If not found by course_id, try by CUID id
+  if (!course) {
+    course = await prisma.course.findUnique({
+      where: { id: courseIdOrSlug },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        learningObjectives: true,
+      },
+    });
+  }
 
   // If not found by ID, try by slug
   if (!course) {

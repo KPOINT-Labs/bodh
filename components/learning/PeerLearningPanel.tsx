@@ -57,9 +57,10 @@ export function PeerLearningPanel({
     }
 
     const course = courses.find((c) => c.id === courseId);
-    const courseSlug = course?.slug || courseId;
+    // Use course_id (e.g. "BSCCS1001") for URL, fallback to slug, then id
+    const courseUrlId = course?.course_id || course?.slug || courseId;
     // Include lessonId in URL to auto-select the lesson
-    router.push(`/course/${courseSlug}/module/${moduleId}?lesson=${lesson.id}`);
+    router.push(`/course/${courseUrlId}/module/${moduleId}?lesson=${lesson.id}`);
   };
 
   const handleDeleteThread = async (moduleId: string) => {

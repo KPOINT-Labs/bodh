@@ -144,6 +144,7 @@ export async function GET(request: NextRequest) {
         id: course.id,
         title: course.title,
         slug: course.slug,
+        course_id: course.course_id,
         progress,
         status: courseStatus,
         totalDuration,

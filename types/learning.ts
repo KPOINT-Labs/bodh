@@ -25,6 +25,7 @@ export interface Course {
   id: string;
   title: string;
   slug?: string | null;
+  course_id?: string | null;
   progress: number;
   status: CourseStatus;
   totalDuration?: number; // Duration in minutes
