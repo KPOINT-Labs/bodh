@@ -15,7 +15,7 @@ import { toast } from "sonner";
 // Hooks
 import { useKPointPlayer } from "@/hooks/useKPointPlayer";
 import { useChatSession } from "@/hooks/useChatSession";
-import { useLiveKit, TranscriptSegment, UserTranscription } from "@/hooks/useLiveKit";
+import { useLiveKit, TranscriptSegment, UserTranscription, FAIntroData } from "@/hooks/useLiveKit";
 import { useSessionType } from "@/hooks/useSessionType";
 import { useLearningPanel } from "@/contexts/LearningPanelContext";
 
@@ -78,6 +78,15 @@ export function ModuleContent({ course, module, userId, initialLessonId }: Modul
     }
   }, [initialLessonId, module.lessons]);
 
+  // FA intro state - when highlight triggers FA, show intro with buttons first
+  const [pendingFAIntro, setPendingFAIntro] = useState<FAIntroData | null>(null);
+  // Track when we're waiting for FA intro (agent is speaking intro, data message not yet received)
+  const [isWaitingForFAIntro, setIsWaitingForFAIntro] = useState(false);
+  // Track when FA intro buttons have been actioned (to disable buttons but keep section visible)
+  const [faIntroActioned, setFaIntroActioned] = useState(false);
+  // Store the topic when sending FA_INTRO (used to show buttons even if data message fails)
+  const pendingFATopicRef = useRef<string | null>(null);
+
   // Collapse left panel when video panel opens, expand when closed
   useEffect(() => {
     if (selectedLesson?.kpointVideoId) {
@@ -133,37 +142,38 @@ export function ModuleContent({ course, module, userId, initialLessonId }: Modul
         inputType: transcription.inputType,
       });
 
-      // Only store and display final transcriptions
-      if (!transcription.isFinal || !transcription.text.trim()) {
+      if (!transcription.text.trim()) {
         return;
       }
 
-      // Check if this voice message was already stored (deduplication)
-      const messageKey = transcription.text.trim();
-      if (storedVoiceMessagesRef.current.has(messageKey)) {
-        console.log("[ModuleContent] Voice message already stored, skipping:", messageKey.substring(0, 30));
-        return;
-      }
-      storedVoiceMessagesRef.current.add(messageKey);
-
-      // Mark that user has interacted (for welcome message logic)
-      userHasSentMessageRef.current = true;
-      lastUserMessageTypeRef.current = "general"; // Voice input is general Q&A
-
-      // Add to chat and store in DB
-      if (handleAddUserMessageRef.current) {
-        console.log("[ModuleContent] Storing voice message:", transcription.text.substring(0, 50));
-        handleAddUserMessageRef.current(transcription.text, "general", "voice");
-
-        // Clear the user transcript from useLiveKit to avoid showing duplicate
-        // (the message is now stored in chatMessages)
-        if (clearUserTranscriptRef.current) {
-          setTimeout(() => {
-            clearUserTranscriptRef.current?.();
-          }, 100); // Small delay to let UI update smoothly
+      if (transcription.isFinal) {
+        // Check if this voice message was already stored (deduplication)
+        const messageKey = transcription.text.trim();
+        if (storedVoiceMessagesRef.current.has(messageKey)) {
+          console.log("[ModuleContent] Voice message already stored, skipping:", messageKey.substring(0, 30));
+          return;
         }
-      } else {
-        console.warn("[ModuleContent] Cannot store voice message - handleAddUserMessageRef not set");
+        storedVoiceMessagesRef.current.add(messageKey);
+
+        // Mark that user has interacted (for welcome message logic)
+        userHasSentMessageRef.current = true;
+        lastUserMessageTypeRef.current = "general"; // Voice input is general Q&A
+
+        // Add to chat and store in DB
+        if (handleAddUserMessageRef.current) {
+          console.log("[ModuleContent] Storing voice message:", transcription.text.substring(0, 50));
+          handleAddUserMessageRef.current(transcription.text, "general", "voice");
+
+          // Clear the user transcript from useLiveKit to avoid showing duplicate
+          // (the message is now stored in chatMessages)
+          if (clearUserTranscriptRef.current) {
+            setTimeout(() => {
+              clearUserTranscriptRef.current?.();
+            }, 100); // Small delay to let UI update smoothly
+          }
+        } else {
+          console.warn("[ModuleContent] Cannot store voice message - handleAddUserMessageRef not set");
+        }
       }
     },
     [] // No deps needed - uses refs for all dynamic values
@@ -185,71 +195,106 @@ export function ModuleContent({ course, module, userId, initialLessonId }: Modul
         hasAddAssistant: !!addAssistantMessageRef.current,
       });
 
-      if (!segment.isFinal || !segment.isAgent || !segment.text.trim()) {
+      if (!segment.isAgent || !segment.text.trim()) {
         return;
       }
 
-      const segmentKey = `${segment.id}-${segment.text.length}`;
-      if (storedSegmentsRef.current.has(segmentKey)) {
-        console.log("[ModuleContent] Segment already stored, skipping");
-        return; // Already stored
-      }
+      // Handle FA intro transcript to show buttons
+      if (segment.text.startsWith("We've just completed a full idea covering")) {
+        if (segment.isFinal) {
+          const text = segment.text;
+          const topicRegex = /covering (.*)\\. Let's do a quick check/;
+          const match = text.match(topicRegex);
+          if (match && match[1]) {
+            const topic = match[1];
+            console.log("[ModuleContent] FA intro transcript detected, showing buttons for topic:", topic);
+            setPendingFAIntro({
+              topic: topic,
+              introMessage: text,
+            });
 
-      // Case 1: First agent message (welcome/welcome_back)
-      if (!userHasSentMessageRef.current && !welcomeStoredRef.current) {
-        if (!isReturningUserRef.current) {
-          // First-time user: Store the welcome message in DB
-          if (addAssistantMessageRef.current) {
-            storedSegmentsRef.current.add(segmentKey);
+            // Clear the transcript so it's not stored in history and doesn't appear twice.
+            setTimeout(() => {
+              if (clearAgentTranscriptRef.current) {
+                clearAgentTranscriptRef.current();
+              }
+            }, 100);
+          }
+        }
+        // Don't store this as a regular message.
+        return;
+      }
+      if (segment.isFinal) {
+        const segmentKey = `${segment.id}-${segment.text.length}`;
+        if (storedSegmentsRef.current.has(segmentKey)) {
+          console.log("[ModuleContent] Segment already stored, skipping");
+          return; // Already stored
+        }
+
+        // Case 1: First agent message (welcome/welcome_back)
+        if (!userHasSentMessageRef.current && !welcomeStoredRef.current) {
+          if (!isReturningUserRef.current) {
+            // First-time user: Store the welcome message in DB
+            if (addAssistantMessageRef.current) {
+              storedSegmentsRef.current.add(segmentKey);
+              welcomeStoredRef.current = true;
+              console.log("[ModuleContent] Storing welcome message for first-time user:", segment.text.substring(0, 50) + "...");
+              addAssistantMessageRef.current(segment.text, "general");
+              // Clear after a delay to allow ChatAgent to capture and state to update
+              setTimeout(() => {
+                if (clearAgentTranscriptRef.current) {
+                  clearAgentTranscriptRef.current();
+                }
+              }, 500);
+            } else {
+              console.warn("[ModuleContent] Cannot store welcome - addAssistantMessageRef not set");
+            }
+          } else {
+            // Returning user: Don't store welcome_back in DB, but mark as handled
+            // The welcome_back will be kept in UI via ChatAgent's welcomeMessage state
             welcomeStoredRef.current = true;
-            console.log("[ModuleContent] Storing welcome message for first-time user:", segment.text.substring(0, 50) + "...");
-            addAssistantMessageRef.current(segment.text, "general");
-            // Clear after a delay to allow ChatAgent to capture and state to update
+            console.log("[ModuleContent] Welcome_back message handled for returning user (not storing in DB)");
+            // Clear the agent transcript after a delay so ChatAgent can capture it first
+            // (React batches state updates, so we need to wait for the capture useEffect to run)
             setTimeout(() => {
               if (clearAgentTranscriptRef.current) {
                 clearAgentTranscriptRef.current();
               }
             }, 500);
-          } else {
-            console.warn("[ModuleContent] Cannot store welcome - addAssistantMessageRef not set");
           }
-        } else {
-          // Returning user: Don't store welcome_back in DB, but mark as handled
-          // The welcome_back will be kept in UI via ChatAgent's welcomeMessage state
-          welcomeStoredRef.current = true;
-          console.log("[ModuleContent] Welcome_back message handled for returning user (not storing in DB)");
-          // Clear the agent transcript after a delay so ChatAgent can capture it first
-          // (React batches state updates, so we need to wait for the capture useEffect to run)
-          setTimeout(() => {
+          return;
+        }
+
+        // Case 2: Agent response to user message
+        if (userHasSentMessageRef.current) {
+          if (addAssistantMessageRef.current) {
+            storedSegmentsRef.current.add(segmentKey);
+            // Use the same message type as the user's last message (e.g., "fa" for FA responses)
+            const responseType = lastUserMessageTypeRef.current;
+            console.log("[ModuleContent] Storing agent response to chat with type:", responseType, segment.text.substring(0, 50) + "...");
+            addAssistantMessageRef.current(segment.text, responseType);
             if (clearAgentTranscriptRef.current) {
               clearAgentTranscriptRef.current();
             }
-          }, 500);
-        }
-        return;
-      }
-
-      // Case 2: Agent response to user message
-      if (userHasSentMessageRef.current) {
-        if (addAssistantMessageRef.current) {
-          storedSegmentsRef.current.add(segmentKey);
-          // Use the same message type as the user's last message (e.g., "fa" for FA responses)
-          const responseType = lastUserMessageTypeRef.current;
-          console.log("[ModuleContent] Storing agent response to chat with type:", responseType, segment.text.substring(0, 50) + "...");
-          addAssistantMessageRef.current(segment.text, responseType);
-          if (clearAgentTranscriptRef.current) {
-            clearAgentTranscriptRef.current();
+          } else {
+            console.warn("[ModuleContent] Cannot store response - addAssistantMessageRef not set");
           }
         } else {
-          console.warn("[ModuleContent] Cannot store response - addAssistantMessageRef not set");
+          // Edge case: welcome already handled but user hasn't sent message yet
+          console.log("[ModuleContent] Transcript received but not storing (welcome done, no user message yet)");
         }
-      } else {
-        // Edge case: welcome already handled but user hasn't sent message yet
-        console.log("[ModuleContent] Transcript received but not storing (welcome done, no user message yet)");
       }
     },
     [] // No deps needed - uses refs for all dynamic values
   );
+
+  // Handle FA intro complete - agent spoke intro, now show buttons
+  const handleFAIntroComplete = useCallback((data: FAIntroData) => {
+    console.log("[ModuleContent] FA intro complete, showing buttons for topic:", data.topic);
+    setIsWaitingForFAIntro(false); // Stop showing live transcript
+    setPendingFAIntro(data); // Show buttons
+    setFaIntroActioned(false); // Reset button state for new FA intro
+  }, []);
 
   // LiveKit voice session - auto-connect in listen-only mode (text-to-speech)
   // Only auto-connect once we know the session type
@@ -264,6 +309,7 @@ export function ModuleContent({ course, module, userId, initialLessonId }: Modul
     listenOnly: true, // Text-to-speech mode - agent speaks, user listens (voice mode can be enabled dynamically)
     onTranscript: handleTranscriptCallback, // Store agent transcripts in DB
     onUserTranscript: handleUserTranscriptCallback, // Handle user voice transcription
+    onFAIntroComplete: handleFAIntroComplete, // Show buttons after FA intro
     metadata: {
       courseId: course.id,
       courseTitle: course.title,
@@ -324,35 +370,31 @@ export function ModuleContent({ course, module, userId, initialLessonId }: Modul
   }, [liveKit.isAudioBlocked, liveKit.startAudio]);
 
   // KPoint player hook with FA trigger integration
-  const { seekTo, getCurrentTime, isPlayerReady, isPlaying } = useKPointPlayer({
+  const { seekTo, getCurrentTime, isPlayerReady, isPlaying, playerRef } = useKPointPlayer({
     kpointVideoId: selectedLesson?.kpointVideoId,
-    onFATrigger: async (message: string, _timestampSeconds: number, topic?: string, _pauseVideo?: boolean) => {
-      // Display simple message in chat UI (without topic)
-      const displayMessage = "Ask me a formative assessment";
-      // But send message with topic to LiveKit for prompt construction
-      const agentMessage = topic
-        ? `Ask me a formative assessment on "${topic}"`
-        : message;
+    onFATrigger: async (_message: string, _timestampSeconds: number, topic?: string, _pauseVideo?: boolean) => {
+      // NEW FLOW: Instead of directly starting FA, first show intro with buttons
+      // 1. Send FA_INTRO:topic to agent - agent speaks intro message
+      // 2. Agent sends fa_intro_complete signal
+      // 3. Frontend shows "Start quick check" and "Skip for now" buttons
+      // 4. User clicks button to either start FA or resume video
 
-      // Display user message in chat UI and save to DB FIRST (before sending to LiveKit)
-      // This ensures the message appears immediately without waiting for round-trip
-      if (handleAddUserMessageRef.current) {
-        console.log("[ModuleContent] FA trigger - displaying user message in chat, topic:", topic);
-        userHasSentMessageRef.current = true; // Mark user interaction
-        await handleAddUserMessageRef.current(displayMessage, "fa", "auto");
-      } else {
-        console.warn("[ModuleContent] Cannot display FA message - handleAddUserMessageRef not set");
-      }
-
-      // Then send FA message with topic via LiveKit (prism handles Sarvam API)
       if (liveKit.isConnected) {
         try {
-          await liveKit.sendTextToAgent(agentMessage);
+          const topicName = topic || "the topic";
+          const introMessage = `FA_INTRO:${topicName}`;
+          console.log("[ModuleContent] FA trigger - sending intro request:", introMessage);
+          pendingFATopicRef.current = topicName; // Store topic for button click
+          setIsWaitingForFAIntro(true); // Show transcript while agent speaks
+          setFaIntroActioned(false); // Reset button state
+          await liveKit.sendTextToAgent(introMessage);
         } catch (err) {
-          console.error("[ModuleContent] Failed to send FA trigger via LiveKit:", err);
+          console.error("[ModuleContent] Failed to send FA intro via LiveKit:", err);
+          setIsWaitingForFAIntro(false);
+          pendingFATopicRef.current = null;
         }
       } else {
-        console.warn("[ModuleContent] LiveKit not connected, cannot send FA trigger");
+        console.warn("[ModuleContent] LiveKit not connected, cannot send FA intro");
       }
       // Video is already paused by the hook when pauseVideo is true
     },
@@ -388,6 +430,78 @@ export function ModuleContent({ course, module, userId, initialLessonId }: Modul
   useEffect(() => {
     handleAddUserMessageRef.current = handleAddUserMessage;
   }, [handleAddUserMessage]);
+
+  // Handle FA intro button clicks
+  const handleStartQuickCheck = useCallback(async () => {
+    // Get topic from pendingFAIntro (data message) or fallback to stored ref
+    const topic = pendingFAIntro?.topic || pendingFATopicRef.current;
+    console.log("[ModuleContent] handleStartQuickCheck called", { topic, faIntroActioned, pendingFAIntro: !!pendingFAIntro });
+
+    if (!topic || faIntroActioned) {
+      console.log("[ModuleContent] Early return - topic:", topic, "faIntroActioned:", faIntroActioned);
+      return;
+    }
+
+    console.log("[ModuleContent] Starting quick check for topic:", topic);
+
+    // 1. Save the FA intro message to chat history (so it appears in conversation)
+    const introMessage = liveKit.agentTranscript || pendingFAIntro?.introMessage;
+    if (introMessage && addAssistantMessageRef.current) {
+      await addAssistantMessageRef.current(introMessage, "fa");
+    }
+
+    // 2. Hide the FA intro section
+    setIsWaitingForFAIntro(false);
+    setPendingFAIntro(null);
+    pendingFATopicRef.current = null;
+    setFaIntroActioned(false); // Reset for next time
+
+    // 3. Clear the agent transcript so it doesn't linger
+    if (liveKit.clearAgentTranscript) {
+      liveKit.clearAgentTranscript();
+    }
+
+    // 4. Display user message in chat UI
+    const displayMessage = "Ask me a formative assessment";
+    if (handleAddUserMessageRef.current) {
+      userHasSentMessageRef.current = true;
+      await handleAddUserMessageRef.current(displayMessage, "fa", "auto");
+    }
+
+    // 5. Send the actual FA request to agent
+    if (liveKit.isConnected) {
+      try {
+        const agentMessage = `Ask me a formative assessment on "${topic}"`;
+        await liveKit.sendTextToAgent(agentMessage);
+      } catch (err) {
+        console.error("[ModuleContent] Failed to send FA request:", err);
+      }
+    }
+  }, [pendingFAIntro, faIntroActioned, liveKit.isConnected, liveKit.sendTextToAgent, liveKit.agentTranscript, liveKit.clearAgentTranscript]);
+
+  const handleSkipQuickCheck = useCallback(() => {
+    if (faIntroActioned) return;
+
+    console.log("[ModuleContent] Skipping quick check, resuming video");
+
+    // Disable buttons (but keep FA intro section visible)
+    setFaIntroActioned(true);
+
+    // Resume the video
+    if (playerRef.current) {
+      try {
+        if (playerRef.current.playVideo) {
+          playerRef.current.playVideo();
+        } else if (playerRef.current.setState) {
+          // Fallback to setState with PLAYING state
+          playerRef.current.setState(1); // PLAYING = 1
+        }
+        console.log("[ModuleContent] Video resumed after skip");
+      } catch (error) {
+        console.error("[ModuleContent] Failed to resume video:", error);
+      }
+    }
+  }, [faIntroActioned, playerRef]);
 
   // Handle lesson selection
   const handleLessonSelect = useCallback((lesson: Lesson) => {
@@ -464,6 +578,12 @@ export function ModuleContent({ course, module, userId, initialLessonId }: Modul
         isVoiceModeEnabled={liveKit.isVoiceModeEnabled}
         userTranscript={liveKit.userTranscript}
         isUserSpeaking={liveKit.isUserSpeaking}
+        // FA intro state and handlers
+        pendingFAIntro={pendingFAIntro}
+        isWaitingForFAIntro={isWaitingForFAIntro}
+        faIntroActioned={faIntroActioned}
+        onStartQuickCheck={handleStartQuickCheck}
+        onSkipQuickCheck={handleSkipQuickCheck}
       />
 
       {/* Module Lessons Overview */}
