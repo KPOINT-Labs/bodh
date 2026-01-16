@@ -52,8 +52,8 @@ export function ModuleContent({ course, module, userId, initialLessonId }: Modul
   const router = useRouter();
   const pathname = usePathname();
 
-  // Get highlight state from context
-  const { highlightRightPanel } = useLearningPanel();
+  // Get panel state and controls from context
+  const { highlightRightPanel, collapsePanel, expandPanel } = useLearningPanel();
 
   // Find initial lesson from URL parameter or default to null (will show first lesson)
   const getInitialLesson = (): Lesson | null => {
@@ -77,6 +77,15 @@ export function ModuleContent({ course, module, userId, initialLessonId }: Modul
       }
     }
   }, [initialLessonId, module.lessons]);
+
+  // Collapse left panel when video panel opens, expand when closed
+  useEffect(() => {
+    if (selectedLesson?.kpointVideoId) {
+      collapsePanel();
+    } else {
+      expandPanel();
+    }
+  }, [selectedLesson?.kpointVideoId, collapsePanel, expandPanel]);
 
   // Get active lesson (selected or first)
   const activeLesson = selectedLesson || module.lessons.sort((a, b) => a.orderIndex - b.orderIndex)[0];

@@ -7,7 +7,7 @@ import {
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { GripVertical } from "lucide-react";
+import { MoreVertical } from "lucide-react";
 
 interface ResizableContentProps {
   header: ReactNode;
@@ -90,13 +90,13 @@ export function ResizableContent({ header, content, footer, rightPanel }: Resiza
         {/* Right Panel - Only rendered when there's content */}
         {rightPanel && (
           <>
-            <ResizableHandle 
-              withHandle 
-              className="hidden lg:flex bg-border/50 hover:bg-border hover:shadow-sm transition-colors duration-200 w-3 relative" 
+            <ResizableHandle
+              withHandle
+              className="hidden lg:flex w-px bg-transparent relative"
             >
               <div className="absolute inset-y-0 left-1/2 transform -translate-x-1/2 flex items-center">
-                <div className="bg-background border border-border rounded-sm p-1 shadow-sm hover:shadow-md transition-shadow duration-200 hover:border-primary/40">
-                  <GripVertical className="h-4 w-4 text-muted-foreground hover:text-primary transition-colors duration-200" />
+                <div className="bg-blue-50 border-blue-200 z-10 flex h-6 w-4 items-center justify-center rounded-sm border shadow-sm hover:shadow-md hover:bg-blue-100 transition-all duration-200">
+                  <MoreVertical className="h-3 w-3 text-blue-400" />
                 </div>
               </div>
             </ResizableHandle>
