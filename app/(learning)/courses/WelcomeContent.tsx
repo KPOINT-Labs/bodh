@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ResizableContent } from "@/components/layout/resizable-content";
 import { LessonHeader } from "@/components/course/LessonHeader";
 import { AnimatedBackground } from "@/components/ui/animated-background";
+import { OnboardingModal } from "@/components/onboarding/OnboardingModal";
 
 interface WelcomeContentProps {
   firstCourse: {
@@ -86,6 +87,7 @@ export function WelcomeContent({ firstCourse, lastCourse }: WelcomeContentProps)
   return (
     <>
       <AnimatedBackground variant="full" intensity="medium" theme="learning" />
+      <OnboardingModal />
       <ResizableContent
         header={header}
         content={content}

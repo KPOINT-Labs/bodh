@@ -10,6 +10,7 @@ import { ChatAgent } from "@/components/agent/ChatAgent";
 import { ChatInput } from "@/components/chat/ChatInput";
 import { KPointVideoPlayer } from "@/components/video/KPointVideoPlayer";
 import { AnimatedBackground } from "@/components/ui/animated-background";
+import { OnboardingModal } from "@/components/onboarding/OnboardingModal";
 import { BookOpen, X } from "lucide-react";
 import { toast } from "sonner";
 
@@ -757,6 +758,7 @@ export function ModuleContent({ course, module, userId, initialLessonId }: Modul
   return (
     <>
       <AnimatedBackground variant="full" intensity="medium" theme="learning" />
+      <OnboardingModal isReturningUser={isReturningUser} />
       <Script
         src="https://assets.zencite.in/orca/media/embed/videofront-vega.js"
         strategy="afterInteractive"
