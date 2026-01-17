@@ -1,4 +1,7 @@
+"use client";
+
 import { Plus, PanelLeftClose } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 interface PanelHeaderProps {
   onToggleCollapse?: () => void;
@@ -8,10 +11,13 @@ interface PanelHeaderProps {
  * Header with New Course button and collapse toggle
  */
 export function PanelHeader({ onToggleCollapse }: PanelHeaderProps) {
+  const router = useRouter();
+
   return (
     <div className="p-4 flex items-center justify-between gap-4">
       {/* New Course Button */}
       <button
+        onClick={() => router.push("/courses")}
         className="flex items-center gap-2 px-5 py-2.5 border border-gray-200 bg-white text-gray-800 hover:bg-gray-50 rounded-xl text-sm font-medium transition-colors"
       >
         <Plus className="h-4 w-4" strokeWidth={2} />
