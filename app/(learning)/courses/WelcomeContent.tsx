@@ -142,9 +142,9 @@ export function WelcomeContent({ firstCourse, lastCourse, allCourses }: WelcomeC
   };
 
   const header = (
-    <div className="flex items-center justify-between">
+    <div className="flex items-center justify-between pr-12">
       <LessonHeader courseTitle="Welcome" moduleTitle="Getting Started" />
-      <div className="mr-4">
+      <div className="flex items-center gap-2">
         <AudioToggleButton />
       </div>
     </div>
