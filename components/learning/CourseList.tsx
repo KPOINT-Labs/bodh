@@ -299,7 +299,7 @@ export function CourseList({
   };
 
   return (
-    <div className={`flex h-full flex-col bg-white ${className}`}>
+    <div className={`flex h-full flex-col bg-white ${className}`} data-tour="course-sidebar">
       <PanelHeader onToggleCollapse={onToggleCollapse} />
 
       <div className="flex-1 overflow-auto px-4 pb-4">

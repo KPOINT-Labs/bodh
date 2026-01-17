@@ -7,7 +7,7 @@ interface LessonHeaderProps {
 
 export function LessonHeader({ courseTitle, moduleTitle }: LessonHeaderProps) {
   return (
-    <div className="border-b bg-background px-6 py-4">
+    <div className="border-b bg-background px-6 py-4" data-tour="lesson-header">
       <div className="flex items-center gap-4">
         <FileText className="h-5 w-5 text-muted-foreground" />
         <div className="flex items-center gap-3">

@@ -194,7 +194,7 @@ export function ChatInput({
   };
 
   return (
-    <div className="flex items-center justify-center px-6 py-4">
+    <div className="flex items-center justify-center px-6 py-4" data-tour="chat-input">
       <div className="bg-white border border-gray-200 flex h-[58px] items-center justify-between pl-[25px] pr-[8px] py-[7px] relative rounded-full shadow-sm w-full">
         {/* Show animated listening indicator when voice mode is enabled */}
         {isConnected && isVoiceModeEnabled ? (

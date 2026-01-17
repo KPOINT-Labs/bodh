@@ -447,7 +447,7 @@ export function ChatAgent({
   }
 
   return (
-    <Card className="bg-transparent border-none shadow-none p-6">
+    <Card className="bg-transparent border-none shadow-none p-6" data-tour="chat-stream">
       <ChatHeader />
 
       <div className="space-y-4">
