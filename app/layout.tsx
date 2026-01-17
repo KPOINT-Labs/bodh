@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Script from "next/script";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
+import { AudioContextProvider } from "@/contexts/AudioContext";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -43,8 +44,10 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
-        <Toaster />
+        <AudioContextProvider>
+          {children}
+          <Toaster />
+        </AudioContextProvider>
       </body>
     </html>
   );

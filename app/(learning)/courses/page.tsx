@@ -71,11 +71,42 @@ async function getFirstAvailableCourse() {
   };
 }
 
+async function getAllPublishedCourses() {
+  const courses = await prisma.course.findMany({
+    where: {
+      isPublished: true,
+      modules: {
+        some: {
+          isPublished: true,
+          lessons: {
+            some: { isPublished: true },
+          },
+        },
+      },
+    },
+    include: {
+      _count: {
+        select: { modules: true },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  return courses;
+}
+
 export default async function CoursesPage() {
-  const [lastCourse, firstCourse] = await Promise.all([
+  const [lastCourse, firstCourse, allCourses] = await Promise.all([
     getLastAttendedCourse(),
     getFirstAvailableCourse(),
+    getAllPublishedCourses(),
   ]);
 
-  return <WelcomeContent firstCourse={firstCourse} lastCourse={lastCourse} />;
+  return (
+    <WelcomeContent
+      firstCourse={firstCourse}
+      lastCourse={lastCourse}
+      allCourses={allCourses}
+    />
+  );
 }
