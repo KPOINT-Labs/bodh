@@ -1,22 +1,15 @@
+import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { WelcomeContent } from "./WelcomeContent";
+import { redirect } from "next/navigation";
 
 // Render at request time (database required)
 export const dynamic = "force-dynamic";
 
-async function getLastAttendedCourse() {
-  // Get the sample user
-  const user = await prisma.user.findFirst({
-    where: { email: "learner@bodh.app" },
-  });
-
-  if (!user) {
-    return null;
-  }
-
+async function getLastAttendedCourse(userId: string) {
   // Find the most recent thread (conversation) for this user to get the last attended module
   const lastThread = await prisma.thread.findFirst({
-    where: { userId: user.id },
+    where: { userId },
     orderBy: { updatedAt: "desc" },
     include: {
       module: {
@@ -121,8 +114,16 @@ async function getAllPublishedCourses() {
 }
 
 export default async function CoursesPage() {
+  // Get authenticated user from NextAuth session
+  const session = await auth();
+
+  // Redirect to login if not authenticated
+  if (!session?.user?.id) {
+    redirect("/login");
+  }
+
   const [lastCourse, firstCourse, allCourses] = await Promise.all([
-    getLastAttendedCourse(),
+    getLastAttendedCourse(session.user.id),
     getFirstAvailableCourse(),
     getAllPublishedCourses(),
   ]);

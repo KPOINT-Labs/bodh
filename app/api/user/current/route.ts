@@ -1,12 +1,25 @@
 import { NextResponse } from "next/server";
+import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 
 export async function GET() {
   try {
-    // TODO: Replace with actual authenticated user when auth is implemented
-    // For now, use the sample user (created via scripts/create-sample-user.ts)
-    const user = await prisma.user.findFirst({
-      where: { email: "learner@bodh.app" },
+    // Get authenticated user from NextAuth session
+    const session = await auth();
+
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Not authenticated. Please sign in.",
+        },
+        { status: 401 }
+      );
+    }
+
+    // Fetch full user details from database
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
       select: {
         id: true,
         name: true,
@@ -19,7 +32,7 @@ export async function GET() {
       return NextResponse.json(
         {
           success: false,
-          error: "User not found. Run: bun run scripts/create-sample-user.ts",
+          error: "User not found in database",
         },
         { status: 404 }
       );
