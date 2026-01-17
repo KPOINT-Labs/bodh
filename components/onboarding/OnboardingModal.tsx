@@ -13,32 +13,32 @@ const STORAGE_KEY = "bodh-onboarding-v1";
 const steps = [
   {
     icon: Sparkles,
-    title: "✨ Welcome to Your AI Learning Companion!",
+    title: "Welcome to Your AI Learning Companion!",
     description: "I'm here to guide you through video lectures with personalized support. Let me show you around!",
   },
   {
     icon: MessageCircle,
-    title: "💬 Chat Interface",
+    title: "Chat Interface",
     description: "This is where we'll have conversations! I'll ask questions, check your understanding, and provide encouragement as you learn.",
   },
   {
     icon: Play,
-    title: "🎥 Video Player",
+    title: "Video Player",
     description: "Watch video lectures here. I can pause videos to check in with you, ask questions, and help reinforce what you're learning.",
   },
   {
     icon: Keyboard,
-    title: "⌨️ Your Voice Matters",
+    title: "Your Voice Matters",
     description: "Type your responses, ask questions, or share your thoughts here. I'm always listening and ready to help!",
   },
   {
     icon: BookOpen,
-    title: "📚 Your Courses",
+    title: "Your Courses",
     description: "Switch between courses here. Each course has multiple lessons for you to explore at your own pace.",
   },
   {
     icon: Rocket,
-    title: "🚀 Ready to Learn?",
+    title: "Ready to Learn?",
     description: "That's it! Just start chatting with me, and I'll guide you through your learning journey. Let's make learning fun together!",
   },
 ];
