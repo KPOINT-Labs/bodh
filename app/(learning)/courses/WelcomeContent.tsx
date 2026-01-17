@@ -46,17 +46,35 @@ export function WelcomeContent({ firstCourse, lastCourse, allCourses }: WelcomeC
   const router = useRouter();
   const { speak } = useTTS();
   const [messages, setMessages] = useState<Message[]>([]);
-  const [showButtons, setShowButtons] = useState(true);
+  const [showButtons, setShowButtons] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const hasSpokenRef = useRef(false);
+  const hasStartedRef = useRef(false);
 
   useEffect(() => {
-    // Auto-play welcome message on mount (only once)
-    if (!hasSpokenRef.current) {
-      hasSpokenRef.current = true;
-      speak(
-        "नमस्ते! I'm your personal AI learning companion. I'm here whenever you need help—clarifying a concept, checking your understanding, or even just exploring new ideas. Let's learn together."
-      );
+    // Start the orchestrated welcome sequence (only once)
+    if (!hasStartedRef.current) {
+      hasStartedRef.current = true;
+
+      // Delay initial message like reference project (500ms)
+      setTimeout(() => {
+        // Add first AI message with animation enabled
+        const welcomeMessage: Message = {
+          id: Date.now().toString() + Math.random(),
+          type: 'ai',
+          content: "नमस्ते! I'm your personal AI learning companion. I'm here whenever you need help—clarifying a concept, checking your understanding, or even just exploring new ideas. Let's learn together.",
+          enableAnimation: true,
+          onAnimationComplete: () => {
+            // Show buttons after message animation completes (2s delay like reference)
+            setTimeout(() => {
+              setShowButtons(true);
+            }, 2000);
+          }
+        };
+        setMessages([welcomeMessage]);
+
+        // Trigger TTS
+        speak(welcomeMessage.content);
+      }, 500);
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -150,15 +168,8 @@ export function WelcomeContent({ firstCourse, lastCourse, allCourses }: WelcomeC
     <div className="px-2 py-3">
       {/* Center-aligned chat container matching demo project */}
       <div className="max-w-4xl mx-auto space-y-6">
-        {/* Message Timeline */}
-        <MessageBubble
-          type="ai"
-          content="नमस्ते! I'm your personal AI learning companion. I'm here whenever you need help—clarifying a concept, checking your understanding, or even just exploring new ideas. Let's learn together."
-          isFirstMessage={true}
-        />
-
-        {/* Dynamic Messages */}
-        {messages.map((message) => {
+        {/* All messages rendered from state array */}
+        {messages.map((message, index) => {
           if (message.type === 'course-browser') {
             return (
               <CourseBrowser
@@ -176,6 +187,7 @@ export function WelcomeContent({ firstCourse, lastCourse, allCourses }: WelcomeC
               content={message.content || ''}
               enableAnimation={message.enableAnimation}
               onAnimationComplete={message.onAnimationComplete}
+              isFirstMessage={index === 0} // First message gets special styling
             />
           );
         })}
