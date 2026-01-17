@@ -13,33 +13,33 @@ const STORAGE_KEY = "bodh-onboarding-v1";
 const steps = [
   {
     icon: Sparkles,
-    title: "Welcome to Your AI Learning Companion!",
-    description: "I'm here to make learning interactive and personalized. Let me show you around!",
+    title: "✨ Welcome to Your AI Learning Companion!",
+    description: "I'm here to guide you through video lectures with personalized support. Let me show you around!",
   },
   {
     icon: MessageCircle,
-    title: "This is where we'll have conversations!",
-    description: "Ask me anything, discuss concepts, or just chat about what you're learning. I'm here to help!",
+    title: "💬 Chat Interface",
+    description: "This is where we'll have conversations! I'll ask questions, check your understanding, and provide encouragement as you learn.",
   },
   {
     icon: Play,
-    title: "Watch video lectures here",
-    description: "Videos will appear on the right side. I can help explain anything you don't understand!",
+    title: "🎥 Video Player",
+    description: "Watch video lectures here. I can pause videos to check in with you, ask questions, and help reinforce what you're learning.",
   },
   {
     icon: Keyboard,
-    title: "Type your responses, ask questions",
-    description: "The input area at the bottom is where you can chat with me. Just type and press Enter!",
+    title: "⌨️ Your Voice Matters",
+    description: "Type your responses, ask questions, or share your thoughts here. I'm always listening and ready to help!",
   },
   {
     icon: BookOpen,
-    title: "Switch between courses here",
-    description: "Access all your courses from the sidebar. I'll be with you throughout your learning journey!",
+    title: "📚 Your Courses",
+    description: "Switch between courses here. Each course has multiple lessons for you to explore at your own pace.",
   },
   {
     icon: Rocket,
-    title: "Ready to Learn!",
-    description: "That's it! Just start chatting with me, and we'll explore your course together. Let's begin!",
+    title: "🚀 Ready to Learn?",
+    description: "That's it! Just start chatting with me, and I'll guide you through your learning journey. Let's make learning fun together!",
   },
 ];
 
@@ -48,6 +48,16 @@ export function OnboardingModal({ isReturningUser = false, onComplete }: Onboard
   const [currentStep, setCurrentStep] = useState(0);
 
   useEffect(() => {
+    // Check if tour query parameter is present
+    const urlParams = new URLSearchParams(window.location.search);
+    const forceTour = urlParams.get('tour') === 'true';
+
+    if (forceTour) {
+      // Force show tour if tour=true in URL
+      setTimeout(() => setIsVisible(true), 300);
+      return;
+    }
+
     // Don't show for returning users
     if (isReturningUser) {
       return;
@@ -96,97 +106,92 @@ export function OnboardingModal({ isReturningUser = false, onComplete }: Onboard
   const isLastStep = currentStep === steps.length - 1;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center animate-fade-in">
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={handleSkip} />
+    <>
+      {/* Overlay */}
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9998] animate-fade-in" />
 
-      {/* Modal */}
-      <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-lg mx-4 p-8 animate-scale-in">
-        {/* Close button */}
-        <button
-          onClick={handleSkip}
-          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
-          aria-label="Close"
-        >
-          <X className="h-5 w-5" />
-        </button>
+      {/* Centered Modal */}
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 animate-fade-in">
+        <div className="relative max-w-lg w-full backdrop-blur-xl bg-gradient-to-br from-white/95 to-white/90 border-2 border-violet-300 rounded-3xl p-8 shadow-2xl shadow-violet-500/20 animate-scale-in">
+          {/* Close Button */}
+          <button
+            onClick={handleSkip}
+            className="absolute top-4 right-4 p-2 rounded-full hover:bg-gray-100 transition-colors"
+            aria-label="Skip onboarding"
+          >
+            <X className="w-5 h-5 text-gray-500" />
+          </button>
 
-        {/* Icon */}
-        <div className="flex justify-center mb-6">
-          <div className="flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 shadow-lg shadow-purple-500/30 animate-bounce-slow">
-            <Icon className="h-10 w-10 text-white" />
+          {/* Icon */}
+          <div className="flex justify-center mb-6">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center shadow-lg animate-bounce-slow">
+              <Icon className="w-8 h-8 text-white" />
+            </div>
           </div>
-        </div>
 
-        {/* Title */}
-        <h2 className="text-2xl font-bold text-center mb-3 bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-          {step.title}
-        </h2>
+          {/* Content */}
+          <h3 className="text-2xl text-center mb-4 bg-gradient-to-r from-violet-600 to-fuchsia-600 bg-clip-text text-transparent">
+            {step.title}
+          </h3>
 
-        {/* Description */}
-        <p className="text-center text-gray-600 mb-6 leading-relaxed">
-          {step.description}
-        </p>
+          <p className="text-gray-700 text-center mb-8 leading-relaxed">
+            {step.description}
+          </p>
 
-        {/* Progress Bar */}
-        <div className="mb-4">
-          <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all duration-300 ease-out"
-              style={{ width: `${progress}%` }}
-            />
+          {/* Progress Bar */}
+          <div className="mb-6">
+            <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-violet-500 to-fuchsia-500 transition-all duration-300 rounded-full"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            <div className="flex justify-center gap-2 mt-3">
+              {steps.map((_, index) => (
+                <div
+                  key={index}
+                  className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                    index === currentStep
+                      ? 'bg-violet-500 w-4'
+                      : index < currentStep
+                      ? 'bg-violet-300'
+                      : 'bg-gray-300'
+                  }`}
+                />
+              ))}
+            </div>
           </div>
-        </div>
 
-        {/* Progress Dots */}
-        <div className="flex justify-center gap-2 mb-6">
-          {steps.map((_, index) => (
-            <div
-              key={index}
-              className={`h-2 rounded-full transition-all duration-300 ${
-                index === currentStep
-                  ? "w-8 bg-purple-500"
-                  : index < currentStep
-                  ? "w-2 bg-purple-300"
-                  : "w-2 bg-gray-300"
-              }`}
-            />
-          ))}
-        </div>
+          {/* Navigation */}
+          <div className="flex gap-3">
+            {currentStep > 0 && (
+              <button
+                onClick={handleBack}
+                className="flex-1 px-6 py-3 rounded-xl border-2 border-gray-300 text-gray-700 hover:bg-gray-50 transition-all duration-200"
+              >
+                Back
+              </button>
+            )}
 
-        {/* Navigation Buttons */}
-        <div className="flex gap-3">
-          {!isFirstStep && (
             <button
-              onClick={handleBack}
-              className="flex-1 px-6 py-3 border-2 border-gray-200 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all"
+              onClick={handleNext}
+              className="flex-1 px-6 py-3 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white hover:from-violet-600 hover:to-fuchsia-600 transition-all duration-200 shadow-lg hover:shadow-xl"
             >
-              Back
+              {currentStep === steps.length - 1 ? "Let's Start!" : 'Next'}
+            </button>
+          </div>
+
+          {/* Skip Button */}
+          {currentStep < steps.length - 1 && (
+            <button
+              onClick={handleSkip}
+              className="w-full mt-4 text-sm text-gray-500 hover:text-gray-700 transition-colors"
+            >
+              Skip Tutorial
             </button>
           )}
-          <button
-            onClick={handleNext}
-            className={`${
-              isFirstStep ? "w-full" : "flex-1"
-            } px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-purple-500/30 hover:-translate-y-0.5 transition-all`}
-          >
-            {isLastStep ? "Let's Start!" : "Next"}
-          </button>
         </div>
-
-        {/* Skip button */}
-        <button
-          onClick={handleSkip}
-          className="w-full mt-3 text-sm text-gray-500 hover:text-gray-700 transition-colors"
-        >
-          Skip Tutorial
-        </button>
-
-        {/* Step counter */}
-        <p className="text-center text-xs text-gray-400 mt-4">
-          Step {currentStep + 1} of {steps.length}
-        </p>
       </div>
-    </div>
+    </>
   );
 }
