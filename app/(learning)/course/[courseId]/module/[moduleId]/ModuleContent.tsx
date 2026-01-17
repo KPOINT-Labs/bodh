@@ -9,7 +9,6 @@ import { LessonHeader } from "@/components/course/LessonHeader";
 import { ChatAgent } from "@/components/agent/ChatAgent";
 import { ChatInput } from "@/components/chat/ChatInput";
 import { KPointVideoPlayer } from "@/components/video/KPointVideoPlayer";
-import { ProductTour } from "@/components/tour/ProductTour";
 import { AnimatedBackground } from "@/components/ui/animated-background";
 import { BookOpen, X } from "lucide-react";
 import { toast } from "sonner";
@@ -758,15 +757,6 @@ export function ModuleContent({ course, module, userId, initialLessonId }: Modul
   return (
     <>
       <AnimatedBackground variant="full" intensity="medium" theme="learning" />
-      <div
-        id="tour-center-anchor"
-        className="pointer-events-none fixed left-1/2 top-1/2 h-0 w-0"
-        aria-hidden="true"
-      />
-      <ProductTour
-        isReturningUser={isReturningUser}
-        isSessionTypeLoading={isSessionTypeLoading}
-      />
       <Script
         src="https://assets.zencite.in/orca/media/embed/videofront-vega.js"
         strategy="afterInteractive"

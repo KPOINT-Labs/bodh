@@ -6,7 +6,6 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ResizableContent } from "@/components/layout/resizable-content";
 import { LessonHeader } from "@/components/course/LessonHeader";
-import { ProductTour } from "@/components/tour/ProductTour";
 import { AnimatedBackground } from "@/components/ui/animated-background";
 
 interface WelcomeContentProps {
@@ -22,13 +21,6 @@ interface WelcomeContentProps {
 }
 
 export function WelcomeContent({ firstCourse, lastCourse }: WelcomeContentProps) {
-  const tourAnchor = (
-    <div
-      id="tour-center-anchor"
-      className="pointer-events-none fixed left-1/2 top-1/2 h-0 w-0"
-      aria-hidden="true"
-    />
-  );
   const header = (
     <LessonHeader courseTitle="Welcome" moduleTitle="Getting Started" />
   );
@@ -94,8 +86,6 @@ export function WelcomeContent({ firstCourse, lastCourse }: WelcomeContentProps)
   return (
     <>
       <AnimatedBackground variant="full" intensity="medium" theme="learning" />
-      {tourAnchor}
-      <ProductTour shouldStart />
       <ResizableContent
         header={header}
         content={content}
