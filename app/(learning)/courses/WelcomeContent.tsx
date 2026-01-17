@@ -13,7 +13,6 @@ import { MessageBubble } from "@/components/ui/message-bubble";
 import { CourseBrowser } from "@/components/course/course-browser";
 import { ChoiceButtons } from "@/components/ui/choice-buttons";
 import { useTTS } from "@/hooks/useTTS";
-import { AudioToggleButton } from "@/components/audio/AudioToggleButton";
 
 interface WelcomeContentProps {
   firstCourse: {
@@ -141,14 +140,7 @@ export function WelcomeContent({ firstCourse, lastCourse, allCourses }: WelcomeC
     });
   };
 
-  const header = (
-    <div className="flex items-center justify-between pr-12">
-      <LessonHeader courseTitle="Welcome" moduleTitle="Getting Started" />
-      <div className="flex items-center gap-2">
-        <AudioToggleButton />
-      </div>
-    </div>
-  );
+  const header = <LessonHeader courseTitle="Welcome" moduleTitle="Getting Started" />;
 
   const content = (
     <div className="px-2 py-3">
