@@ -10,7 +10,7 @@ model User {
   id                String             @id @default(cuid())
   email             String             @unique
   phone             String?            @unique
-  passwordHash      String?      @db.Text
+  passwordHash      String?            @db.Text
   name              String
   avatar            String?
   createdAt         DateTime           @default(now())
@@ -111,7 +111,7 @@ model Lesson {
   youtubeVideoId    String?
   serviceDomain     String             @default("bodh.kpoint.com")
   duration          Int                @default(0)
-  quiz              Json?              // Quiz configuration/data for this lesson
+  quiz              Json? // Quiz configuration/data for this lesson
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
   slug              String?
@@ -182,9 +182,9 @@ model Conversation {
   currentTopic          String?
   summary               String?
   status                String          @default("active")
-  pendingAssessmentType String?         // 'warmup' | 'in_lesson' | 'concept_check'
+  pendingAssessmentType String? // 'warmup' | 'in_lesson' | 'concept_check'
   awaitingResponse      Boolean         @default(false)
-  lastActivityType      String?         // 'qna' | 'fa' | 'general'
+  lastActivityType      String? // 'qna' | 'fa' | 'general'
   createdAt             DateTime        @default(now())
   updatedAt             DateTime        @updatedAt
   lesson                Lesson?         @relation(fields: [lessonId], references: [id])
@@ -199,7 +199,7 @@ model Conversation {
 model Message {
   id             String           @id @default(cuid())
   conversationId String
-  role           String           // 'user' | 'assistant' | 'system'
+  role           String // 'user' | 'assistant' | 'system'
   content        String
   inputType      String           @default("text")
   messageType    String           @default("general") // 'general' | 'qna' | 'fa'
@@ -246,8 +246,8 @@ model ConfidenceRating {
 model TaskGraph {
   id             String          @id @default(cuid())
   courseId       String
-  type           String          // QnA, FA, etc.
-  graphId        String          // External graph ID
+  type           String // QnA, FA, etc.
+  graphId        String // External graph ID
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
   course         Course          @relation(fields: [courseId], references: [id], onDelete: Cascade)
@@ -275,20 +275,35 @@ model SarvamSession {
 }
 
 model FAAttempt {
-  id          String   @id @default(cuid())
-  userId      String
-  messageId   String // Reference to the FA question message
-  question    String // The question text
-  answer      String // User's answer
-  isCorrect   Boolean? // Null if correctness is not determined
-  isAttempted Boolean  @default(true)
-  questionType  String? // 'multiple_choice' | 'short_answer' | 'numerical' | 'long_answer'
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  user        User     @relation(fields: [userId], references: [id])
-  message     Message  @relation(fields: [messageId], references: [id])
+  id           String   @id @default(cuid())
+  userId       String
+  messageId    String // Reference to the FA question message
+  question     String // The question text
+  answer       String // User's answer
+  isCorrect    Boolean? // Null if correctness is not determined
+  isAttempted  Boolean  @default(true)
+  questionType String? // 'multiple_choice' | 'short_answer' | 'numerical' | 'long_answer'
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id])
+  message      Message  @relation(fields: [messageId], references: [id])
 
   @@unique([userId, messageId])
   @@index([userId])
   @@index([messageId])
+}
+
+model TTSCache {
+  id         String   @id @default(cuid())
+  textHash   String   @unique
+  text       String   @db.Text
+  audioData  String   @db.Text
+  voice      String
+  speed      Float
+  model      String
+  createdAt  DateTime @default(now())
+  lastUsedAt DateTime @default(now()) @updatedAt
+
+  @@index([textHash])
+  @@index([lastUsedAt])
 }
