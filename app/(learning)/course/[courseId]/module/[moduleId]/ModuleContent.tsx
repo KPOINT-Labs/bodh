@@ -3,7 +3,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Script from "next/script";
-import { Card } from "@/components/ui/card";
 import { ResizableContent } from "@/components/layout/resizable-content";
 import { LessonHeader } from "@/components/course/LessonHeader";
 import { ChatAgent } from "@/components/agent/ChatAgent";
@@ -11,7 +10,7 @@ import { ChatInput } from "@/components/chat/ChatInput";
 import { KPointVideoPlayer } from "@/components/video/KPointVideoPlayer";
 import { AnimatedBackground } from "@/components/ui/animated-background";
 import { OnboardingModal } from "@/components/onboarding/OnboardingModal";
-import { BookOpen, X } from "lucide-react";
+import { X } from "lucide-react";
 import { toast } from "sonner";
 
 // Hooks
@@ -682,14 +681,7 @@ export function ModuleContent({ course, module, userId, initialLessonId }: Modul
         onSkipQuickCheck={handleSkipQuickCheck}
       />
 
-      {/* Module Lessons Overview */}
-      {!selectedLesson && module.lessons.length > 1 && (
-        <LessonsList
-          lessons={module.lessons}
-          moduleTitle={module.title}
-          onLessonSelect={handleLessonSelect}
-        />
-      )}
+      {/* Module Lessons Overview - Removed as not needed */}
     </div>
   );
 
@@ -770,61 +762,5 @@ export function ModuleContent({ course, module, userId, initialLessonId }: Modul
         rightPanel={rightPanel}
       />
     </>
-  );
-}
-
-// Extracted component for lessons list
-interface LessonsListProps {
-  lessons: Lesson[];
-  moduleTitle: string;
-  onLessonSelect: (lesson: Lesson) => void;
-}
-
-function LessonsList({ lessons, moduleTitle, onLessonSelect }: LessonsListProps) {
-  return (
-    <Card className="p-6">
-      <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-        <BookOpen className="h-5 w-5 text-primary" />
-        Lessons in {moduleTitle}
-      </h3>
-      <div className="space-y-3">
-        {lessons.map((lesson) => (
-          <button
-            key={lesson.id}
-            onClick={() => onLessonSelect(lesson)}
-            className="w-full text-left p-4 rounded-lg border border-border hover:border-primary hover:bg-primary/5 transition-all duration-200"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <span className="text-xs text-muted-foreground">
-                  Lesson {lesson.orderIndex + 1}
-                </span>
-                <h4 className="font-medium">{lesson.title}</h4>
-                {lesson.description && (
-                  <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                    {lesson.description}
-                  </p>
-                )}
-              </div>
-              <div className="text-primary">
-                <svg
-                  className="h-5 w-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 5l7 7-7 7"
-                  />
-                </svg>
-              </div>
-            </div>
-          </button>
-        ))}
-      </div>
-    </Card>
   );
 }
