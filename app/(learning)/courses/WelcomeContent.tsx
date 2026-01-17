@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Sparkles, PlayCircle, RotateCcw } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -48,12 +48,16 @@ export function WelcomeContent({ firstCourse, lastCourse, allCourses }: WelcomeC
   const [messages, setMessages] = useState<Message[]>([]);
   const [showButtons, setShowButtons] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
+  const hasSpokenRef = useRef(false);
 
   useEffect(() => {
-    // Auto-play welcome message on mount
-    speak(
-      "नमस्ते! I'm your personal AI learning companion. I'm here whenever you need help—clarifying a concept, checking your understanding, or even just exploring new ideas. Let's learn together."
-    );
+    // Auto-play welcome message on mount (only once)
+    if (!hasSpokenRef.current) {
+      hasSpokenRef.current = true;
+      speak(
+        "नमस्ते! I'm your personal AI learning companion. I'm here whenever you need help—clarifying a concept, checking your understanding, or even just exploring new ideas. Let's learn together."
+      );
+    }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const addAIMessage = (content: string, onComplete?: () => void) => {

@@ -76,6 +76,12 @@ export function useTTS() {
   };
 
   const speak = async (text: string, options?: TTSOptions) => {
+    // Safety check: prevent duplicate playback
+    if (isLoading || isPlaying) {
+      console.log("[useTTS] Already loading or playing, skipping duplicate request");
+      return;
+    }
+
     // Early return if muted
     if (isMuted) {
       console.log("[useTTS] Audio is muted, skipping playback");
