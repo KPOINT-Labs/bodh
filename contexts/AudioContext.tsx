@@ -6,6 +6,7 @@ interface AudioContextType {
   isMuted: boolean;
   isPlaying: boolean;
   toggleMute: () => void;
+  setMuted: (muted: boolean) => void;
   setIsPlaying: (playing: boolean) => void;
 }
 
@@ -38,6 +39,7 @@ export function AudioContextProvider({ children }: { children: ReactNode }) {
         isMuted,
         isPlaying,
         toggleMute,
+        setMuted: setIsMuted,
         setIsPlaying,
       }}
     >

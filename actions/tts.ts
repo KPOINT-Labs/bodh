@@ -22,6 +22,8 @@ export async function generateTTS(
   }
 ): Promise<TTSResult> {
   try {
+    console.log("[TTS] prisma object:", typeof prisma, prisma ? "defined" : "undefined");
+
     // Validate input
     const validated = ttsSchema.parse({
       text,
@@ -36,6 +38,8 @@ export async function generateTTS(
     const textHash = createHash("sha256")
       .update(`${validatedText}:${voice}:${speed}:${model}`)
       .digest("hex");
+
+    console.log("[TTS] About to query cache, prisma.tTSCache:", typeof prisma?.tTSCache);
 
     // Check cache first
     const cached = await prisma.tTSCache.findUnique({
