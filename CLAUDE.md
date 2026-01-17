@@ -93,6 +93,71 @@ export default async function Page() {
 3. Prisma Client automatically regenerates (via postinstall hook)
 4. Import and use: `import { prisma } from "@/lib/prisma"`
 
+## Text-to-Speech (TTS) System
+
+### Architecture
+- **Global State**: `AudioContext` provider manages mute state and playback status
+- **Hook**: `useTTS()` provides `speak()` function for playback
+- **Server Action**: `generateTTS()` handles cache-first audio generation
+- **Caching**: PostgreSQL `TTSCache` table stores base64-encoded MP3 audio
+
+### Usage in Components
+
+**Basic usage:**
+```typescript
+"use client";
+
+import { useTTS } from "@/hooks/useTTS";
+
+export function MyComponent() {
+  const { speak, isLoading, isPlaying } = useTTS();
+
+  const handleSpeak = () => {
+    speak("Hello! This is a text-to-speech example.");
+  };
+
+  return <button onClick={handleSpeak}>Speak</button>;
+}
+```
+
+**With custom voice/speed:**
+```typescript
+speak("Custom voice example", {
+  voice: "nova",
+  speed: 1.0,
+});
+```
+
+### Global Audio Control
+
+The `AudioToggleButton` component provides global mute/unmute control:
+- Located in WelcomeContent header
+- State persisted in localStorage
+- When muted, ALL TTS playback is prevented
+
+### Configuration
+
+Default TTS settings (matching BODH agent):
+- **Voice**: marin
+- **Speed**: 1.2 (20% faster)
+- **Model**: gpt-4o-mini-tts
+- **Format**: MP3
+
+See `lib/tts.ts` for type definitions and constants.
+
+### Cache Management
+
+TTS audio is cached in PostgreSQL:
+- **Key**: SHA-256 hash of `text:voice:speed:model`
+- **Storage**: Base64-encoded MP3 in `audioData` column
+- **Tracking**: `lastUsedAt` updated on cache hits
+- **Future**: Can implement cleanup of unused entries
+
+### Environment Variables
+
+Required:
+- `OPENAI_API_KEY` - OpenAI API key for TTS generation
+
 ## Next.js DevTools MCP
 
 **IMPORTANT**: Always call `mcp__next-devtools__init` first when starting work on this project to establish proper documentation context.
