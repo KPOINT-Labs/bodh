@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import { Sparkles, PlayCircle, RotateCcw } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -8,6 +9,8 @@ import { ResizableContent } from "@/components/layout/resizable-content";
 import { LessonHeader } from "@/components/course/LessonHeader";
 import { AnimatedBackground } from "@/components/ui/animated-background";
 import { OnboardingModal } from "@/components/onboarding/OnboardingModal";
+import { useTTS } from "@/hooks/useTTS";
+import { AudioToggleButton } from "@/components/audio/AudioToggleButton";
 
 interface WelcomeContentProps {
   firstCourse: {
@@ -22,6 +25,15 @@ interface WelcomeContentProps {
 }
 
 export function WelcomeContent({ firstCourse, lastCourse }: WelcomeContentProps) {
+  const { speak } = useTTS();
+
+  useEffect(() => {
+    // Auto-play welcome message on mount
+    speak(
+      "नमस्ते! I'm your personal AI learning companion. I'm here whenever you need help—clarifying a concept, checking your understanding, or even just exploring new ideas. Let's learn together."
+    );
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const header = (
     <LessonHeader courseTitle="Welcome" moduleTitle="Getting Started" />
   );
@@ -30,13 +42,18 @@ export function WelcomeContent({ firstCourse, lastCourse }: WelcomeContentProps)
     <div className="space-y-6 pb-3">
       <Card className="bg-white border border-gray-200 shadow-sm p-6">
         {/* Chat Header */}
-        <div className="flex items-center gap-3 mb-6 pb-4 border-b border-gray-100">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-500">
-            <Sparkles className="h-5 w-5 text-white" />
+        <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-100">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-500">
+              <Sparkles className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-gray-900">AI Learning Assistant</p>
+              <p className="text-xs text-gray-500">Your personal guide</p>
+            </div>
           </div>
-          <div>
-            <p className="text-sm font-semibold text-gray-900">AI Learning Assistant</p>
-            <p className="text-xs text-gray-500">Your personal guide</p>
+          <div className="flex items-center gap-2">
+            <AudioToggleButton />
           </div>
         </div>
 
