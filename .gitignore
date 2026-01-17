@@ -42,3 +42,6 @@ next-env.d.ts
 
 # Windows Zone.Identifier files (security markers from downloaded files)
 *:Zone.Identifier
+
+# git worktrees
+.worktrees/
