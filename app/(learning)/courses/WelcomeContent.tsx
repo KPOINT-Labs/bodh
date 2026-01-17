@@ -28,6 +28,12 @@ interface WelcomeContentProps {
     _count: {
       modules: number;
     };
+    firstModule: {
+      id: string;
+      firstLesson: {
+        id: string;
+      } | null;
+    } | null;
   }>;
 }
 
@@ -168,20 +174,6 @@ export function WelcomeContent({ firstCourse, lastCourse, allCourses }: WelcomeC
     });
   };
 
-  const handleCourseSelection = (courseId: string) => {
-    const selectedCourse = allCourses.find(c => c.id === courseId);
-    if (!selectedCourse) return;
-
-    addUserMessage(`I'd like to start ${selectedCourse.title}`, () => {
-      // Navigate to course after message animation
-      setTimeout(() => {
-        // For now, navigate to first module of the course
-        // This assumes we need to fetch the first module - we'll handle that server-side
-        router.push(`/course/${courseId}`);
-      }, 500);
-    });
-  };
-
   const header = <LessonHeader courseTitle="Welcome" moduleTitle="Getting Started" />;
 
   const content = (
@@ -195,7 +187,6 @@ export function WelcomeContent({ firstCourse, lastCourse, allCourses }: WelcomeC
               <CourseBrowser
                 key={message.id}
                 courses={allCourses}
-                onSelectCourse={handleCourseSelection}
               />
             );
           }

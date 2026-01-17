@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { BookOpen, Brain, Sparkles } from 'lucide-react';
 
 interface Course {
@@ -7,11 +8,16 @@ interface Course {
   _count?: {
     modules: number;
   };
+  firstModule: {
+    id: string;
+    firstLesson: {
+      id: string;
+    } | null;
+  } | null;
 }
 
 interface CourseBrowserProps {
   courses: Course[];
-  onSelectCourse: (courseId: string) => void;
 }
 
 const colorMap = [
@@ -30,7 +36,12 @@ const borderColorMap = [
   'border-cyan-500/50 hover:border-cyan-400',
 ];
 
-export function CourseBrowser({ courses, onSelectCourse }: CourseBrowserProps) {
+export function CourseBrowser({ courses }: CourseBrowserProps) {
+  // Filter out courses without valid first module/lesson
+  const validCourses = courses.filter(
+    (course) => course.firstModule?.firstLesson
+  );
+
   return (
     <div className="animate-fade-in max-w-5xl mx-auto">
       <div className="bg-white border-2 border-gray-200 rounded-3xl p-8 shadow-xl">
@@ -40,16 +51,19 @@ export function CourseBrowser({ courses, onSelectCourse }: CourseBrowserProps) {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {courses.map((course, index) => {
+          {validCourses.map((course, index) => {
             const colorIndex = index % colorMap.length;
             const gradientColor = colorMap[colorIndex];
             const borderColor = borderColorMap[colorIndex];
 
+            // Build the URL for navigation
+            const href = `/course/${course.id}/module/${course.firstModule!.id}?lesson=${course.firstModule!.firstLesson!.id}`;
+
             return (
-              <button
+              <Link
                 key={course.id}
-                onClick={() => onSelectCourse(course.id)}
-                className={`group relative bg-white border-2 ${borderColor} rounded-2xl p-6 transition-all duration-300 hover:shadow-lg text-left`}
+                href={href}
+                className={`group relative bg-white border-2 ${borderColor} rounded-2xl p-6 transition-all duration-300 hover:shadow-lg text-left block`}
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 rounded-2xl"></div>
 
@@ -75,7 +89,7 @@ export function CourseBrowser({ courses, onSelectCourse }: CourseBrowserProps) {
                     </div>
                   )}
                 </div>
-              </button>
+              </Link>
             );
           })}
         </div>

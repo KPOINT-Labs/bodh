@@ -88,11 +88,36 @@ async function getAllPublishedCourses() {
       _count: {
         select: { modules: true },
       },
+      modules: {
+        where: { isPublished: true },
+        orderBy: { orderIndex: "asc" },
+        take: 1,
+        include: {
+          lessons: {
+            where: { isPublished: true },
+            orderBy: { orderIndex: "asc" },
+            take: 1,
+            select: { id: true },
+          },
+        },
+      },
     },
     orderBy: { createdAt: "desc" },
   });
 
-  return courses;
+  // Map to extract firstModule and firstLesson from arrays
+  return courses.map((course) => ({
+    id: course.id,
+    title: course.title,
+    description: course.description,
+    _count: course._count,
+    firstModule: course.modules[0]
+      ? {
+          id: course.modules[0].id,
+          firstLesson: course.modules[0].lessons[0] || null,
+        }
+      : null,
+  }));
 }
 
 export default async function CoursesPage() {
