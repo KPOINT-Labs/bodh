@@ -14,16 +14,17 @@ class AudioPlayer {
   private currentVolume: number = 0.3;
 
   constructor() {
-    // Preload sounds
-    Object.entries(SOUNDS).forEach(([key, url]) => {
-      const audio = new Audio(url);
-      audio.preload = 'auto';
-      audio.volume = this.currentVolume;
-      this.sounds.set(key, audio);
-    });
-
-    // Initialize audio on first user interaction
+    // Only preload sounds in browser environment
     if (typeof window !== 'undefined') {
+      // Preload sounds
+      Object.entries(SOUNDS).forEach(([key, url]) => {
+        const audio = new Audio(url);
+        audio.preload = 'auto';
+        audio.volume = this.currentVolume;
+        this.sounds.set(key, audio);
+      });
+
+      // Initialize audio on first user interaction
       const initAudio = () => {
         if (!this.audioInitialized) {
           this.audioInitialized = true;
