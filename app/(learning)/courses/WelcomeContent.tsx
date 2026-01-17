@@ -48,11 +48,33 @@ export function WelcomeContent({ firstCourse, lastCourse, allCourses }: WelcomeC
   const [messages, setMessages] = useState<Message[]>([]);
   const [showButtons, setShowButtons] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [onboardingComplete, setOnboardingComplete] = useState(false);
   const hasStartedRef = useRef(false);
 
+  // Check if onboarding should be shown
   useEffect(() => {
-    // Start the orchestrated welcome sequence (only once)
-    if (!hasStartedRef.current) {
+    // Small delay to ensure localStorage is accessible
+    const checkOnboarding = () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const forceTour = urlParams.get('tour') === 'true';
+      const hasCompletedOnboarding = localStorage.getItem('bodh-onboarding-v1');
+
+      // If tour is forced or user hasn't completed onboarding, wait for it
+      if (forceTour || !hasCompletedOnboarding) {
+        setOnboardingComplete(false);
+      } else {
+        // User has completed onboarding and tour not forced, start immediately
+        setOnboardingComplete(true);
+      }
+    };
+
+    // Small delay to ensure component is mounted
+    setTimeout(checkOnboarding, 100);
+  }, []);
+
+  useEffect(() => {
+    // Start the orchestrated welcome sequence (only once and after onboarding)
+    if (!hasStartedRef.current && onboardingComplete) {
       hasStartedRef.current = true;
 
       // Delay initial message like reference project (500ms)
@@ -76,7 +98,11 @@ export function WelcomeContent({ firstCourse, lastCourse, allCourses }: WelcomeC
         speak(welcomeMessage.content);
       }, 500);
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [onboardingComplete]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleOnboardingComplete = () => {
+    setOnboardingComplete(true);
+  };
 
   const addAIMessage = (content: string, onComplete?: () => void) => {
     const newMessage: Message = {
@@ -221,7 +247,7 @@ export function WelcomeContent({ firstCourse, lastCourse, allCourses }: WelcomeC
   return (
     <>
       <AnimatedBackground variant="full" intensity="medium" theme="learning" />
-      <OnboardingModal />
+      <OnboardingModal onComplete={handleOnboardingComplete} />
       <ResizableContent
         header={header}
         content={content}
