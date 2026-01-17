@@ -144,7 +144,7 @@ export function WelcomeContent({ firstCourse, lastCourse, allCourses }: WelcomeC
     setShowButtons(false);
 
     // Add user message
-    addUserMessage("Start New Course", () => {
+    addUserMessage("Browse All Courses", () => {
       // After user message completes, add AI response
       setTimeout(() => {
         addAIMessage("Great! Here are all the available courses you can explore and start learning:", () => {
@@ -222,7 +222,7 @@ export function WelcomeContent({ firstCourse, lastCourse, allCourses }: WelcomeC
         <div className="backdrop-blur-xl bg-white/60 border border-blue-200 rounded-xl px-4 py-3 shadow-lg shadow-blue-200/30">
           <ChoiceButtons
             buttons={[
-              ...(firstCourse ? [{ label: 'Start New Course', action: 'start-new' }] : []),
+              ...(firstCourse ? [{ label: 'Browse All Courses', action: 'start-new' }] : []),
               ...(lastCourse ? [{ label: `Continue ${lastCourse.courseTitle}`, action: 'continue' }] : []),
             ]}
             onSelect={(action) => {
