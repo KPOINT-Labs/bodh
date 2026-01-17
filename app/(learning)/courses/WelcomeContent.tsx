@@ -2,9 +2,6 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Sparkles, PlayCircle, RotateCcw } from "lucide-react";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { ResizableContent } from "@/components/layout/resizable-content";
 import { LessonHeader } from "@/components/course/LessonHeader";
 import { AnimatedBackground } from "@/components/ui/animated-background";
@@ -47,7 +44,6 @@ export function WelcomeContent({ firstCourse, lastCourse, allCourses }: WelcomeC
   const { speak } = useTTS();
   const [messages, setMessages] = useState<Message[]>([]);
   const [showButtons, setShowButtons] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
   const [onboardingComplete, setOnboardingComplete] = useState(false);
   const hasStartedRef = useRef(false);
 
@@ -95,7 +91,9 @@ export function WelcomeContent({ firstCourse, lastCourse, allCourses }: WelcomeC
         setMessages([welcomeMessage]);
 
         // Trigger TTS
-        speak(welcomeMessage.content);
+        if (welcomeMessage.content) {
+          speak(welcomeMessage.content);
+        }
       }, 500);
     }
   }, [onboardingComplete]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -114,11 +112,9 @@ export function WelcomeContent({ firstCourse, lastCourse, allCourses }: WelcomeC
         if (onComplete) {
           onComplete();
         }
-        setIsProcessing(false);
       }
     };
     setMessages(prev => [...prev, newMessage]);
-    setIsProcessing(true);
   };
 
   const addUserMessage = (content: string, onComplete?: () => void) => {
@@ -131,11 +127,9 @@ export function WelcomeContent({ firstCourse, lastCourse, allCourses }: WelcomeC
         if (onComplete) {
           onComplete();
         }
-        setIsProcessing(false);
       }
     };
     setMessages(prev => [...prev, newMessage]);
-    setIsProcessing(true);
   };
 
   const addCourseBrowser = () => {
@@ -150,10 +144,10 @@ export function WelcomeContent({ firstCourse, lastCourse, allCourses }: WelcomeC
     setShowButtons(false);
 
     // Add user message
-    addUserMessage("Start New course", () => {
+    addUserMessage("Start New Course", () => {
       // After user message completes, add AI response
       setTimeout(() => {
-        addAIMessage("Great! Here are the available courses you can start with:", () => {
+        addAIMessage("Great! Here are all the available courses you can explore and start learning:", () => {
           // After AI message completes, show course browser
           setTimeout(() => {
             addCourseBrowser();
