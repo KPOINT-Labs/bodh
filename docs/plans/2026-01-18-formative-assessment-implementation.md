@@ -8,6 +8,8 @@
 
 **Tech Stack:** Next.js 16, React 19, TypeScript, Prisma 7, LiveKit, TailwindCSS, shadcn/ui
 
+**Sarvam Response Parsing:** Reuse existing `detectAnswerFeedback()` from `lib/chat/assessment.ts` for determining `isCorrect` from Sarvam's natural language responses. This function uses keyword pattern matching (correct: 'correct', 'that's right', etc. | incorrect: 'incorrect', 'not quite', etc.) within first 200 characters.
+
 ---
 
 ## Phase 1: Foundation (Types & Database)
@@ -285,7 +287,25 @@ git commit -m "feat(db): add AssessmentAttempt and AssessmentSession models"
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { detectAnswerFeedback } from "@/lib/chat/assessment";
 import type { LearningSummary, LessonQuiz, ChapterResult } from "@/types/assessment";
+
+/**
+ * Parse Sarvam response to extract isCorrect and feedback
+ * Uses existing detectAnswerFeedback() which checks for patterns like:
+ * - Correct: 'correct', 'that's right', 'exactly', 'well done', etc.
+ * - Incorrect: 'incorrect', 'not quite', 'wrong', 'actually', etc.
+ */
+export function parseSarvamFeedback(sarvamResponse: string): {
+  isCorrect: boolean | null;
+  feedback: string;
+} {
+  const result = detectAnswerFeedback(sarvamResponse);
+  return {
+    isCorrect: result.type === 'correct' ? true : result.type === 'incorrect' ? false : null,
+    feedback: sarvamResponse, // Display full Sarvam response as feedback
+  };
+}
 
 /**
  * Get or create assessment session for a user+lesson
@@ -1347,28 +1367,48 @@ git commit -m "feat(components): add WarmupQuiz component for pre-lesson warmup"
 // components/assessment/InLessonQuestion.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
-import { Mic, MicOff, Send } from "lucide-react";
+import { Mic, MicOff, Send, CheckCircle, XCircle } from "lucide-react";
 import { useAssessment } from "@/contexts/AssessmentContext";
 import { QuizQuestion } from "./QuizQuestion";
+import { parseSarvamFeedback } from "@/actions/assessment";
 import type { InlessonQuestion as InlessonQuestionType } from "@/types/assessment";
 
 interface InLessonQuestionProps {
   question: InlessonQuestionType;
   onComplete: () => void;
   onSendToAgent: (message: string) => void;
+  agentResponse?: string; // Sarvam response received via data channel
 }
 
 export function InLessonQuestion({
   question,
   onComplete,
   onSendToAgent,
+  agentResponse,
 }: InLessonQuestionProps) {
   const { answerInlesson, skipInlesson } = useAssessment();
   const [textInput, setTextInput] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [feedback, setFeedback] = useState<{
+    isCorrect: boolean | null;
+    text: string;
+  } | null>(null);
+
+  // Process Sarvam response when received
+  useEffect(() => {
+    if (agentResponse && isSubmitting) {
+      // Use existing detectAnswerFeedback via parseSarvamFeedback
+      const parsed = parseSarvamFeedback(agentResponse);
+      setFeedback({
+        isCorrect: parsed.isCorrect,
+        text: parsed.feedback,
+      });
+      setIsSubmitting(false);
+    }
+  }, [agentResponse, isSubmitting]);
 
   const handleMCQAnswer = (selectedOption: string) => {
     setIsSubmitting(true);
@@ -1422,6 +1462,51 @@ export function InLessonQuestion({
     setIsRecording(!isRecording);
     // Voice recording integration would go here
   };
+
+  // Show feedback if received from Sarvam
+  if (feedback) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-2 text-sm text-blue-600 font-medium">
+          <span>Professor asks:</span>
+        </div>
+        <p className="text-base font-medium text-gray-900">{question.question}</p>
+
+        {/* Feedback from Sarvam */}
+        <div
+          className={cn(
+            "flex items-center gap-2 p-3 rounded-lg",
+            feedback.isCorrect === true
+              ? "bg-green-50 text-green-700"
+              : feedback.isCorrect === false
+              ? "bg-amber-50 text-amber-700"
+              : "bg-blue-50 text-blue-700"
+          )}
+        >
+          {feedback.isCorrect === true ? (
+            <CheckCircle className="h-5 w-5" />
+          ) : feedback.isCorrect === false ? (
+            <XCircle className="h-5 w-5" />
+          ) : null}
+          <span className="font-medium">
+            {feedback.isCorrect === true
+              ? "Correct!"
+              : feedback.isCorrect === false
+              ? "Not quite right"
+              : "Feedback"}
+          </span>
+        </div>
+        <p className="text-sm text-gray-700 leading-relaxed">{feedback.text}</p>
+
+        <button
+          onClick={onComplete}
+          className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+        >
+          Continue
+        </button>
+      </div>
+    );
+  }
 
   // MCQ type question
   if (question.type === "mcq" && question.options) {
@@ -2028,3 +2113,16 @@ bun run scripts/add-sample-quiz.ts
 - Test each component in isolation before integration
 - Use browser dev tools to monitor LiveKit data channel messages
 - Check Prisma Studio (`./node_modules/.bin/prisma studio`) to verify data storage
+
+### Sarvam Response Handling
+
+**Existing code reuse:** `lib/chat/assessment.ts` contains `detectAnswerFeedback()` function (lines 297-378) that parses Sarvam's natural language responses to determine correctness:
+
+| Pattern Type | Keywords |
+|--------------|----------|
+| Correct | 'correct', 'that's right', 'exactly', 'well done', 'great job', 'perfect', 'you got it', 'spot on' |
+| Incorrect | 'incorrect', 'not quite', 'wrong', 'actually', 'the correct answer', 'unfortunately', 'try again' |
+
+**Logic:** Searches first 200 characters for patterns. If both found, whichever appears first wins. Returns `null` if uncertain.
+
+**New wrapper:** `parseSarvamFeedback()` in `actions/assessment.ts` wraps this function and returns `{ isCorrect: boolean | null, feedback: string }`.
