@@ -5,13 +5,13 @@ import { prisma } from "@/lib/prisma";
 import OpenAI from "openai";
 import { ElevenLabsClient } from "elevenlabs";
 import { createHash } from "crypto";
-import { DEFAULT_TTS_CONFIG, ELEVENLABS_CONFIG, OPENAI_CONFIG, TTSResult } from "@/lib/tts";
+import { ELEVENLABS_CONFIG, OPENAI_CONFIG, TTSResult } from "@/lib/tts";
 
 const ttsSchema = z.object({
   text: z.string().min(1).max(5000),
-  voice: z.string().default(DEFAULT_TTS_CONFIG.voice),
-  speed: z.number().min(0.5).max(2.0).default(DEFAULT_TTS_CONFIG.speed),
-  model: z.string().default(DEFAULT_TTS_CONFIG.model),
+  voice: z.string().optional(),
+  speed: z.number().min(0.5).max(2.0).optional(),
+  model: z.string().optional(),
 });
 
 export async function generateTTS(
@@ -35,9 +35,30 @@ export async function generateTTS(
 
     const { text: validatedText, voice, speed, model } = validated;
 
-    // Generate cache hash
+    // Determine which provider to use
+    const provider = process.env.TTS_PROVIDER || 'elevenlabs';
+    console.log("[TTS] Using provider:", provider);
+
+    // Determine actual values based on provider
+    let actualVoice: string;
+    let actualSpeed: number;
+    let actualModel: string;
+
+    if (provider === 'elevenlabs') {
+      actualVoice = voice || ELEVENLABS_CONFIG.voice;
+      actualModel = model || ELEVENLABS_CONFIG.model;
+      actualSpeed = speed || ELEVENLABS_CONFIG.voiceSettings.speed;
+    } else if (provider === 'openai') {
+      actualVoice = voice || OPENAI_CONFIG.voice;
+      actualModel = model || OPENAI_CONFIG.model;
+      actualSpeed = speed || OPENAI_CONFIG.speed;
+    } else {
+      throw new Error(`Unknown TTS_PROVIDER: ${provider}`);
+    }
+
+    // Generate cache hash with actual values
     const textHash = createHash("sha256")
-      .update(`${validatedText}:${voice}:${speed}:${model}`)
+      .update(`${validatedText}:${actualVoice}:${actualSpeed}:${actualModel}`)
       .digest("hex");
 
     console.log("[TTS] About to query cache, prisma.tTSCache:", typeof prisma?.tTSCache);
@@ -64,10 +85,6 @@ export async function generateTTS(
 
     console.log("[TTS] Cache miss, generating audio with TTS provider");
 
-    // Determine which provider to use
-    const provider = process.env.TTS_PROVIDER || 'elevenlabs';
-    console.log("[TTS] Using provider:", provider);
-
     let buffer: Buffer;
 
     if (provider === 'elevenlabs') {
@@ -82,20 +99,15 @@ export async function generateTTS(
         apiKey: process.env.ELEVENLABS_API_KEY,
       });
 
-      // Use ElevenLabs configuration
-      const elevenLabsVoice = voice || ELEVENLABS_CONFIG.voice;
-      const elevenLabsModel = model || ELEVENLABS_CONFIG.model;
-      const elevenLabsSpeed = speed || ELEVENLABS_CONFIG.voiceSettings.speed;
-
       // Generate speech with ElevenLabs
-      const audio = await elevenlabs.textToSpeech.convert(elevenLabsVoice, {
+      const audio = await elevenlabs.textToSpeech.convert(actualVoice, {
         text: validatedText,
-        model_id: elevenLabsModel,
+        model_id: actualModel,
         output_format: ELEVENLABS_CONFIG.outputFormat,
         voice_settings: {
           stability: ELEVENLABS_CONFIG.voiceSettings.stability,
           similarity_boost: ELEVENLABS_CONFIG.voiceSettings.similarityBoost,
-          speed: elevenLabsSpeed,
+          speed: actualSpeed,
           use_speaker_boost: ELEVENLABS_CONFIG.voiceSettings.useSpeakerBoost,
         }
       });
@@ -120,16 +132,11 @@ export async function generateTTS(
         apiKey: process.env.OPENAI_API_KEY,
       });
 
-      // Use OpenAI configuration
-      const openAIVoice = voice || OPENAI_CONFIG.voice;
-      const openAIModel = model || OPENAI_CONFIG.model;
-      const openAISpeed = speed || OPENAI_CONFIG.speed;
-
       // Call OpenAI TTS API
       const response = await openai.audio.speech.create({
-        model: openAIModel,
-        voice: openAIVoice as any,
-        speed: openAISpeed,
+        model: actualModel,
+        voice: actualVoice as any,
+        speed: actualSpeed,
         input: validatedText,
         response_format: "mp3",
       });
@@ -152,9 +159,9 @@ export async function generateTTS(
         textHash,
         text: validatedText,
         audioData,
-        voice,
-        speed,
-        model,
+        voice: actualVoice,
+        speed: actualSpeed,
+        model: actualModel,
         lastUsedAt: new Date(),
       },
     });
