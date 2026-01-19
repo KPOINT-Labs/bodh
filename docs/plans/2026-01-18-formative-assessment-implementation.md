@@ -260,6 +260,42 @@ model AssessmentSession {
 }
 ```
 
+**Step 1.1: Add relations to User model (if User model exists)**
+
+If the project has a User model, add the relation. Otherwise, skip this step (userId will be stored as String without foreign key constraint).
+
+Find the User model and add:
+
+```prisma
+model User {
+  // ... existing fields ...
+
+  // Add these relations
+  assessmentAttempts  AssessmentAttempt[]
+  assessmentSessions  AssessmentSession[]
+}
+```
+
+Then update the assessment models to include the relation:
+
+```prisma
+model AssessmentAttempt {
+  // ... existing fields ...
+  userId         String
+  user           User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // ...
+}
+
+model AssessmentSession {
+  // ... existing fields ...
+  userId         String
+  user           User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // ...
+}
+```
+
+**Note:** If the project stores userId as an external reference (e.g., from NextAuth or odata), relations may not be possible. In that case, the userId fields remain as plain Strings without foreign key constraints. Check the existing schema to determine the correct approach.
+
 **Step 2: Push schema changes to database**
 
 ```bash
@@ -308,24 +344,51 @@ export function parseSarvamFeedback(sarvamResponse: string): {
 }
 
 /**
+ * Result type for server actions with error handling
+ */
+type ActionResult<T> = { success: true; data: T } | { success: false; error: string };
+
+/**
+ * Configuration constants for assessment system
+ * These can be moved to environment variables or a config file if needed
+ */
+const ASSESSMENT_CONFIG = {
+  /** Minimum correct rate to consider a chapter "understood" (70%) */
+  CHAPTER_UNDERSTANDING_THRESHOLD: 0.7,
+  /** Maximum questions per concept check */
+  MAX_CONCEPT_CHECK_QUESTIONS: 2,
+  /** Maximum questions per formative assessment */
+  MAX_FORMATIVE_QUESTIONS: 5,
+};
+
+/**
  * Get or create assessment session for a user+lesson
  */
-export async function getOrCreateAssessmentSession(userId: string, lessonId: string) {
-  const existing = await prisma.assessmentSession.findUnique({
-    where: { userId_lessonId: { userId, lessonId } },
-  });
+export async function getOrCreateAssessmentSession(
+  userId: string,
+  lessonId: string
+): Promise<ActionResult<Awaited<ReturnType<typeof prisma.assessmentSession.findUnique>>>> {
+  try {
+    const existing = await prisma.assessmentSession.findUnique({
+      where: { userId_lessonId: { userId, lessonId } },
+    });
 
-  if (existing) {
-    return existing;
+    if (existing) {
+      return { success: true, data: existing };
+    }
+
+    const created = await prisma.assessmentSession.create({
+      data: {
+        userId,
+        lessonId,
+        phase: "idle",
+      },
+    });
+    return { success: true, data: created };
+  } catch (error) {
+    console.error("[getOrCreateAssessmentSession] Error:", error);
+    return { success: false, error: "Failed to get or create assessment session" };
   }
-
-  return prisma.assessmentSession.create({
-    data: {
-      userId,
-      lessonId,
-      phase: "idle",
-    },
-  });
 }
 
 /**
@@ -335,11 +398,17 @@ export async function updateAssessmentPhase(
   userId: string,
   lessonId: string,
   phase: string
-) {
-  return prisma.assessmentSession.update({
-    where: { userId_lessonId: { userId, lessonId } },
-    data: { phase },
-  });
+): Promise<ActionResult<null>> {
+  try {
+    await prisma.assessmentSession.update({
+      where: { userId_lessonId: { userId, lessonId } },
+      data: { phase },
+    });
+    return { success: true, data: null };
+  } catch (error) {
+    console.error("[updateAssessmentPhase] Error:", error);
+    return { success: false, error: "Failed to update assessment phase" };
+  }
 }
 
 /**
@@ -349,15 +418,21 @@ export async function completeWarmup(
   userId: string,
   lessonId: string,
   skipped: boolean
-) {
-  return prisma.assessmentSession.update({
-    where: { userId_lessonId: { userId, lessonId } },
-    data: {
-      warmupCompleted: !skipped,
-      warmupSkipped: skipped,
-      phase: "video",
-    },
-  });
+): Promise<ActionResult<null>> {
+  try {
+    await prisma.assessmentSession.update({
+      where: { userId_lessonId: { userId, lessonId } },
+      data: {
+        warmupCompleted: !skipped,
+        warmupSkipped: skipped,
+        phase: "video",
+      },
+    });
+    return { success: true, data: null };
+  } catch (error) {
+    console.error("[completeWarmup] Error:", error);
+    return { success: false, error: "Failed to complete warmup" };
+  }
 }
 
 /**
@@ -368,23 +443,29 @@ export async function completeConceptCheck(
   lessonId: string,
   chapterId: string,
   skipped: boolean
-) {
-  const session = await prisma.assessmentSession.findUnique({
-    where: { userId_lessonId: { userId, lessonId } },
-  });
+): Promise<ActionResult<null>> {
+  try {
+    const session = await prisma.assessmentSession.findUnique({
+      where: { userId_lessonId: { userId, lessonId } },
+    });
 
-  const completed = session?.conceptChecksCompleted || [];
-  if (!completed.includes(chapterId)) {
-    completed.push(chapterId);
+    const completed = session?.conceptChecksCompleted || [];
+    if (!completed.includes(chapterId)) {
+      completed.push(chapterId);
+    }
+
+    await prisma.assessmentSession.update({
+      where: { userId_lessonId: { userId, lessonId } },
+      data: {
+        conceptChecksCompleted: completed,
+        phase: "video",
+      },
+    });
+    return { success: true, data: null };
+  } catch (error) {
+    console.error("[completeConceptCheck] Error:", error);
+    return { success: false, error: "Failed to complete concept check" };
   }
-
-  return prisma.assessmentSession.update({
-    where: { userId_lessonId: { userId, lessonId } },
-    data: {
-      conceptChecksCompleted: completed,
-      phase: "video",
-    },
-  });
 }
 
 /**
@@ -394,23 +475,29 @@ export async function completeInlesson(
   userId: string,
   lessonId: string,
   questionId: string
-) {
-  const session = await prisma.assessmentSession.findUnique({
-    where: { userId_lessonId: { userId, lessonId } },
-  });
+): Promise<ActionResult<null>> {
+  try {
+    const session = await prisma.assessmentSession.findUnique({
+      where: { userId_lessonId: { userId, lessonId } },
+    });
 
-  const completed = session?.inlessonCompleted || [];
-  if (!completed.includes(questionId)) {
-    completed.push(questionId);
+    const completed = session?.inlessonCompleted || [];
+    if (!completed.includes(questionId)) {
+      completed.push(questionId);
+    }
+
+    await prisma.assessmentSession.update({
+      where: { userId_lessonId: { userId, lessonId } },
+      data: {
+        inlessonCompleted: completed,
+        phase: "video",
+      },
+    });
+    return { success: true, data: null };
+  } catch (error) {
+    console.error("[completeInlesson] Error:", error);
+    return { success: false, error: "Failed to complete inlesson question" };
   }
-
-  return prisma.assessmentSession.update({
-    where: { userId_lessonId: { userId, lessonId } },
-    data: {
-      inlessonCompleted: completed,
-      phase: "video",
-    },
-  });
 }
 
 /**
@@ -420,16 +507,22 @@ export async function completeFormative(
   userId: string,
   lessonId: string,
   skipped: boolean
-) {
-  return prisma.assessmentSession.update({
-    where: { userId_lessonId: { userId, lessonId } },
-    data: {
-      formativeCompleted: !skipped,
-      formativeSkipped: skipped,
-      phase: "summary",
-      completedAt: new Date(),
-    },
-  });
+): Promise<ActionResult<null>> {
+  try {
+    await prisma.assessmentSession.update({
+      where: { userId_lessonId: { userId, lessonId } },
+      data: {
+        formativeCompleted: !skipped,
+        formativeSkipped: skipped,
+        phase: "summary",
+        completedAt: new Date(),
+      },
+    });
+    return { success: true, data: null };
+  } catch (error) {
+    console.error("[completeFormative] Error:", error);
+    return { success: false, error: "Failed to complete formative assessment" };
+  }
 }
 
 /**
@@ -448,18 +541,33 @@ export async function storeAssessmentAttempt(data: {
   feedback?: string;
   feedbackSource: string;
   chapterId?: string;
-}) {
-  return prisma.assessmentAttempt.create({ data });
+}): Promise<ActionResult<{ id: string }>> {
+  try {
+    const attempt = await prisma.assessmentAttempt.create({ data });
+    return { success: true, data: { id: attempt.id } };
+  } catch (error) {
+    console.error("[storeAssessmentAttempt] Error:", error);
+    return { success: false, error: "Failed to store assessment attempt" };
+  }
 }
 
 /**
  * Get all assessment attempts for a lesson
  */
-export async function getAssessmentAttempts(userId: string, lessonId: string) {
-  return prisma.assessmentAttempt.findMany({
-    where: { userId, lessonId },
-    orderBy: { createdAt: "asc" },
-  });
+export async function getAssessmentAttempts(
+  userId: string,
+  lessonId: string
+): Promise<ActionResult<Awaited<ReturnType<typeof prisma.assessmentAttempt.findMany>>>> {
+  try {
+    const attempts = await prisma.assessmentAttempt.findMany({
+      where: { userId, lessonId },
+      orderBy: { createdAt: "asc" },
+    });
+    return { success: true, data: attempts };
+  } catch (error) {
+    console.error("[getAssessmentAttempts] Error:", error);
+    return { success: false, error: "Failed to get assessment attempts" };
+  }
 }
 
 /**
@@ -469,74 +577,89 @@ export async function generateLearningSummary(
   userId: string,
   lessonId: string,
   quiz: LessonQuiz
-): Promise<LearningSummary> {
-  const attempts = await getAssessmentAttempts(userId, lessonId);
+): Promise<ActionResult<LearningSummary>> {
+  try {
+    const attemptsResult = await getAssessmentAttempts(userId, lessonId);
 
-  // Group attempts by chapter
-  const byChapter = new Map<string, typeof attempts>();
-  const noChapter: typeof attempts = [];
-
-  for (const attempt of attempts) {
-    if (attempt.chapterId) {
-      const list = byChapter.get(attempt.chapterId) || [];
-      list.push(attempt);
-      byChapter.set(attempt.chapterId, list);
-    } else {
-      noChapter.push(attempt);
+    // Handle error from getAssessmentAttempts
+    if (!attemptsResult.success) {
+      return { success: false, error: attemptsResult.error };
     }
-  }
 
-  // Calculate per-chapter scores
-  const chaptersUnderstood: ChapterResult[] = [];
-  const chaptersToReview: ChapterResult[] = [];
+    const attempts = attemptsResult.data;
 
-  for (const chapter of quiz.chapters) {
-    const chapterAttempts = byChapter.get(chapter.id) || [];
-    if (chapterAttempts.length === 0) continue;
+    // Group attempts by chapter
+    const byChapter = new Map<string, typeof attempts>();
+    const noChapter: typeof attempts = [];
 
-    const answered = chapterAttempts.filter((a) => !a.isSkipped);
+    for (const attempt of attempts) {
+      if (attempt.chapterId) {
+        const list = byChapter.get(attempt.chapterId) || [];
+        list.push(attempt);
+        byChapter.set(attempt.chapterId, list);
+      } else {
+        noChapter.push(attempt);
+      }
+    }
+
+    // Calculate per-chapter scores
+    const chaptersUnderstood: ChapterResult[] = [];
+    const chaptersToReview: ChapterResult[] = [];
+
+    for (const chapter of quiz.chapters) {
+      const chapterAttempts = byChapter.get(chapter.id) || [];
+      if (chapterAttempts.length === 0) continue;
+
+      const answered = chapterAttempts.filter((a) => !a.isSkipped);
+      const correct = answered.filter((a) => a.isCorrect).length;
+      const correctRate = answered.length > 0 ? correct / answered.length : 0;
+
+      const result: ChapterResult = {
+        id: chapter.id,
+        title: chapter.title,
+        correctRate,
+      };
+
+      if (correctRate >= ASSESSMENT_CONFIG.CHAPTER_UNDERSTANDING_THRESHOLD) {
+        chaptersUnderstood.push(result);
+      } else {
+        chaptersToReview.push({
+          ...result,
+          suggestedAids: [
+            {
+              type: "summary",
+              title: `2-minute summary: ${chapter.title}`,
+              duration: "2 min",
+            },
+            {
+              type: "reel",
+              title: `1-minute reel: ${chapter.title}`,
+              duration: "1 min",
+            },
+          ],
+        });
+      }
+    }
+
+    // Calculate overall stats
+    const answered = attempts.filter((a) => !a.isSkipped);
     const correct = answered.filter((a) => a.isCorrect).length;
-    const correctRate = answered.length > 0 ? correct / answered.length : 0;
 
-    const result: ChapterResult = {
-      id: chapter.id,
-      title: chapter.title,
-      correctRate,
+    return {
+      success: true,
+      data: {
+        chaptersUnderstood,
+        chaptersToReview,
+        overallScore: answered.length > 0 ? correct / answered.length : 0,
+        totalQuestions: attempts.length,
+        correctAnswers: correct,
+        skippedQuestions: attempts.filter((a) => a.isSkipped).length,
+      },
     };
-
-    if (correctRate >= 0.7) {
-      chaptersUnderstood.push(result);
-    } else {
-      chaptersToReview.push({
-        ...result,
-        suggestedAids: [
-          {
-            type: "summary",
-            title: `2-minute summary: ${chapter.title}`,
-            duration: "2 min",
-          },
-          {
-            type: "reel",
-            title: `1-minute reel: ${chapter.title}`,
-            duration: "1 min",
-          },
-        ],
-      });
-    }
+  } catch (error) {
+    console.error("[generateLearningSummary] Error:", error);
+    return { success: false, error: "Failed to generate learning summary" };
   }
-
-  // Calculate overall stats
-  const answered = attempts.filter((a) => !a.isSkipped);
-  const correct = answered.filter((a) => a.isCorrect).length;
-
-  return {
-    chaptersUnderstood,
-    chaptersToReview,
-    overallScore: answered.length > 0 ? correct / answered.length : 0,
-    totalQuestions: attempts.length,
-    correctAnswers: correct,
-    skippedQuestions: attempts.filter((a) => a.isSkipped).length,
-  };
 }
 ```
 
@@ -591,6 +714,7 @@ type AssessmentAction =
   | { type: "WARMUP_COMPLETE"; skipped: boolean }
   | { type: "CONCEPT_CHECK_START"; chapterId: string }
   | { type: "CONCEPT_CHECK_ANSWER"; chapterId: string; answer: QuizAnswer }
+  | { type: "CONCEPT_CHECK_SKIP"; chapterId: string }
   | { type: "CONCEPT_CHECK_COMPLETE"; chapterId: string; skipped: boolean }
   | { type: "INLESSON_START"; questionId: string }
   | { type: "INLESSON_ANSWER"; questionId: string; response: string; responseType: "voice" | "text"; isCorrect?: boolean; aiEvaluation?: string }
@@ -704,6 +828,21 @@ function assessmentReducer(
               ...(state.conceptChecks[action.chapterId]?.answers || []),
               action.answer,
             ],
+          },
+        },
+      };
+
+    case "CONCEPT_CHECK_SKIP":
+      // Alias for CONCEPT_CHECK_COMPLETE with skipped=true
+      return {
+        ...state,
+        phase: "video",
+        conceptChecks: {
+          ...state.conceptChecks,
+          [action.chapterId]: {
+            ...state.conceptChecks[action.chapterId],
+            completed: false,
+            skipped: true,
           },
         },
       };
@@ -825,6 +964,19 @@ export function AssessmentProvider({
   });
   const [summary, setSummary] = React.useState<LearningSummary | null>(null);
 
+  // Refs to avoid stale closures in callbacks
+  const quizRef = React.useRef(quiz);
+  const stateRef = React.useRef(state);
+
+  // Keep refs updated
+  React.useEffect(() => {
+    quizRef.current = quiz;
+  }, [quiz]);
+
+  React.useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+
   // Initialize session on mount
   useEffect(() => {
     getOrCreateAssessmentSession(userId, lessonId);
@@ -837,7 +989,11 @@ export function AssessmentProvider({
 
   const answerWarmup = useCallback(
     async (questionId: string, selectedOption: string, isCorrect: boolean) => {
-      const question = quiz?.warmup.find((q) => q.id === questionId);
+      // Use refs to get current values and avoid stale closures
+      const currentQuiz = quizRef.current;
+      const currentState = stateRef.current;
+
+      const question = currentQuiz?.warmup.find((q) => q.id === questionId);
       if (!question) return;
 
       const answer: QuizAnswer = {
@@ -864,15 +1020,15 @@ export function AssessmentProvider({
         chapterId: question.chapter_id,
       });
 
-      // Move to next question or complete
-      if (state.warmup.currentIndex + 1 < (quiz?.warmup.length || 0)) {
+      // Move to next question or complete - use current state from ref
+      if (currentState.warmup.currentIndex + 1 < (currentQuiz?.warmup.length || 0)) {
         dispatch({ type: "WARMUP_NEXT" });
       } else {
         dispatch({ type: "WARMUP_COMPLETE", skipped: false });
         await completeWarmup(userId, lessonId, false);
       }
     },
-    [quiz, userId, lessonId, state.warmup.currentIndex]
+    [userId, lessonId] // Removed quiz and state from deps since we use refs
   );
 
   const skipWarmup = useCallback(async () => {
@@ -1013,29 +1169,63 @@ export function AssessmentProvider({
 
   const loadSummary = useCallback(async () => {
     if (!quiz) return;
-    const summaryData = await generateLearningSummary(userId, lessonId, quiz);
-    setSummary(summaryData);
+    const result = await generateLearningSummary(userId, lessonId, quiz);
+    if (result.success) {
+      setSummary(result.data);
+    } else {
+      console.error("[loadSummary] Failed:", result.error);
+      // Set empty summary on error
+      setSummary({
+        chaptersUnderstood: [],
+        chaptersToReview: [],
+        overallScore: 0,
+        totalQuestions: 0,
+        correctAnswers: 0,
+        skippedQuestions: 0,
+      });
+    }
   }, [userId, lessonId, quiz]);
 
-  const value: AssessmentContextValue = {
-    state,
-    quiz,
-    summary,
-    dispatch,
-    startWarmup,
-    answerWarmup,
-    skipWarmup,
-    triggerConceptCheck,
-    answerConceptCheck,
-    skipConceptCheck,
-    triggerInlesson,
-    answerInlesson,
-    skipInlesson,
-    startFormative,
-    answerFormative,
-    skipFormative,
-    loadSummary,
-  };
+  // Memoize context value to prevent unnecessary re-renders of consumers
+  const value = React.useMemo<AssessmentContextValue>(
+    () => ({
+      state,
+      quiz,
+      summary,
+      dispatch,
+      startWarmup,
+      answerWarmup,
+      skipWarmup,
+      triggerConceptCheck,
+      answerConceptCheck,
+      skipConceptCheck,
+      triggerInlesson,
+      answerInlesson,
+      skipInlesson,
+      startFormative,
+      answerFormative,
+      skipFormative,
+      loadSummary,
+    }),
+    [
+      state,
+      quiz,
+      summary,
+      startWarmup,
+      answerWarmup,
+      skipWarmup,
+      triggerConceptCheck,
+      answerConceptCheck,
+      skipConceptCheck,
+      triggerInlesson,
+      answerInlesson,
+      skipInlesson,
+      startFormative,
+      answerFormative,
+      skipFormative,
+      loadSummary,
+    ]
+  );
 
   return (
     <AssessmentContext.Provider value={value}>
@@ -1458,9 +1648,38 @@ export function InLessonQuestion({
     onComplete();
   };
 
+  /**
+   * Voice recording integration:
+   * This uses the existing LiveKit audio track from useLiveKit hook.
+   * When recording starts, the user speaks and their voice is captured
+   * by the LiveKit room's local audio track. The agent receives the audio
+   * stream and can transcribe it using Sarvam STT.
+   *
+   * Implementation options:
+   * 1. Use existing useLiveKit().startMicrophone() / stopMicrophone()
+   * 2. Use the agent's STT transcription (agent sends back transcribed text)
+   * 3. Use browser's Web Speech API for client-side transcription
+   *
+   * For now, this component supports text input primarily.
+   * Voice input flows through the LiveKit agent which transcribes and responds.
+   */
   const toggleRecording = () => {
-    setIsRecording(!isRecording);
-    // Voice recording integration would go here
+    if (isRecording) {
+      // Stop recording
+      setIsRecording(false);
+      // The agent will process the audio and send back the transcription
+      // via agentResponse prop, which triggers the useEffect above
+    } else {
+      // Start recording
+      setIsRecording(true);
+      // Notify agent that user is speaking for in-lesson question
+      onSendToAgent(
+        JSON.stringify({
+          type: "INLESSON_VOICE_START",
+          payload: { questionId: question.id },
+        })
+      );
+    }
   };
 
   // Show feedback if received from Sarvam
@@ -1806,6 +2025,563 @@ git commit -m "feat(components): add LearningSummary component for feedback disp
 
 ---
 
+### Task 9.1: Create ConceptCheck Component
+
+**Files:**
+- Create: `components/assessment/ConceptCheck.tsx`
+
+**Step 1: Create the component**
+
+```typescript
+// components/assessment/ConceptCheck.tsx
+"use client";
+
+import { useState, useEffect } from "react";
+import { cn } from "@/lib/utils";
+import { BookOpen, Loader2, CheckCircle, XCircle } from "lucide-react";
+import { useAssessment } from "@/contexts/AssessmentContext";
+import { parseSarvamFeedback } from "@/actions/assessment";
+import { useTTS } from "@/hooks/useTTS";
+import type { Chapter } from "@/types/assessment";
+
+interface ConceptCheckProps {
+  chapter: Chapter;
+  onComplete: () => void;
+  onSendToAgent: (message: string) => void;
+  agentResponse?: string | null;
+}
+
+export function ConceptCheck({
+  chapter,
+  onComplete,
+  onSendToAgent,
+  agentResponse,
+}: ConceptCheckProps) {
+  const { answerConceptCheck, skipConceptCheck } = useAssessment();
+  const { speak } = useTTS();
+  const [isLoading, setIsLoading] = useState(true);
+  const [question, setQuestion] = useState<string | null>(null);
+  const [userAnswer, setUserAnswer] = useState("");
+  const [feedback, setFeedback] = useState<{
+    isCorrect: boolean | null;
+    text: string;
+  } | null>(null);
+  const [questionCount, setQuestionCount] = useState(0);
+  const MAX_QUESTIONS = 2; // Concept check has 2 questions
+
+  // Request first question on mount
+  useEffect(() => {
+    // Agent should already have received CONCEPT_CHECK message
+    // Wait for agentResponse with first question
+  }, []);
+
+  // Process agent response
+  useEffect(() => {
+    if (!agentResponse) return;
+
+    setIsLoading(false);
+
+    // Check if this is a question or feedback
+    const hasFeedback = parseSarvamFeedback(agentResponse);
+
+    if (hasFeedback.isCorrect !== null && question) {
+      // This is feedback for previous answer
+      setFeedback({
+        isCorrect: hasFeedback.isCorrect,
+        text: agentResponse,
+      });
+      speak(agentResponse);
+
+      // Record the answer
+      answerConceptCheck(chapter.id, {
+        questionId: `cc-${chapter.id}-${questionCount}`,
+        selectedOption: userAnswer,
+        isCorrect: hasFeedback.isCorrect,
+        chapter_id: chapter.id,
+        timestamp: new Date(),
+      });
+
+      // Check if we should show next question or complete
+      if (questionCount >= MAX_QUESTIONS) {
+        // All questions done
+        setTimeout(() => {
+          onComplete();
+        }, 2000);
+      }
+    } else {
+      // This is a new question
+      setQuestion(agentResponse);
+      setFeedback(null);
+      setUserAnswer("");
+      setQuestionCount((prev) => prev + 1);
+      speak(agentResponse);
+    }
+  }, [agentResponse, question, questionCount, chapter.id, userAnswer, speak, answerConceptCheck, onComplete]);
+
+  const handleSubmit = () => {
+    if (!userAnswer.trim()) return;
+
+    setIsLoading(true);
+
+    // Send answer to agent for evaluation
+    onSendToAgent(
+      `ASSESSMENT:${JSON.stringify({
+        type: "CONCEPT_CHECK_ANSWER",
+        data: {
+          chapterId: chapter.id,
+          answer: userAnswer,
+          questionNumber: questionCount,
+        },
+      })}`
+    );
+  };
+
+  const handleSkip = () => {
+    skipConceptCheck(chapter.id);
+    onComplete();
+  };
+
+  const handleContinue = () => {
+    setFeedback(null);
+    setIsLoading(true);
+
+    // Request next question if not done
+    if (questionCount < MAX_QUESTIONS) {
+      onSendToAgent(
+        `ASSESSMENT:${JSON.stringify({
+          type: "CONCEPT_CHECK",
+          data: { chapter, requestNext: true },
+        })}`
+      );
+    } else {
+      onComplete();
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <BookOpen className="h-5 w-5 text-purple-600" />
+          <h3 className="text-lg font-semibold text-gray-900">
+            Concept Check: {chapter.title}
+          </h3>
+        </div>
+        <span className="text-sm text-gray-500">
+          {questionCount}/{MAX_QUESTIONS}
+        </span>
+      </div>
+
+      {/* Progress bar */}
+      <div className="h-1 bg-gray-200 rounded-full overflow-hidden">
+        <div
+          className="h-full bg-purple-500 transition-all duration-300"
+          style={{ width: `${(questionCount / MAX_QUESTIONS) * 100}%` }}
+        />
+      </div>
+
+      {/* Loading state */}
+      {isLoading && !question && (
+        <div className="flex flex-col items-center justify-center py-8 gap-3">
+          <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
+          <p className="text-sm text-gray-500">Generating concept check questions...</p>
+        </div>
+      )}
+
+      {/* Show feedback */}
+      {feedback && (
+        <div className="space-y-4">
+          <div
+            className={cn(
+              "flex items-center gap-2 p-3 rounded-lg",
+              feedback.isCorrect === true
+                ? "bg-green-50 text-green-700"
+                : feedback.isCorrect === false
+                ? "bg-amber-50 text-amber-700"
+                : "bg-blue-50 text-blue-700"
+            )}
+          >
+            {feedback.isCorrect === true ? (
+              <CheckCircle className="h-5 w-5" />
+            ) : feedback.isCorrect === false ? (
+              <XCircle className="h-5 w-5" />
+            ) : null}
+            <span className="font-medium">
+              {feedback.isCorrect ? "Correct!" : "Not quite right"}
+            </span>
+          </div>
+          <p className="text-sm text-gray-700 leading-relaxed">{feedback.text}</p>
+
+          <button
+            onClick={handleContinue}
+            className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-colors"
+          >
+            {questionCount >= MAX_QUESTIONS ? "Complete" : "Next Question"}
+          </button>
+        </div>
+      )}
+
+      {/* Question and answer */}
+      {question && !feedback && (
+        <div className="space-y-4">
+          <p className="text-base font-medium text-gray-900">{question}</p>
+
+          <textarea
+            value={userAnswer}
+            onChange={(e) => setUserAnswer(e.target.value)}
+            placeholder="Type your answer..."
+            disabled={isLoading}
+            className={cn(
+              "w-full p-3 border rounded-lg resize-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500",
+              isLoading && "opacity-50 cursor-not-allowed"
+            )}
+            rows={3}
+          />
+
+          <div className="flex gap-3">
+            <button
+              onClick={handleSubmit}
+              disabled={!userAnswer.trim() || isLoading}
+              className={cn(
+                "flex-1 px-4 py-2 rounded-lg font-medium transition-colors",
+                userAnswer.trim() && !isLoading
+                  ? "bg-purple-600 text-white hover:bg-purple-700"
+                  : "bg-gray-200 text-gray-400 cursor-not-allowed"
+              )}
+            >
+              {isLoading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Evaluating...
+                </span>
+              ) : (
+                "Submit"
+              )}
+            </button>
+            <button
+              onClick={handleSkip}
+              disabled={isLoading}
+              className="px-4 py-2 rounded-lg font-medium text-gray-600 hover:bg-gray-100 transition-colors"
+            >
+              Skip
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+```
+
+**Step 2: Commit**
+
+```bash
+git add components/assessment/ConceptCheck.tsx
+git commit -m "feat(components): add ConceptCheck component for chapter-end verification"
+```
+
+---
+
+### Task 9.2: Create FormativeAssessment Component
+
+**Files:**
+- Create: `components/assessment/FormativeAssessment.tsx`
+
+**Step 1: Create the component**
+
+```typescript
+// components/assessment/FormativeAssessment.tsx
+"use client";
+
+import { useState, useEffect } from "react";
+import { cn } from "@/lib/utils";
+import { ClipboardCheck, Loader2, CheckCircle, XCircle } from "lucide-react";
+import { useAssessment } from "@/contexts/AssessmentContext";
+import { parseSarvamFeedback, parseAssessmentContent } from "@/lib/chat/assessment";
+import { useTTS } from "@/hooks/useTTS";
+
+interface FormativeAssessmentProps {
+  onComplete: () => void;
+  onSendToAgent: (message: string) => void;
+  agentResponse?: string | null;
+}
+
+interface ParsedQuestion {
+  questionNumber: number;
+  questionText: string;
+  options?: string[];
+  isMultipleChoice: boolean;
+}
+
+export function FormativeAssessment({
+  onComplete,
+  onSendToAgent,
+  agentResponse,
+}: FormativeAssessmentProps) {
+  const { answerFormative, skipFormative } = useAssessment();
+  const { speak } = useTTS();
+  const [isLoading, setIsLoading] = useState(true);
+  const [currentQuestion, setCurrentQuestion] = useState<ParsedQuestion | null>(null);
+  const [userAnswer, setUserAnswer] = useState("");
+  const [selectedOption, setSelectedOption] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<{
+    isCorrect: boolean | null;
+    text: string;
+  } | null>(null);
+  const [questionCount, setQuestionCount] = useState(0);
+  const [isComplete, setIsComplete] = useState(false);
+
+  // Process agent response
+  useEffect(() => {
+    if (!agentResponse) return;
+
+    setIsLoading(false);
+
+    // Check if this is completion
+    if (
+      agentResponse.toLowerCase().includes("completed") ||
+      agentResponse.toLowerCase().includes("you scored") ||
+      agentResponse.toLowerCase().includes("all questions")
+    ) {
+      setIsComplete(true);
+      speak(agentResponse);
+      return;
+    }
+
+    // Check if this is feedback or new question
+    const feedbackResult = parseSarvamFeedback(agentResponse);
+    const parsed = parseAssessmentContent(agentResponse);
+
+    if (feedbackResult.isCorrect !== null && currentQuestion) {
+      // This is feedback for previous answer
+      setFeedback({
+        isCorrect: feedbackResult.isCorrect,
+        text: agentResponse,
+      });
+      speak(agentResponse);
+
+      // Record the answer
+      answerFormative(
+        `fa-${questionCount}`,
+        selectedOption || userAnswer,
+        feedbackResult.isCorrect
+      );
+
+      // Check if there's a next question in the response
+      if (parsed.questions.length > 0) {
+        const nextQ = parsed.questions[0];
+        setTimeout(() => {
+          setCurrentQuestion(nextQ);
+          setFeedback(null);
+          setUserAnswer("");
+          setSelectedOption(null);
+          setQuestionCount((prev) => prev + 1);
+          speak(nextQ.questionText);
+        }, 2000);
+      }
+    } else if (parsed.questions.length > 0) {
+      // This is a new question
+      const q = parsed.questions[0];
+      setCurrentQuestion(q);
+      setFeedback(null);
+      setUserAnswer("");
+      setSelectedOption(null);
+      setQuestionCount((prev) => prev + 1);
+      speak(q.questionText);
+    }
+  }, [agentResponse, currentQuestion, questionCount, selectedOption, userAnswer, speak, answerFormative]);
+
+  const handleSubmit = () => {
+    const answer = currentQuestion?.isMultipleChoice ? selectedOption : userAnswer;
+    if (!answer?.trim()) return;
+
+    setIsLoading(true);
+
+    // Send answer to Sarvam FA
+    onSendToAgent(
+      `ASSESSMENT:${JSON.stringify({
+        type: "FORMATIVE_ANSWER",
+        data: { answer },
+      })}`
+    );
+  };
+
+  const handleSkip = () => {
+    skipFormative();
+    onComplete();
+  };
+
+  const handleComplete = () => {
+    onComplete();
+  };
+
+  // Completion screen
+  if (isComplete) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-2 text-green-600">
+          <CheckCircle className="h-6 w-6" />
+          <h3 className="text-lg font-semibold">Assessment Complete!</h3>
+        </div>
+        <p className="text-sm text-gray-700 leading-relaxed">{agentResponse}</p>
+        <button
+          onClick={handleComplete}
+          className="w-full px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors"
+        >
+          View Learning Summary
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <ClipboardCheck className="h-5 w-5 text-blue-600" />
+          <h3 className="text-lg font-semibold text-gray-900">Quick Check</h3>
+        </div>
+        {questionCount > 0 && (
+          <span className="text-sm text-gray-500">Question {questionCount}</span>
+        )}
+      </div>
+
+      {/* Loading state */}
+      {isLoading && !currentQuestion && (
+        <div className="flex flex-col items-center justify-center py-8 gap-3">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+          <p className="text-sm text-gray-500">Generating assessment questions...</p>
+        </div>
+      )}
+
+      {/* Show feedback */}
+      {feedback && (
+        <div className="space-y-4">
+          <div
+            className={cn(
+              "flex items-center gap-2 p-3 rounded-lg",
+              feedback.isCorrect === true
+                ? "bg-green-50 text-green-700"
+                : feedback.isCorrect === false
+                ? "bg-amber-50 text-amber-700"
+                : "bg-blue-50 text-blue-700"
+            )}
+          >
+            {feedback.isCorrect === true ? (
+              <CheckCircle className="h-5 w-5" />
+            ) : feedback.isCorrect === false ? (
+              <XCircle className="h-5 w-5" />
+            ) : null}
+            <span className="font-medium">
+              {feedback.isCorrect ? "Correct!" : "Not quite right"}
+            </span>
+          </div>
+          <p className="text-sm text-gray-700 leading-relaxed">{feedback.text}</p>
+        </div>
+      )}
+
+      {/* Question */}
+      {currentQuestion && !feedback && (
+        <div className="space-y-4">
+          <p className="text-base font-medium text-gray-900">
+            {currentQuestion.questionText}
+          </p>
+
+          {/* MCQ Options */}
+          {currentQuestion.isMultipleChoice && currentQuestion.options && (
+            <div className="space-y-2">
+              {currentQuestion.options.map((option, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setSelectedOption(option)}
+                  disabled={isLoading}
+                  className={cn(
+                    "w-full flex items-center gap-3 p-3 rounded-lg border transition-all text-left",
+                    selectedOption === option
+                      ? "border-blue-500 bg-blue-50"
+                      : "border-gray-200 hover:border-gray-300 hover:bg-gray-50",
+                    isLoading && "opacity-50 cursor-not-allowed"
+                  )}
+                >
+                  <span className="text-sm">{option}</span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Text input for non-MCQ */}
+          {!currentQuestion.isMultipleChoice && (
+            <textarea
+              value={userAnswer}
+              onChange={(e) => setUserAnswer(e.target.value)}
+              placeholder="Type your answer..."
+              disabled={isLoading}
+              className={cn(
+                "w-full p-3 border rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500",
+                isLoading && "opacity-50 cursor-not-allowed"
+              )}
+              rows={3}
+            />
+          )}
+
+          <div className="flex gap-3">
+            <button
+              onClick={handleSubmit}
+              disabled={
+                isLoading ||
+                (currentQuestion.isMultipleChoice ? !selectedOption : !userAnswer.trim())
+              }
+              className={cn(
+                "flex-1 px-4 py-2 rounded-lg font-medium transition-colors",
+                (currentQuestion.isMultipleChoice ? selectedOption : userAnswer.trim()) &&
+                  !isLoading
+                  ? "bg-blue-600 text-white hover:bg-blue-700"
+                  : "bg-gray-200 text-gray-400 cursor-not-allowed"
+              )}
+            >
+              {isLoading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Evaluating...
+                </span>
+              ) : (
+                "Submit"
+              )}
+            </button>
+            <button
+              onClick={handleSkip}
+              disabled={isLoading}
+              className="px-4 py-2 rounded-lg font-medium text-gray-600 hover:bg-gray-100 transition-colors"
+            >
+              Skip Assessment
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Waiting for next question */}
+      {!currentQuestion && !isLoading && feedback && (
+        <div className="flex items-center justify-center py-4">
+          <Loader2 className="h-5 w-5 animate-spin text-blue-600 mr-2" />
+          <span className="text-sm text-gray-500">Loading next question...</span>
+        </div>
+      )}
+    </div>
+  );
+}
+```
+
+**Step 2: Commit**
+
+```bash
+git add components/assessment/FormativeAssessment.tsx
+git commit -m "feat(components): add FormativeAssessment component for end-of-lesson quiz"
+```
+
+---
+
 ### Task 10: Create Assessment Components Index
 
 **Files:**
@@ -1818,7 +2594,9 @@ git commit -m "feat(components): add LearningSummary component for feedback disp
 export { QuizQuestion } from "./QuizQuestion";
 export { QuizFeedback } from "./QuizFeedback";
 export { WarmupQuiz } from "./WarmupQuiz";
+export { ConceptCheck } from "./ConceptCheck";
 export { InLessonQuestion } from "./InLessonQuestion";
+export { FormativeAssessment } from "./FormativeAssessment";
 export { LearningSummary } from "./LearningSummary";
 ```
 
@@ -1853,6 +2631,36 @@ Add imports at the top:
 
 ```typescript
 import type { Chapter, InlessonQuestion, LessonQuiz } from "@/types/assessment";
+```
+
+**Reference: Types being imported (from Task 1: `types/assessment.ts`)**
+
+```typescript
+// Chapter type - represents a content section in the lesson
+interface Chapter {
+  id: string;
+  title: string;
+  start_timestamp: number;      // in seconds
+  end_timestamp: number;        // in seconds
+  description?: string;
+  concept_check_enabled: boolean;
+}
+
+// InlessonQuestion type - professor's question during video
+interface InlessonQuestion {
+  id: string;
+  question: string;
+  timestamp: number;            // in seconds
+  type: "text" | "voice";
+  chapter_id?: string;
+}
+
+// LessonQuiz type - full quiz data for a lesson
+interface LessonQuiz {
+  chapters: Chapter[];
+  warmup: QuizQuestion[];
+  inlesson: InlessonQuestion[];
+}
 ```
 
 Add new refs after `triggeredBookmarksRef` (around line 64):
@@ -1962,6 +2770,73 @@ const resumeVideo = useCallback(() => {
 
 Update return statement to include `resumeVideo`.
 
+**Step 1.5: Add trigger reset on video seek**
+
+When users seek backward past a trigger point, the assessment should re-trigger. Add a function to reset triggers for timestamps ahead of the seek position:
+
+```typescript
+/**
+ * Reset assessment triggers that are ahead of the given timestamp.
+ * Called when user seeks backward to allow re-triggering assessments.
+ */
+const resetTriggersAfterTimestamp = useCallback((timestampSec: number) => {
+  const currentQuiz = quizRef.current;
+  if (!currentQuiz) return;
+
+  // Reset inlesson triggers that are past the new timestamp
+  currentQuiz.inlesson.forEach((question) => {
+    if (question.timestamp > timestampSec) {
+      triggeredInlessonRef.current.delete(question.id);
+      console.log(`Reset inlesson trigger for ${question.id} at ${question.timestamp}s`);
+    }
+  });
+
+  // Reset chapter triggers that are past the new timestamp
+  currentQuiz.chapters.forEach((chapter) => {
+    if (chapter.end_timestamp > timestampSec) {
+      triggeredChaptersRef.current.delete(chapter.id);
+      console.log(`Reset chapter trigger for ${chapter.id} at ${chapter.end_timestamp}s`);
+    }
+  });
+
+  // Also reset FA bookmark triggers that are past the new timestamp
+  const currentBookmarks = bookmarksRef.current;
+  currentBookmarks.forEach((bookmark) => {
+    const bookmarkId = bookmark.id || `${bookmark.rel_offset}`;
+    const bookmarkTimeSec = bookmark.rel_offset / 1000;
+    if (bookmarkTimeSec > timestampSec) {
+      triggeredBookmarksRef.current.delete(bookmarkId);
+      console.log(`Reset bookmark trigger for ${bookmarkId} at ${bookmarkTimeSec}s`);
+    }
+  });
+}, []);
+```
+
+Modify the existing `seekTo` function to call reset logic:
+
+```typescript
+const seekTo = useCallback((seconds: number) => {
+  if (playerRef.current) {
+    const currentTimeSec = playerRef.current.getCurrentTime() / 1000;
+
+    // If seeking backward, reset triggers that are ahead of new position
+    if (seconds < currentTimeSec) {
+      resetTriggersAfterTimestamp(seconds);
+    }
+
+    playerRef.current.seekTo(seconds * 1000); // Convert to milliseconds
+    console.log(`Seeking to ${seconds} seconds`);
+    return true;
+  }
+  return false;
+}, [resetTriggersAfterTimestamp]);
+```
+
+**Note:** The `resetTriggersAfterTimestamp` function ensures that:
+- Assessments can re-trigger if user seeks backward past them
+- Assessments that have already been passed don't re-trigger on forward seek
+- Both inlesson questions and concept checks are handled
+
 **Step 2: Commit**
 
 ```bash
@@ -1976,33 +2851,325 @@ git commit -m "feat(hooks): add assessment trigger support to useKPointPlayer"
 ### Task 12: Integrate Assessment System into ModuleContent
 
 **Files:**
-- Modify: `app/(learning)/course/[courseId]/module/[moduleId]/ModuleContent.tsx`
+- Modify: `components/app/(learning)/course/[courseId]/module/[moduleId]/ModuleContent.tsx`
 
-This task requires reading the current ModuleContent file and carefully integrating:
-1. Import AssessmentProvider and assessment components
-2. Wrap content with AssessmentProvider
-3. Parse quiz data from lesson
-4. Add assessment UI rendering based on phase
-5. Connect video player triggers to assessment context
-6. Handle agent messages for assessment responses
+**Step 1: Add imports**
 
-**Step 1: Read current file and plan integration points**
+Add these imports at the top of the file (after existing imports around line 21):
 
-The integration involves:
-- Adding imports for assessment components and context
-- Parsing `lesson.quiz` JSON and passing to AssessmentProvider
-- Adding handlers for `onConceptCheck` and `onInlesson` from video player
-- Rendering assessment UI based on `state.phase`
-- Handling assessment messages in agent communication
+```typescript
+// Assessment imports
+import { AssessmentProvider, useAssessment } from "@/contexts/AssessmentContext";
+import {
+  WarmupQuiz,
+  ConceptCheck,
+  InLessonQuestion,
+  FormativeAssessment,
+  LearningSummary,
+} from "@/components/assessment";
+import type { LessonQuiz, Chapter, InlessonQuestion as InlessonQuestionType } from "@/types/assessment";
+```
 
-**Step 2: Make incremental changes**
+**Step 2: Update Lesson interface to include quiz**
 
-(Detailed code changes depend on current ModuleContent.tsx structure)
+Update the Lesson interface (around line 23):
 
-**Step 3: Commit**
+```typescript
+interface Lesson {
+  id: string;
+  title: string;
+  orderIndex: number;
+  kpointVideoId?: string | null;
+  youtubeVideoId?: string | null;
+  description?: string | null;
+  quiz?: LessonQuiz | null; // Add quiz field
+}
+```
+
+**Step 3: Add assessment state and handlers**
+
+Add these state variables after existing state (around line 89):
+
+```typescript
+// Assessment state
+const [activeAssessmentPhase, setActiveAssessmentPhase] = useState<
+  "idle" | "warmup" | "concept_check" | "inlesson" | "formative" | "summary"
+>("idle");
+const [activeInlessonQuestion, setActiveInlessonQuestion] = useState<InlessonQuestionType | null>(null);
+const [activeChapter, setActiveChapter] = useState<Chapter | null>(null);
+const [agentAssessmentResponse, setAgentAssessmentResponse] = useState<string | null>(null);
+
+// Parse quiz data from active lesson
+const lessonQuiz: LessonQuiz | null = useMemo(() => {
+  if (!activeLesson?.quiz) return null;
+  try {
+    // quiz is already parsed JSON from Prisma
+    return activeLesson.quiz as LessonQuiz;
+  } catch {
+    console.error("Failed to parse lesson quiz data");
+    return null;
+  }
+}, [activeLesson?.quiz]);
+```
+
+**Step 4: Add assessment trigger handlers**
+
+Add these handlers after the FA intro handlers (around line 600):
+
+```typescript
+// Handle concept check trigger from video player
+const handleConceptCheck = useCallback((chapter: Chapter) => {
+  console.log("[ModuleContent] Concept check triggered for chapter:", chapter.title);
+  setActiveChapter(chapter);
+  setActiveAssessmentPhase("concept_check");
+
+  // Send to agent for Sarvam-generated questions
+  if (liveKit.isConnected) {
+    const message = `ASSESSMENT:${JSON.stringify({
+      type: "CONCEPT_CHECK",
+      data: { chapter }
+    })}`;
+    liveKit.sendTextToAgent(message);
+  }
+}, [liveKit.isConnected, liveKit.sendTextToAgent]);
+
+// Handle inlesson question trigger from video player
+const handleInlesson = useCallback((question: InlessonQuestionType) => {
+  console.log("[ModuleContent] Inlesson question triggered:", question.question);
+  setActiveInlessonQuestion(question);
+  setActiveAssessmentPhase("inlesson");
+}, []);
+
+// Handle assessment complete - resume video
+const handleAssessmentComplete = useCallback(() => {
+  console.log("[ModuleContent] Assessment complete, resuming video");
+  setActiveAssessmentPhase("idle");
+  setActiveInlessonQuestion(null);
+  setActiveChapter(null);
+  setAgentAssessmentResponse(null);
+
+  // Resume video
+  if (playerRef.current?.playVideo) {
+    playerRef.current.playVideo();
+  }
+}, [playerRef]);
+
+// Handle warmup start
+const handleStartWarmup = useCallback(() => {
+  setActiveAssessmentPhase("warmup");
+}, []);
+
+// Handle warmup complete
+const handleWarmupComplete = useCallback(() => {
+  setActiveAssessmentPhase("idle");
+  // Video will start playing after warmup
+}, []);
+
+// Handle formative start
+const handleStartFormative = useCallback(() => {
+  setActiveAssessmentPhase("formative");
+
+  if (liveKit.isConnected) {
+    const message = `ASSESSMENT:${JSON.stringify({
+      type: "FORMATIVE_START",
+      data: { lessonId: activeLesson?.id }
+    })}`;
+    liveKit.sendTextToAgent(message);
+  }
+}, [liveKit.isConnected, liveKit.sendTextToAgent, activeLesson?.id]);
+
+// Handle formative complete
+const handleFormativeComplete = useCallback(() => {
+  setActiveAssessmentPhase("summary");
+}, []);
+
+// Handle sending assessment answer to agent
+const handleSendAssessmentToAgent = useCallback((message: string) => {
+  if (liveKit.isConnected) {
+    liveKit.sendTextToAgent(message);
+  }
+}, [liveKit.isConnected, liveKit.sendTextToAgent]);
+```
+
+**Step 5: Update useKPointPlayer to include assessment triggers**
+
+Update the useKPointPlayer call (around line 453):
+
+```typescript
+// KPoint player hook with FA trigger and assessment integration
+const { seekTo, getCurrentTime, isPlayerReady, isPlaying, playerRef, resumeVideo } = useKPointPlayer({
+  kpointVideoId: selectedLesson?.kpointVideoId,
+  onVideoEnd: handleVideoEnd,
+  onConceptCheck: handleConceptCheck, // NEW: concept check trigger
+  onInlesson: handleInlesson, // NEW: inlesson trigger
+  quiz: lessonQuiz, // NEW: pass quiz data for timestamp detection
+  onFATrigger: async (_message: string, _timestampSeconds: number, topic?: string, _pauseVideo?: boolean) => {
+    // ... existing FA trigger code
+  },
+});
+```
+
+**Step 6: Add assessment UI rendering**
+
+Add this component before the `content` variable (around line 650):
+
+```typescript
+// Assessment UI based on current phase
+const assessmentUI = useMemo(() => {
+  if (!lessonQuiz) return null;
+
+  switch (activeAssessmentPhase) {
+    case "warmup":
+      return (
+        <div className="p-4 bg-white rounded-lg shadow-md mb-4">
+          <WarmupQuiz onComplete={handleWarmupComplete} />
+        </div>
+      );
+
+    case "concept_check":
+      if (!activeChapter) return null;
+      return (
+        <div className="p-4 bg-white rounded-lg shadow-md mb-4">
+          <ConceptCheck
+            chapter={activeChapter}
+            onComplete={handleAssessmentComplete}
+            onSendToAgent={handleSendAssessmentToAgent}
+            agentResponse={agentAssessmentResponse}
+          />
+        </div>
+      );
+
+    case "inlesson":
+      if (!activeInlessonQuestion) return null;
+      return (
+        <div className="p-4 bg-white rounded-lg shadow-md mb-4">
+          <InLessonQuestion
+            question={activeInlessonQuestion}
+            onComplete={handleAssessmentComplete}
+            onSendToAgent={handleSendAssessmentToAgent}
+            agentResponse={agentAssessmentResponse}
+          />
+        </div>
+      );
+
+    case "formative":
+      return (
+        <div className="p-4 bg-white rounded-lg shadow-md mb-4">
+          <FormativeAssessment
+            onComplete={handleFormativeComplete}
+            onSendToAgent={handleSendAssessmentToAgent}
+            agentResponse={agentAssessmentResponse}
+          />
+        </div>
+      );
+
+    case "summary":
+      return (
+        <div className="p-4 bg-white rounded-lg shadow-md mb-4">
+          <LearningSummary
+            onReviewNow={() => {
+              // TODO: Navigate to review content
+              console.log("Review now clicked");
+            }}
+            onContinue={() => {
+              setActiveAssessmentPhase("idle");
+              handleVideoEnd(); // Move to next lesson
+            }}
+          />
+        </div>
+      );
+
+    default:
+      return null;
+  }
+}, [
+  lessonQuiz,
+  activeAssessmentPhase,
+  activeChapter,
+  activeInlessonQuestion,
+  agentAssessmentResponse,
+  handleWarmupComplete,
+  handleAssessmentComplete,
+  handleSendAssessmentToAgent,
+  handleFormativeComplete,
+  handleVideoEnd,
+]);
+```
+
+**Step 7: Update content to include assessment UI**
+
+Update the content variable (around line 686) to include assessmentUI:
+
+```typescript
+const content = (
+  <div className="space-y-6 pb-3">
+    {/* Assessment UI - shows above chat when active */}
+    {assessmentUI}
+
+    {/* AI Welcome Agent */}
+    <ChatAgent
+      // ... existing props
+    />
+  </div>
+);
+```
+
+**Step 8: Wrap return with AssessmentProvider**
+
+Update the return statement (around line 750):
+
+```typescript
+return (
+  <AssessmentProvider
+    lessonId={activeLesson?.id || ""}
+    userId={userId}
+    quiz={lessonQuiz}
+  >
+    <>
+      <AnimatedBackground variant="full" intensity="medium" theme="learning" />
+      <OnboardingModal isReturningUser={isReturningUser} />
+      <Script
+        src="https://assets.zencite.in/orca/media/embed/videofront-vega.js"
+        strategy="afterInteractive"
+      />
+      <ResizableContent
+        header={header}
+        content={content}
+        footer={footer}
+        rightPanel={rightPanel}
+      />
+    </>
+  </AssessmentProvider>
+);
+```
+
+**Step 9: Handle agent assessment responses**
+
+Add handler for agent assessment responses in the transcript callback (update handleTranscriptCallback around line 186):
+
+```typescript
+// Inside handleTranscriptCallback, add check for assessment responses
+if (segment.isFinal && segment.text.startsWith("ASSESSMENT_RESPONSE:")) {
+  try {
+    const responseData = JSON.parse(segment.text.replace("ASSESSMENT_RESPONSE:", ""));
+    setAgentAssessmentResponse(responseData.feedback);
+    // Clear transcript so it doesn't appear in regular chat
+    setTimeout(() => {
+      if (clearAgentTranscriptRef.current) {
+        clearAgentTranscriptRef.current();
+      }
+    }, 100);
+    return; // Don't process as regular message
+  } catch (e) {
+    console.error("Failed to parse assessment response:", e);
+  }
+}
+```
+
+**Step 2: Commit**
 
 ```bash
-git add app/(learning)/course/[courseId]/module/[moduleId]/ModuleContent.tsx
+git add components/app/(learning)/course/[courseId]/module/[moduleId]/ModuleContent.tsx
 git commit -m "feat(learning): integrate assessment system into ModuleContent"
 ```
 
@@ -2086,15 +3253,264 @@ bun run scripts/add-sample-quiz.ts
 
 ---
 
+## Phase 5: Agent Integration
+
+### Task 14: Update BODH Agent for Assessment Messages
+
+**Files:**
+- Modify: `lib/livekit/agent.py` (or equivalent agent implementation file)
+
+**Context:** The BODH LiveKit agent needs to handle new assessment-related message types to coordinate concept checks, formative assessments, and provide real-time feedback through Sarvam QnA and FA APIs.
+
+**Step 1: Add message type handlers**
+
+The agent should handle these message types from the client:
+
+```python
+# Message types to handle
+ASSESSMENT_MESSAGE_TYPES = {
+    "CONCEPT_CHECK": "concept_check",           # Start concept check for chapter
+    "CONCEPT_CHECK_ANSWER": "concept_check_answer",  # User answer to concept check
+    "CONCEPT_CHECK_SKIP": "concept_check_skip",     # User skips concept check
+    "FORMATIVE_QUESTION": "formative_question",  # Generate formative question
+    "FORMATIVE_ANSWER": "formative_answer",      # User answer to formative
+    "INLESSON_QUESTION": "inlesson_question",    # Text/voice answer to inlesson
+}
+
+async def handle_assessment_message(self, msg_type: str, payload: dict) -> dict:
+    """Handle assessment-related messages from client."""
+
+    if msg_type == "CONCEPT_CHECK":
+        # Request Sarvam QnA to generate a question about the chapter topic
+        chapter_id = payload["chapterId"]
+        topic = payload["topic"]
+        return await self.generate_concept_check_question(chapter_id, topic)
+
+    elif msg_type == "CONCEPT_CHECK_ANSWER":
+        # Send answer to Sarvam QnA for evaluation
+        user_answer = payload["answer"]
+        question = payload["question"]
+        return await self.evaluate_concept_check_answer(user_answer, question)
+
+    elif msg_type == "CONCEPT_CHECK_SKIP":
+        # Acknowledge skip, no Sarvam call needed
+        return {"status": "skipped", "canProceed": True}
+
+    elif msg_type == "FORMATIVE_QUESTION":
+        # Use Sarvam FA to generate formative assessment question
+        topic = payload.get("topic")
+        timestamp = payload.get("timestamp")
+        return await self.generate_formative_question(topic, timestamp)
+
+    elif msg_type == "FORMATIVE_ANSWER":
+        # Evaluate answer using Sarvam FA
+        user_answer = payload["answer"]
+        question = payload["question"]
+        return await self.evaluate_formative_answer(user_answer, question)
+
+    elif msg_type == "INLESSON_QUESTION":
+        # Handle in-lesson question (usually just acknowledge receipt)
+        return {"status": "received"}
+```
+
+**Step 2: Add retry helper for Sarvam API calls**
+
+```python
+import asyncio
+from typing import Callable, TypeVar, Any
+
+T = TypeVar('T')
+
+# Configuration for Sarvam API retry logic
+SARVAM_RETRY_CONFIG = {
+    "max_retries": 3,
+    "initial_delay": 1.0,  # seconds
+    "max_delay": 10.0,     # seconds
+    "backoff_factor": 2.0,
+}
+
+async def retry_with_backoff(
+    func: Callable[..., T],
+    *args,
+    max_retries: int = SARVAM_RETRY_CONFIG["max_retries"],
+    initial_delay: float = SARVAM_RETRY_CONFIG["initial_delay"],
+    max_delay: float = SARVAM_RETRY_CONFIG["max_delay"],
+    backoff_factor: float = SARVAM_RETRY_CONFIG["backoff_factor"],
+    **kwargs
+) -> T:
+    """
+    Retry an async function with exponential backoff.
+
+    Args:
+        func: Async function to call
+        max_retries: Maximum number of retry attempts
+        initial_delay: Initial delay between retries in seconds
+        max_delay: Maximum delay between retries in seconds
+        backoff_factor: Multiplier for delay after each retry
+
+    Returns:
+        Result from the function
+
+    Raises:
+        Last exception if all retries fail
+    """
+    last_exception = None
+    delay = initial_delay
+
+    for attempt in range(max_retries + 1):
+        try:
+            return await func(*args, **kwargs)
+        except Exception as e:
+            last_exception = e
+            if attempt == max_retries:
+                break
+
+            # Log retry attempt
+            print(f"[Sarvam API] Attempt {attempt + 1} failed: {e}. Retrying in {delay}s...")
+
+            await asyncio.sleep(delay)
+            delay = min(delay * backoff_factor, max_delay)
+
+    raise last_exception
+```
+
+**Step 3: Implement Sarvam API integration methods with retry**
+
+```python
+async def generate_concept_check_question(self, chapter_id: str, topic: str) -> dict:
+    """Generate a concept check question using Sarvam QnA."""
+    try:
+        prompt = f"Generate a concept check question about: {topic}"
+        response = await retry_with_backoff(self.sarvam_client.qna, prompt)
+        return {
+            "type": "CONCEPT_CHECK_QUESTION",
+            "question": response.get("question", ""),
+            "chapterId": chapter_id,
+        }
+    except Exception as e:
+        print(f"[generate_concept_check_question] Failed after retries: {e}")
+        return {
+            "type": "CONCEPT_CHECK_ERROR",
+            "error": "Failed to generate question. Please try again.",
+            "chapterId": chapter_id,
+        }
+
+async def evaluate_concept_check_answer(self, answer: str, question: str) -> dict:
+    """Evaluate user's concept check answer using Sarvam QnA."""
+    try:
+        response = await retry_with_backoff(
+            self.sarvam_client.qna_evaluate,
+            question=question,
+            answer=answer
+        )
+        return {
+            "type": "CONCEPT_CHECK_FEEDBACK",
+            "isCorrect": response.get("is_correct"),
+            "feedback": response.get("feedback", ""),
+        }
+    except Exception as e:
+        print(f"[evaluate_concept_check_answer] Failed after retries: {e}")
+        return {
+            "type": "CONCEPT_CHECK_FEEDBACK",
+            "isCorrect": None,
+            "feedback": "Unable to evaluate your answer. Let's move on.",
+            "error": True,
+        }
+
+async def generate_formative_question(self, topic: str, timestamp: float) -> dict:
+    """Generate formative assessment using Sarvam FA."""
+    try:
+        response = await retry_with_backoff(
+            self.sarvam_client.fa,
+            topic=topic,
+            context=f"At timestamp {timestamp}"
+        )
+        return {
+            "type": "FORMATIVE_QUESTION",
+            "question": response.get("question", ""),
+            "topic": topic,
+        }
+    except Exception as e:
+        print(f"[generate_formative_question] Failed after retries: {e}")
+        return {
+            "type": "FORMATIVE_ERROR",
+            "error": "Failed to generate assessment. Please try again.",
+            "topic": topic,
+        }
+
+async def evaluate_formative_answer(self, answer: str, question: str) -> dict:
+    """Evaluate formative answer using Sarvam FA."""
+    try:
+        response = await retry_with_backoff(
+            self.sarvam_client.fa_evaluate,
+            question=question,
+            answer=answer
+        )
+        return {
+            "type": "FORMATIVE_FEEDBACK",
+            "isCorrect": response.get("is_correct"),
+            "feedback": response.get("feedback", ""),
+        }
+    except Exception as e:
+        print(f"[evaluate_formative_answer] Failed after retries: {e}")
+        return {
+            "type": "FORMATIVE_FEEDBACK",
+            "isCorrect": None,
+            "feedback": "Unable to evaluate your answer. Let's continue.",
+            "error": True,
+        }
+```
+
+**Step 3: Add message routing to main handler**
+
+```python
+async def on_data_received(self, data: dict):
+    """Main message handler - route to appropriate handler."""
+    msg_type = data.get("type", "")
+
+    if msg_type in ASSESSMENT_MESSAGE_TYPES:
+        response = await self.handle_assessment_message(msg_type, data.get("payload", {}))
+        await self.send_data(response)
+    else:
+        # Existing chat/conversation handling
+        await self.handle_chat_message(data)
+```
+
+**Step 4: Test the agent integration**
+
+```bash
+# Start the agent in development mode
+cd /path/to/agent
+python -m livekit.agents dev agent.py
+
+# Test with a sample message from the client
+# The ModuleContent component should send messages and receive responses
+```
+
+**Step 5: Commit**
+
+```bash
+git add lib/livekit/agent.py
+git commit -m "feat(agent): add assessment message handlers for Sarvam integration"
+```
+
+---
+
+### Task 15: Add Sample Quiz Data to Lesson
+
+**Note:** This was previously Task 13, renumbered after adding Task 14.
+
+---
+
 ## Summary
 
-**Total Tasks:** 13
+**Total Tasks:** 15
 
 **Phase 1 (Foundation):** Tasks 1-3
 - Types, Prisma models, Server actions
 
 **Phase 2 (Components):** Tasks 4-10
-- AssessmentProvider, QuizQuestion, QuizFeedback, WarmupQuiz, InLessonQuestion, LearningSummary
+- AssessmentProvider, QuizQuestion, QuizFeedback, WarmupQuiz, ConceptCheck, InLessonQuestion, FormativeAssessment, LearningSummary
 
 **Phase 3 (Video Integration):** Task 11
 - Update useKPointPlayer for assessment triggers
@@ -2102,7 +3518,10 @@ bun run scripts/add-sample-quiz.ts
 **Phase 4 (Integration):** Task 12
 - Integrate into ModuleContent
 
-**Phase 5 (Testing):** Task 13
+**Phase 5 (Agent Integration):** Task 14
+- Update BODH Agent for assessment message types
+
+**Phase 6 (Testing):** Task 15
 - Sample data and validation
 
 ---
@@ -2126,3 +3545,164 @@ bun run scripts/add-sample-quiz.ts
 **Logic:** Searches first 200 characters for patterns. If both found, whichever appears first wins. Returns `null` if uncertain.
 
 **New wrapper:** `parseSarvamFeedback()` in `actions/assessment.ts` wraps this function and returns `{ isCorrect: boolean | null, feedback: string }`.
+
+### Migration Strategy
+
+**Phase 1: Database Schema (Non-Breaking)**
+
+1. Run `prisma db push` to add new AssessmentAttempt and AssessmentSession tables
+2. No existing tables are modified - this is additive only
+3. Existing lessons continue to work without quiz data
+
+**Phase 2: Backend Deployment**
+
+1. Deploy server actions (`actions/assessment.ts`) - they're new files, no conflicts
+2. Deploy types (`types/assessment.ts`) - new file, no conflicts
+3. Update BODH agent with assessment message handlers - the agent can coexist with existing functionality
+
+**Phase 3: Frontend Deployment**
+
+1. Deploy assessment components - new files in `components/assessment/`
+2. Deploy updated context provider - wrap existing content, doesn't break current behavior
+3. Deploy updated `useKPointPlayer.ts` - adds optional props, backwards compatible
+
+**Phase 4: Feature Flag Rollout (Recommended)**
+
+Consider adding a feature flag to control assessment visibility:
+
+```typescript
+// In AssessmentProvider or ModuleContent
+const assessmentEnabled = process.env.NEXT_PUBLIC_ASSESSMENT_ENABLED === "true";
+
+// Conditionally render assessment UI
+{assessmentEnabled && quiz && (
+  <AssessmentProvider ...>
+    {/* Assessment components */}
+  </AssessmentProvider>
+)}
+```
+
+**Phase 5: Data Migration (Optional)**
+
+If existing lessons need quiz data:
+
+```sql
+-- Add quiz JSON to lessons that need it
+UPDATE "Lesson"
+SET quiz = '{"chapters":[],"warmup":[],"inlesson":[]}'::jsonb
+WHERE quiz IS NULL;
+```
+
+**Rollback Plan:**
+
+1. Set `NEXT_PUBLIC_ASSESSMENT_ENABLED=false` to disable UI
+2. Assessment data in database is isolated and doesn't affect core functionality
+3. Remove AssessmentProvider wrapper to restore original ModuleContent behavior
+
+### Future Enhancements (Out of Scope for Initial Release)
+
+**1. Analytics & Telemetry**
+
+Track assessment engagement metrics for learning insights:
+
+```typescript
+// Example analytics events to implement later
+interface AssessmentAnalytics {
+  // Session metrics
+  sessionStarted: { userId: string; lessonId: string; timestamp: Date };
+  sessionCompleted: { userId: string; lessonId: string; duration: number };
+
+  // Question metrics
+  questionAnswered: {
+    questionId: string;
+    questionType: "warmup" | "concept_check" | "inlesson" | "formative";
+    timeToAnswer: number;  // milliseconds
+    isCorrect: boolean;
+    attemptNumber: number;
+  };
+  questionSkipped: { questionId: string; questionType: string };
+
+  // Engagement metrics
+  videoWatchTime: { lessonId: string; totalSeconds: number; pauseCount: number };
+  conceptCheckEngagement: { chapterId: string; questionsAnswered: number; correctRate: number };
+}
+```
+
+Consider integrating with:
+- PostHog for product analytics
+- Custom dashboard for learning analytics
+- Export to LMS systems (xAPI/SCORM)
+
+**2. End-to-End Testing**
+
+Create Playwright tests for critical user flows:
+
+```typescript
+// tests/assessment.spec.ts - future implementation
+test.describe("Formative Assessment Flow", () => {
+  test("warmup quiz completion", async ({ page }) => {
+    // Navigate to lesson with quiz
+    // Verify warmup modal appears
+    // Answer questions
+    // Verify feedback display
+    // Verify progression to video
+  });
+
+  test("concept check at chapter end", async ({ page }) => {
+    // Seek video to chapter end timestamp
+    // Verify concept check modal appears
+    // Test answer submission
+    // Verify video resumes after completion
+  });
+
+  test("in-lesson question interruption", async ({ page }) => {
+    // Verify video pauses at question timestamp
+    // Submit text answer
+    // Verify feedback from Sarvam
+    // Verify video continues
+  });
+
+  test("learning summary generation", async ({ page }) => {
+    // Complete multiple assessments
+    // Trigger summary generation
+    // Verify chapters understood vs to review
+    // Verify suggested resources display
+  });
+});
+```
+
+**3. Voice Transcription Strategy**
+
+Voice input is supported via LiveKit's audio track. For transcription:
+
+**Option A: Agent-side Sarvam STT (Recommended)**
+- User speaks into LiveKit room
+- BODH agent receives audio stream
+- Agent calls Sarvam STT API for transcription
+- Agent sends transcribed text back to client
+- Client displays transcription and processes as text input
+
+**Option B: Client-side Web Speech API (Fallback)**
+```typescript
+// Browser's built-in speech recognition (limited multilingual support)
+const recognition = new webkitSpeechRecognition();
+recognition.lang = "hi-IN"; // Hindi
+recognition.onresult = (event) => {
+  const transcript = event.results[0][0].transcript;
+  setTextInput(transcript);
+};
+```
+
+**Option C: Hybrid Approach**
+- Use client-side for real-time display of transcription
+- Confirm with agent-side Sarvam STT for accuracy
+- Handle language switching (Hindi/English) based on user preference
+
+**4. Multilingual Support**
+
+The design doc mentions Hindi support (script_mockup.txt lines 127-138). Implementation notes:
+
+- Store user's preferred language in session/profile
+- TTS already uses OpenAI with language support
+- Sarvam API supports Hindi responses
+- Consider adding Devanagari text rendering in feedback components
