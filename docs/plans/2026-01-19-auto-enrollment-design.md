@@ -1,7 +1,8 @@
 # Auto-Enrollment Design
 
 **Date:** 2026-01-19
-**Status:** Design Complete
+**Status:** Implemented ✅
+**Implemented:** 2026-01-19
 **Author:** Claude Code
 
 ## Problem Statement
@@ -310,3 +311,43 @@ If issues arise:
 - No signup/sign-in failures due to enrollment logic
 - All existing users backfilled successfully
 - Zero duplicate enrollments created
+
+---
+
+## Implementation Notes
+
+**Implemented on:** 2026-01-19
+
+**Testing Results:**
+- Migration script dry-run: ✅ Identified 5 users without enrollments
+- Migration script production: ✅ Backfilled 5 users with 10 total enrollments (2 courses × 5 users)
+- Idempotency: ✅ Script safe to re-run (0 new enrollments on second run)
+- Final verification: ✅ All 6 users have enrollments (11 total enrollments)
+
+**Files Created:**
+- `actions/enrollment.ts` - Auto-enrollment helper function
+- `scripts/backfill-enrollments.ts` - Backfill script for existing users
+- `scripts/verify-enrollments.ts` - Verification script
+
+**Files Modified:**
+- `actions/auth.ts` - Credentials signup integration
+- `auth.ts` - Google OAuth integration
+
+**Database State:**
+- Total users: 6
+- Users with enrollments: 6 (100%)
+- Users without enrollments: 0
+- Total enrollments: 11
+- Published courses: 2
+
+**Manual Testing Required:**
+- ⏳ Credentials signup auto-enrollment (requires UI testing)
+- ⏳ Google OAuth first-time auto-enrollment (requires UI testing)
+- ⏳ Google OAuth returning user - no duplicates (requires UI testing)
+
+**Deployment Notes:**
+- No schema changes required
+- Migration script can be run on production database
+- Auto-enrollment happens asynchronously, doesn't block auth flows
+- All errors are caught and logged, don't break user signup/signin
+- Script is idempotent and safe to re-run
