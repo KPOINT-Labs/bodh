@@ -47,6 +47,12 @@ RUN curl -fsSL https://bun.sh/install | bash -s "bun-v${BUN_VERSION}" && \
 
 WORKDIR /app
 
+# Accept build arguments (for Prisma generation and Next.js build)
+ARG DATABASE_URL
+ARG LIVEKIT_URL
+ARG LIVEKIT_API_KEY
+ARG LIVEKIT_API_SECRET
+
 # Copy dependencies from deps stage
 COPY --from=deps /app/node_modules ./node_modules
 
@@ -54,7 +60,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY prisma ./prisma/
 COPY public ./public/
 COPY package.json bun.lock next.config.ts tsconfig.json ./
-COPY prisma.config.ts postcss.config.mjs ./
+COPY prisma.config.ts postcss.config.mjs auth.ts ./
 COPY components.json ./
 COPY lib ./lib/
 COPY hooks ./hooks/
@@ -64,12 +70,16 @@ COPY types ./types/
 COPY app ./app/
 COPY contexts ./contexts/
 
-# Generate Prisma Client (no real DATABASE_URL needed at build time)
+# Generate Prisma Client (with DATABASE_URL from build arg)
+ENV DATABASE_URL=$DATABASE_URL
 RUN bunx prisma generate
 
-# Build Next.js application
-ENV NEXT_TELEMETRY_DISABLED=1
-ENV NODE_ENV=production
+# Build Next.js application (with LiveKit config for page data collection)
+ENV NEXT_TELEMETRY_DISABLED=1 \
+    NODE_ENV=production \
+    LIVEKIT_URL=$LIVEKIT_URL \
+    LIVEKIT_API_KEY=$LIVEKIT_API_KEY \
+    LIVEKIT_API_SECRET=$LIVEKIT_API_SECRET
 RUN bun run build
 
 # =============================================================================
