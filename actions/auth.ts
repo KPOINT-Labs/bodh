@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { auth, signOut } from "@/auth";
 import { revalidatePath } from "next/cache";
+import { autoEnrollNewUser } from "./enrollment";
 
 // Invite code validation - 6 digits where sum equals 16
 function isValidInviteCode(code: string): boolean {
@@ -83,13 +84,16 @@ export async function signup(formData: FormData): Promise<ActionResult> {
   const passwordHash = await bcrypt.hash(password, 10);
 
   // Create user
-  await prisma.user.create({
+  const createdUser = await prisma.user.create({
     data: {
       name,
       email,
       passwordHash,
     },
   });
+
+  // Auto-enroll in published courses
+  await autoEnrollNewUser(createdUser.id);
 
   return { success: true };
 }
