@@ -12,10 +12,16 @@
       "mcp__next-devtools__nextjs_call",
       "mcp__next-devtools__browser_eval",
       "mcp__livekit-docs__code_search",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Skill(superpowers:brainstorming)",
+      "Bash(bun run:*)",
+      "mcp__plugin_Notion_notion__notion-fetch",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ],
     "additionalDirectories": [
-      "C:\\Users\\ktpl-0132\\Documents\\GitHub\\prism awscode commit\\prism"
+      "C:\\Users\\ktpl-0132\\Documents\\GitHub\\prism awscode commit\\prism",
+      "/home/aditya/kpoint/prism2"
     ]
   },
   "enableAllProjectMcpServers": true,
