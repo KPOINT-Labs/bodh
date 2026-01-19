@@ -132,12 +132,23 @@ export async function GET(request: NextRequest) {
       );
       const totalDuration = Math.round(totalDurationSeconds / 60);
 
-      // Determine course status based on progress
+      // Determine course status based on progress and lesson activity
       let courseStatus: "completed" | "in_progress" | "yet_to_start" = "yet_to_start";
       if (progress === 100) {
         courseStatus = "completed";
       } else if (progress > 0) {
+        // At least one lesson completed
         courseStatus = "in_progress";
+      } else {
+        // Check if any lesson has been started (in_progress, seen, or attempted)
+        const hasStartedLessons = modules.some((m) =>
+          m.lessons.some((l) =>
+            l.status === "in_progress" || l.status === "seen" || l.status === "attempted"
+          )
+        );
+        if (hasStartedLessons) {
+          courseStatus = "in_progress";
+        }
       }
 
       return {
