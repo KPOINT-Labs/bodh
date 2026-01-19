@@ -3,6 +3,7 @@ import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import { autoEnrollNewUser } from "@/actions/enrollment";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
@@ -75,7 +76,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         try {
           // Create user if not exists, update last login either way
-          await prisma.user.upsert({
+          const dbUser = await prisma.user.upsert({
             where: { email },
             update: { lastLoginAt: new Date() },
             create: {
@@ -84,6 +85,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               passwordHash: null,
             },
           });
+
+          // Check if user has any enrollments (indicates existing user)
+          const enrollmentCount = await prisma.enrollment.count({
+            where: { userId: dbUser.id }
+          });
+
+          // Auto-enroll only if new user (no enrollments)
+          if (enrollmentCount === 0) {
+            await autoEnrollNewUser(dbUser.id);
+          }
         } catch (error) {
           console.error("[Auth] Database error during Google sign-in:", error);
           return false;
