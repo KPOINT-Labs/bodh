@@ -1,0 +1,417 @@
+Tab 1
+DESIGN / UX SCRIPT
+
+
+Course Entry (Before Lesson 1 / Intro)
+AI : “Welcome to the Course Computational Thinking! This course teaches you how to organize your thinking so you can break problems into clear, step-by-step solutions. It’s the foundation you need before writing any code — you’ll learn the patterns that make computers powerful.”
+Let's start with the course introduction.
+Intro lesson Starts playing 
+
+
+After Intro Completion
+AI:
+Great job on completing the Introduction!
+Before we move ahead, would you like to warm up your thinking muscles?
+Options:
+* 📝 Take a short warm-up quiz
+* ▶️ Continue to Lesson 1
+________________
+
+
+📘 After Lesson 1 Completion
+AI:
+Well done — you’ve completed Lesson 1 👏
+You’re now starting to see how everyday tasks can be broken into computational steps.
+What would you like to do next?
+Options:
+* ✅ Take a short assessment on this lesson
+* 🔥 Warm-up questions for the next lesson
+* ▶️ Jump directly to the next lesson
+
+
+Final Script-Lesson 2
+
+
+Lesson 2 Script for Mockup (Timestamped)
+A. Pre-video Warm-up (Revision of Lesson 1) — 2–3 questions
+Step A1 — Warm-up Prompt (Before video starts)
+Trigger: Student clicks Lesson 2 → video is loaded but not playing
+AI (Voice + Text):
+“Before Lesson 2, let’s do a quick warm-up from Lesson 1: Datasets.
+Just 3 questions. It’ll take 30 seconds.”
+Buttons:
+* “Start warm-up”
+* “Skip”
+________________
+
+
+Step A2 — Warm-up Q1 (Student attempts)
+On-screen:
+Warm-up Q1/3
+“In Lesson 1, why did we simplify the report card?”
+Options:
+A) To make it look nicer
+B) ✅ To keep only fields needed for computation
+C) To remove marks
+D) To add more subjects
+Student action: Select option (click / voice)
+AI feedback (Voice + Text):
+“Correct. We simplify data to remove distractions and keep what we need for answering questions.”
+Button: “Next”
+________________
+
+
+Step A3 — Warm-up Q2
+Warm-up Q2/3
+“Which dataset included: item name, type, quantity, unit price, total cost?”
+Options:
+A) Report cards
+B) ✅ Shopping bills
+C) Paragraph words
+D) None
+AI feedback:
+“Right — shopping bills are structured like rows with totals.”
+Button: “Next”
+________________
+
+
+Step A4 — Warm-up Q3 (Bridge)
+Warm-up Q3/3
+“In the paragraph dataset, why do we assign a sequence number to each word card?”
+Options:
+A) To know the author
+B) ✅ Words repeat; sequence helps count each occurrence separately
+C) To calculate GST
+D) To alphabetically sort words
+AI feedback:
+“Exactly. Now in Lesson 2, we’ll learn the computation pattern that processes these cards systematically.”
+Button: “Continue to video”
+________________
+
+
+B. Main Lesson Video + Conversational Interruptions
+Step B1 — Video starts (00:00)
+Timestamp: 00:00
+Action: Video plays normally.
+________________
+
+
+1) Student Doubt Mid-video (User pauses and asks AI)
+Step B2 — Student pauses and asks a doubt (example)
+Suggested timestamp for mockup: 01:10
+(They are struggling with manual counting; student can naturally get confused)
+Student action: Click Pause and ask via mic/text
+Student question:
+“Why do they keep saying ‘start again’? Can’t we just continue from where we stopped?”
+AI answer (Voice + Text):
+“That’s the point — with manual counting, you don’t have a reliable memory of progress.
+If you lose track, you may repeat numbers or skip cards.
+So you need a method that stores progress in a variable (like count) so you can continue anytime without restarting.”
+AI follow-up:
+“Want a tiny example?”
+Buttons:
+* “Yes, show example”
+* “Continue video”
+If Yes → show a small visual in center (not video):
+* count = 0
+* see 1st card → count = 1
+* see 2nd card → count = 2
+* pause → resume → continue from 2
+Button: “Resume video”
+
+
+Step B2.1 Multilingual Conversation
+Timestamp: 05:10
+Action: Student clicks Pause on video
+Student Question (Voice or Text Input)
+Student (Hindi / Hinglish):
+“Mujhe simple language mein yeh concept dobara samjhaiye.”
+AI (Voice + Text):
+“Bilkul. Simple language mein samjhte hain.”
+“Socho tumhare paas cards ka ek pile hai.”
+“Tum ek-ek card uthate ho.”
+“Har baar jab tum ek card uthate ho, tum ek number yaad rakhte ho.”
+“Shuru mein number hota hai zero.”
+“Pehla card dekha → number ek ho gaya.”
+“Doosra card dekha → number do ho gaya.”
+“Is process ko kehte hain iteration.”
+“Aur jo number tum yaad rakh rahe ho — usse kehte hain variable.”[a]
+
+
+
+
+________________
+
+
+2) AI Detects “Prof asks a question” → Auto pause + learner response
+Step B3 — Auto-pause: “Prof asks a question” 
+Timestamp: 08:27→ Video auto pauses
+AI: “The professor has asked a question here.
+Do you want to think first before continuing with the video?
+
+Question: “What is a good thing to check? Suppose I want average maths marks. How do you compute average maths marks for the class?””
+Options:
+A) Max mark ÷ number of students
+B) ✅ Sum of maths marks ÷ count of students
+C) Count of students ÷ sum
+D) Pick the middle mark
+AI feedback:
+“Correct. Average = sum ÷ count. 
+AI: Now watch how they compute sum systematically.”
+Button: “Continue video” (Automatically the video resumes)
+________________
+
+
+3) Concept Completion → Auto pause + Formative Assessment
+
+
+Concept Completion #1: Iteration + variable (count) structure explained
+Timestamp: 05:59
+(They summarize: initialization, step update, stopping condition)
+Concept Completion #2: Accumulation + average (sum + count) completed
+Timestamp: 11:11
+(They compute average and explain accumulation)
+Concept Completion #3: Filtering + filtered iteration introduced
+Timestamp: 16:40
+(They define filtering and filtered iteration)
+
+
+Step C1 — Concept Completion Pause #1 (Iteration basics)
+Timestamp: 05:59
+Auto-pause overlay: “Concept Check: Iteration Pattern”
+AI (Voice + Text):
+“You’ve completed the first concept: Iteration with a variable.
+Quick check — answer 2 questions.”
+Formative Q1 (MCQ):
+“What is the initialization step in their counting example?”
+A) count = 1
+B) ✅ count = 0
+C) count = 30
+D) count = -1
+Formative Q2 (MCQ):
+“When do we stop the iteration?”
+A) When count reaches 10
+B) ✅ When the first pile becomes empty (all cards moved)
+C) When we feel tired
+D) When we find the top scorer
+Buttons:
+* “Submit”
+* “Skip”
+AI feedback:
+“Nice. You understood the loop: start → repeat update → stop when data ends.”
+Button: “Resume video”
+________________
+
+
+Step C2 — Concept Completion Pause #2 (Average + Accumulation)
+Timestamp: 11:11
+Auto-pause overlay: “Concept Check: Sum & Average”
+AI (Voice + Text):
+“Concept completed: Accumulation using sum + using count to compute average.”
+Formative Q1:
+“What does sum represent during the process?”
+A) Student names
+B) ✅ Total maths marks accumulated so far
+C) Only the last student’s mark
+D) Total number of students
+Formative Q2:
+“Their final values were: sum = 2171, count = 30.
+What is the correct formula for average?”
+A) count ÷ sum
+B) ✅ sum ÷ count
+C) sum + count
+D) sum × count
+AI feedback (after submit):
+“Correct. This is the key pattern: iterate once, update variables, compute final metric at end.”
+Button: “Resume video”
+________________
+
+
+Step C3 — Concept Completion Pause #3 (Filtering / Filtered Iteration)
+Timestamp: 16:40
+Auto-pause overlay: “Concept Check: Filtering”
+AI (Voice + Text):
+“New concept completed: Filtering — selecting only the cards that match a condition.”
+Formative Q1:
+“In filtering, what stays after the filter?”
+A) Everything
+B) ✅ Only items matching the condition
+C) Only numbers
+D) Only the first half of cards
+Formative Q2:
+“What is ‘filtered iteration’?”
+A) Sorting then counting
+B) ✅ Iterating through all cards but updating count only when condition matches
+C) Counting only the last cards
+D) Dividing sums
+AI feedback:
+“Great. Filtering + iteration together is extremely common in real programs.”
+Button: “Resume video”
+________________
+
+
+D.   Formative Assessment → Delayed Feedback
+Trigger at the end of the lesson at 22:03
+
+
+AI: “Nice progress.
+We’ve just completed a full idea covering iteration, variables, accumulation, and filtering.
+Let’s do a quick check. Don’t worry — this is just to understand how you’re thinking.”
+
+
+
+
+Buttons:
+* Start quick check
+
+* Skip for now
+
+(Learner clicks Start quick check)
+
+
+
+
+
+
+Question 1 (Correct)
+AI:
+“Why do we initialize count = 0 before starting iteration?”
+Options:
+   * A. Because no cards have been seen yet ✅
+
+   * B. Because computers require zero
+
+   * C. Because card numbers start from zero
+
+Learner selects: A
+AI Response:
+“Correct. Good job. Let’s continue.”
+
+
+
+
+Question 2 (Incorrect)
+AI:
+“What does the sum variable represent while calculating average marks?”
+Options:
+      * A. The highest mark seen so far
+
+      * B. The total accumulated marks ❌
+
+      * C. The last card’s marks
+
+Learner selects: C (Incorrect)
+AI Response:
+“Oops — let’s revisit this sometime. Let’s continue.”
+Question 3 (Correct)
+AI:
+“In iteration, when do we stop the process?”
+Options:
+         * A. When the variable reaches a fixed value
+
+         * B. When all cards have been processed ✅
+
+         * C. When we encounter a duplicate card
+
+Learner selects: B
+AI Response:
+“Correct. Good job. Moving on.”
+
+
+Question 4 (Incorrect)
+
+
+AI:
+
+
+“During filtering, what happens to cards that do NOT match the condition?”
+
+
+Options:
+
+
+A. Iteration stops
+
+
+B. They are ignored and iteration continues ❌
+
+
+C. They are deleted permanently
+
+
+Learner selects: A (Incorrect)
+
+
+AI Response:
+
+
+“Oops — let’s revisit this sometime. Let’s continue.”
+
+
+Question 5 (Correct)
+AI:
+“Which pattern allows us to update multiple variables in one pass through the data?”
+Options:
+            * A. Repetition
+
+            * B. Parallel iteration with variables ✅
+
+            * C. Sorting
+
+Learner selects: B
+AI Response:
+“Correct. Good job.”
+
+
+Assessment Completion Transition
+AI (voice + text):
+“That’s it for the quick check.
+Let’s look at how this went overall.”
+Button:
+               * View feedback
+
+________________
+
+
+D5. Final Consolidated Feedback (Single Screen)
+Title
+📊 Your Learning Summary
+________________
+
+
+What You Understood Well ✅
+AI:
+“You’re clearly comfortable with these ideas:”
+                  * ✔️ Iteration as a systematic process
+
+                  * ✔️ Initialization of variables
+
+                  * ✔️ Knowing when an iteration should stop
+
+                  * ✔️ Tracking multiple variables in parallel
+
+
+
+AI:
+“I recommend revisiting just these parts — not the whole lesson.”
+Suggested Aids
+                     * 📄 2-minute summary: Iteration + Accumulation
+
+                     * 🎞 1-minute reel: Filtering vs Ignoring
+
+Buttons:
+                        * Review now (Recommended)
+
+                        * Continue to next  lesson
+
+
+
+
+
+
+
+
+
+
+
+[a]Please convert it into Devanagari to display and to be given to 11labs
