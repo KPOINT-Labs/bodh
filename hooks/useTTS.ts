@@ -76,17 +76,29 @@ export function useTTS() {
   };
 
   const speak = async (text: string, options?: TTSOptions) => {
-    // Safety check: prevent duplicate playback
-    if (isLoading || isPlaying) {
-      console.log("[useTTS] Already loading or playing, skipping duplicate request");
-      return;
-    }
+    console.log("[useTTS] speak() called with text:", text.substring(0, 50), "options:", options);
+    console.log("[useTTS] Current state - isMuted:", isMuted, "isLoading:", isLoading, "isPlaying:", isPlaying);
 
-    // Early return if muted
+    // Early return if muted (check before interrupt logic)
     if (isMuted) {
       console.log("[useTTS] Audio is muted, skipping playback");
       return;
     }
+
+    // If interrupt is true, stop current playback and proceed
+    if (options?.interrupt) {
+      console.log("[useTTS] Interrupt flag set, stopping current playback");
+      stop();
+      // Don't check isLoading/isPlaying when interrupting - always proceed
+    } else {
+      // Safety check: prevent duplicate playback unless interrupting
+      if (isLoading || isPlaying) {
+        console.log("[useTTS] Already loading or playing, skipping duplicate request");
+        return;
+      }
+    }
+
+    console.log("[useTTS] Proceeding with TTS generation");
 
     // Stop any currently playing audio
     stop();

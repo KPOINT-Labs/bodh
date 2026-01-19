@@ -6,6 +6,7 @@ export interface TTSOptions {
   voice?: string;
   speed?: number;
   model?: string;
+  interrupt?: boolean; // Allow interrupting current playback
 }
 
 export interface TTSConfig {

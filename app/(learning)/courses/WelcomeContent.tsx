@@ -81,25 +81,16 @@ export function WelcomeContent({ firstCourse, lastCourse, allCourses }: WelcomeC
 
       // Delay initial message like reference project (500ms)
       setTimeout(() => {
-        // Add first AI message with animation enabled
-        const welcomeMessage: Message = {
-          id: Date.now().toString() + Math.random(),
-          type: 'ai',
-          content: "नमस्ते! I'm your personal AI learning companion. I'm here whenever you need help—clarifying a concept, checking your understanding, or even just exploring new ideas. Let's learn together.",
-          enableAnimation: true,
-          onAnimationComplete: () => {
+        // Add first AI message using addAIMessage helper
+        addAIMessage(
+          "नमस्ते! I'm your personal AI learning companion. I'm here whenever you need help—clarifying a concept, checking your understanding, or even just exploring new ideas. Let's learn together.",
+          () => {
             // Show buttons after message animation completes (2s delay like reference)
             setTimeout(() => {
               setShowButtons(true);
             }, 2000);
           }
-        };
-        setMessages([welcomeMessage]);
-
-        // Trigger TTS
-        if (welcomeMessage.content) {
-          speak(welcomeMessage.content);
-        }
+        );
       }, 500);
     }
   }, [onboardingComplete]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -109,6 +100,7 @@ export function WelcomeContent({ firstCourse, lastCourse, allCourses }: WelcomeC
   };
 
   const addAIMessage = (content: string, onComplete?: () => void) => {
+    console.log("[WelcomeContent] addAIMessage called with:", content);
     const newMessage: Message = {
       id: Date.now().toString() + Math.random(),
       type: 'ai',
@@ -121,6 +113,14 @@ export function WelcomeContent({ firstCourse, lastCourse, allCourses }: WelcomeC
       }
     };
     setMessages(prev => [...prev, newMessage]);
+
+    // Trigger TTS immediately with interrupt enabled
+    if (content) {
+      console.log("[WelcomeContent] Calling speak() with interrupt: true");
+      speak(content, { interrupt: true });
+    } else {
+      console.log("[WelcomeContent] Content is empty, skipping TTS");
+    }
   };
 
   const addUserMessage = (content: string, onComplete?: () => void) => {
