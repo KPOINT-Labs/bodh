@@ -22,7 +22,31 @@ export interface TTSResult {
 }
 
 /**
- * Default TTS configuration matching BODH agent
+ * ElevenLabs TTS Configuration
+ */
+export const ELEVENLABS_CONFIG = {
+  voice: "2zRM7PkgwBPiau2jvVXc", // Monica (Female, Expressive)
+  model: "eleven_multilingual_v2",
+  voiceSettings: {
+    stability: 0.5,
+    similarityBoost: 0.75,
+    speed: 1.0, // Normal speed
+    useSpeakerBoost: true,
+  },
+  outputFormat: "mp3_44100_128" as const,
+};
+
+/**
+ * OpenAI TTS Configuration (Fallback)
+ */
+export const OPENAI_CONFIG = {
+  voice: "marin",
+  speed: 1.2,
+  model: "gpt-4o-mini-tts",
+};
+
+/**
+ * Default TTS configuration (uses provider from env)
  */
 export const DEFAULT_TTS_CONFIG: TTSConfig = {
   voice: "marin",

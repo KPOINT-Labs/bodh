@@ -3,8 +3,9 @@
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import OpenAI from "openai";
+import { ElevenLabsClient } from "elevenlabs";
 import { createHash } from "crypto";
-import { DEFAULT_TTS_CONFIG, TTSResult } from "@/lib/tts";
+import { DEFAULT_TTS_CONFIG, ELEVENLABS_CONFIG, OPENAI_CONFIG, TTSResult } from "@/lib/tts";
 
 const ttsSchema = z.object({
   text: z.string().min(1).max(5000),
@@ -61,26 +62,88 @@ export async function generateTTS(
       };
     }
 
-    console.log("[TTS] Cache miss, calling OpenAI API");
+    console.log("[TTS] Cache miss, generating audio with TTS provider");
 
-    // Initialize OpenAI client
-    const openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
+    // Determine which provider to use
+    const provider = process.env.TTS_PROVIDER || 'elevenlabs';
+    console.log("[TTS] Using provider:", provider);
 
-    // Call OpenAI TTS API
-    const response = await openai.audio.speech.create({
-      model: model,
-      voice: voice as any,
-      speed: speed,
-      input: validatedText,
-      response_format: "mp3",
-    });
+    let buffer: Buffer;
+
+    if (provider === 'elevenlabs') {
+      if (!process.env.ELEVENLABS_API_KEY) {
+        throw new Error('ELEVENLABS_API_KEY not configured');
+      }
+
+      console.log("[TTS] Calling ElevenLabs API");
+
+      // Initialize ElevenLabs client
+      const elevenlabs = new ElevenLabsClient({
+        apiKey: process.env.ELEVENLABS_API_KEY,
+      });
+
+      // Use ElevenLabs configuration
+      const elevenLabsVoice = voice || ELEVENLABS_CONFIG.voice;
+      const elevenLabsModel = model || ELEVENLABS_CONFIG.model;
+      const elevenLabsSpeed = speed || ELEVENLABS_CONFIG.voiceSettings.speed;
+
+      // Generate speech with ElevenLabs
+      const audio = await elevenlabs.textToSpeech.convert(elevenLabsVoice, {
+        text: validatedText,
+        model_id: elevenLabsModel,
+        output_format: ELEVENLABS_CONFIG.outputFormat,
+        voice_settings: {
+          stability: ELEVENLABS_CONFIG.voiceSettings.stability,
+          similarity_boost: ELEVENLABS_CONFIG.voiceSettings.similarityBoost,
+          speed: elevenLabsSpeed,
+          use_speaker_boost: ELEVENLABS_CONFIG.voiceSettings.useSpeakerBoost,
+        }
+      });
+
+      // Convert Readable stream to buffer
+      const chunks: Buffer[] = [];
+      for await (const chunk of audio) {
+        chunks.push(Buffer.from(chunk));
+      }
+      buffer = Buffer.concat(chunks);
+      console.log("[TTS] ElevenLabs audio generated");
+
+    } else if (provider === 'openai') {
+      if (!process.env.OPENAI_API_KEY) {
+        throw new Error('OPENAI_API_KEY not configured');
+      }
+
+      console.log("[TTS] Calling OpenAI API");
+
+      // Initialize OpenAI client
+      const openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+      });
+
+      // Use OpenAI configuration
+      const openAIVoice = voice || OPENAI_CONFIG.voice;
+      const openAIModel = model || OPENAI_CONFIG.model;
+      const openAISpeed = speed || OPENAI_CONFIG.speed;
+
+      // Call OpenAI TTS API
+      const response = await openai.audio.speech.create({
+        model: openAIModel,
+        voice: openAIVoice as any,
+        speed: openAISpeed,
+        input: validatedText,
+        response_format: "mp3",
+      });
+
+      // Convert to buffer
+      buffer = Buffer.from(await response.arrayBuffer());
+      console.log("[TTS] OpenAI audio generated");
+
+    } else {
+      throw new Error(`Unknown TTS_PROVIDER: ${provider}`);
+    }
 
     // Convert to base64
-    const buffer = Buffer.from(await response.arrayBuffer());
     const audioData = buffer.toString("base64");
-
     console.log("[TTS] Generated audio, size:", audioData.length, "bytes (base64)");
 
     // Save to cache
@@ -103,12 +166,27 @@ export async function generateTTS(
       audioData,
     };
   } catch (error: any) {
-    console.error("[TTS] Error:", error);
+    const provider = process.env.TTS_PROVIDER || 'elevenlabs';
+    console.error(`[TTS] ${provider} error:`, error);
 
     if (error instanceof z.ZodError) {
       return {
         success: false,
         error: "Invalid input parameters",
+      };
+    }
+
+    if (error?.message?.includes('quota_exceeded')) {
+      return {
+        success: false,
+        error: "TTS quota exceeded. Please check API key limits.",
+      };
+    }
+
+    if (error?.message?.includes('invalid_api_key') || error?.message?.includes('not configured')) {
+      return {
+        success: false,
+        error: `Invalid API key. Please check ${provider.toUpperCase()}_API_KEY configuration.`,
       };
     }
 
