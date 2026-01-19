@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  trustHost: true,
   providers: [
     Google({
       clientId: process.env.AUTH_GOOGLE_ID,
@@ -65,6 +66,26 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     error: "/login",
   },
   callbacks: {
+    async redirect({ url, baseUrl }) {
+      // In production, always use the production URL
+      const productionUrl = "https://bodh.kpoint.ai";
+      const effectiveBaseUrl = process.env.NODE_ENV === "production" ? productionUrl : baseUrl;
+
+      // If the url is relative, prefix it with the base URL
+      if (url.startsWith("/")) {
+        return `${effectiveBaseUrl}${url}`;
+      }
+      // If the url is on the same origin, allow it
+      if (url.startsWith(effectiveBaseUrl)) {
+        return url;
+      }
+      // If it's localhost in production, redirect to production
+      if (process.env.NODE_ENV === "production" && url.includes("localhost")) {
+        return url.replace(/https?:\/\/localhost:\d+/, productionUrl);
+      }
+      // Default to base URL
+      return effectiveBaseUrl;
+    },
     async signIn({ user, account }) {
       // For Google sign-in, create user if not exists
       if (account?.provider === "google") {
