@@ -1,0 +1,158 @@
+# =============================================================================
+# Bodh - Next.js Application Dockerfile (Optimized Bun-only)
+# =============================================================================
+# Key optimizations:
+# - Uses only Bun (no npm) - faster installs and smaller image
+# - Latest Bun version with better performance
+# - Base stage to eliminate duplication (DRY)
+# - Production-only dependencies
+# - Optimized layer caching
+# - Proper runtime dependencies (curl, openssl)
+# - Build cache mounts for faster rebuilds
+# =============================================================================
+
+ARG KPOINT_BASE_IMAGE=701980022429.dkr.ecr.ap-southeast-1.amazonaws.com/kpoint/base/rocky:latest
+ARG BUN_VERSION=1.1.42
+ARG NODE_VERSION=22
+
+# =============================================================================
+# Stage 0: Base - Common layer with Bun (DRY principle)
+# =============================================================================
+FROM $KPOINT_BASE_IMAGE AS bun-base
+
+ARG BUN_VERSION
+
+# Install Bun only (no Node.js needed - Bun has its own runtime)
+RUN curl -fsSL https://bun.sh/install | bash -s "bun-v${BUN_VERSION}" && \
+    ln -s /root/.bun/bin/bun /usr/local/bin/bun && \
+    ln -s /root/.bun/bin/bunx /usr/local/bin/bunx && \
+    bun --version
+
+# Verify Bun installation
+RUN bun --version && bunx --version
+
+# =============================================================================
+# Stage 1: Dependencies - Install only production packages
+# =============================================================================
+FROM bun-base AS deps
+
+WORKDIR /app
+
+# Copy package files first for better layer caching
+COPY package.json bun.lock* ./
+
+# Install production dependencies only with cache mount
+# --frozen-lockfile ensures reproducible builds
+# --production excludes devDependencies
+RUN --mount=type=cache,target=/root/.bun/install/cache \
+    bun install --frozen-lockfile --production
+
+# =============================================================================
+# Stage 2: Builder - Install dev deps and build Next.js
+# =============================================================================
+FROM bun-base AS builder
+
+WORKDIR /app
+
+# Copy package files
+COPY package.json bun.lock* ./
+
+# Install ALL dependencies (including dev) with cache mount
+RUN --mount=type=cache,target=/root/.bun/install/cache \
+    bun install --frozen-lockfile
+
+# Copy Prisma schema first (better caching)
+COPY prisma ./prisma/
+COPY prisma.config.ts ./
+
+# Generate Prisma Client
+RUN bunx prisma generate
+
+# Copy source files
+COPY public ./public/
+COPY next.config.ts tsconfig.json ./
+COPY postcss.config.mjs ./
+COPY components.json ./
+COPY lib ./lib/
+COPY hooks ./hooks/
+COPY actions ./actions/
+COPY components ./components/
+COPY types ./types/
+COPY app ./app/
+COPY contexts ./contexts/
+
+# Build Next.js application with Bun
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=production
+
+# Use Bun to run Next.js build (faster than Node.js)
+RUN bun run build
+
+# =============================================================================
+# Stage 3: Runner - Minimal production runtime
+# =============================================================================
+FROM $KPOINT_BASE_IMAGE AS runner
+
+WORKDIR /app
+
+# Install only essential runtime dependencies:
+# - curl: for health checks
+# - openssl: required by Prisma for SSL connections
+# No Node.js needed - Bun provides the runtime
+RUN dnf install -y curl openssl && \
+    dnf clean all && \
+    rm -rf /var/cache/dnf/*
+
+# Install Bun runtime (production only)
+ARG BUN_VERSION
+RUN curl -fsSL https://bun.sh/install | bash -s "bun-v${BUN_VERSION}" && \
+    ln -s /root/.bun/bin/bun /usr/local/bin/bun && \
+    bun --version
+
+# Security: Create non-root user
+RUN groupadd --system --gid 1001 nodejs && \
+    useradd --system --uid 1001 --gid nodejs nextjs
+
+# Environment configuration
+ENV NODE_ENV=production \
+    NEXT_TELEMETRY_DISABLED=1 \
+    HOSTNAME="0.0.0.0" \
+    PORT=3000
+
+# Copy production node_modules from deps stage
+COPY --from=deps --chown=nextjs:nodejs /app/node_modules ./node_modules
+
+# Copy public assets
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
+
+# Copy Next.js standalone build
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+# Copy Prisma runtime files
+# Note: Already included in node_modules from deps stage, but explicit copy ensures they're present
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
+
+# Switch to non-root user
+USER nextjs
+
+EXPOSE 3000
+
+# Health check with proper timing for Next.js + Prisma startup
+# Checks root route - returns 200 if app is healthy
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:3000/ || exit 1
+
+# Use Bun to run the Next.js server (faster startup than Node.js)
+CMD ["bun", "run", "server.js"]
+
+# =============================================================================
+# Metadata labels
+# =============================================================================
+LABEL org.opencontainers.image.title="Bodh Learning Platform"
+LABEL org.opencontainers.image.description="Next.js 16 application with Prisma 7 and Bun runtime"
+LABEL org.opencontainers.image.vendor="KPoint"
+LABEL org.opencontainers.image.source="https://github.com/kpoint/budh"
+LABEL bun.version="${BUN_VERSION}"
+LABEL next.version="16.0.7"
