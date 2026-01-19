@@ -41,11 +41,15 @@ Add a "Take a Tour" button to the courses page header (WelcomeContent.tsx), posi
 
 ### Mock Data Detection
 
-The ModulePage component detects tour mode:
+The ModulePage component detects tour mode with double validation:
 
 ```typescript
-const isTourMode = courseId === 'demo' && moduleId === 'demo';
+const searchParams = await searchParams;
+const tourParam = searchParams.get('tour');
+const isTourMode = courseId === 'demo' && moduleId === 'demo' && tourParam === 'true';
 ```
+
+**Security:** Requires both route params AND query parameter to prevent accidental mock mode activation if a real course has ID "demo".
 
 When true:
 - Skip database queries entirely
@@ -133,10 +137,46 @@ bun add driver.js
 ### Tour Hook: `hooks/useTour.ts`
 
 Create a custom hook that:
+- **Client-only execution:** Only runs in browser (not during SSR)
+- Uses dynamic import for driver.js to avoid server-side errors
 - Initializes driver.js with app theme configuration
 - Defines the 6 tour steps with element selectors
 - Integrates with useTTS hook to speak each step
 - Handles tour completion and redirect
+
+```typescript
+"use client";
+
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useTTS } from './useTTS';
+import type { Driver } from 'driver.js';
+
+export function useTour() {
+  const [driver, setDriver] = useState<Driver | null>(null);
+  const router = useRouter();
+  const { speak } = useTTS();
+
+  useEffect(() => {
+    // Client-only: Only initialize driver.js in browser
+    if (typeof window === 'undefined') return;
+
+    // Dynamic import to avoid SSR issues
+    import('driver.js').then((mod) => {
+      const driverInstance = mod.driver({
+        // ... configuration
+      });
+      setDriver(driverInstance);
+    });
+
+    return () => {
+      driver?.destroy();
+    };
+  }, []);
+
+  return { driver, startTour: () => driver?.drive() };
+}
+```
 
 ### Tour Configuration
 
@@ -153,15 +193,61 @@ const driverConfig = {
   allowClose: true,
   overlayOpacity: 0.75,
 
+  // Skip missing elements instead of failing
+  onPopoverRender: (popover, { config, state }) => {
+    const element = document.querySelector(state.activeElement?.selector || '');
+    if (!element) {
+      console.warn(`Tour step skipped: element not found - ${state.activeElement?.selector}`);
+      return false; // Skip this step
+    }
+  },
+
   onDestroyed: () => {
     handleTourComplete();
   },
 
   onHighlightStarted: (element, step, options) => {
-    // Auto-play TTS for each step
-    speak(step.popover.description);
+    // Guard: Only speak if description exists
+    const description = step?.popover?.description;
+    if (description && typeof description === 'string') {
+      speak(description, { interrupt: true });
+    }
   }
 };
+```
+
+**Element Validation:** Before starting the tour, verify all required elements exist:
+
+```typescript
+function validateTourElements(): boolean {
+  const requiredSelectors = [
+    '.tour-chat-area',
+    '.tour-text-input',
+    '.tour-mic-button',
+    '.tour-video-panel',
+    '.tour-lesson-sidebar',
+    '.tour-audio-toggle'
+  ];
+
+  const missingElements = requiredSelectors.filter(
+    selector => !document.querySelector(selector)
+  );
+
+  if (missingElements.length > 0) {
+    console.error('Tour cannot start: missing elements', missingElements);
+    return false;
+  }
+
+  return true;
+}
+
+// Call before starting tour
+if (validateTourElements()) {
+  driver.drive();
+} else {
+  // Fallback: redirect back or show error
+  router.push('/courses');
+}
 ```
 
 ---
@@ -328,10 +414,15 @@ Use existing `useTTS()` hook:
 In `onHighlightStarted` callback:
 ```typescript
 onHighlightStarted: (element, step) => {
-  speak(step.popover.description, {
-    voice: 'marin',
-    speed: 1.2
-  });
+  // Guard: Only speak if description exists
+  const description = step?.popover?.description;
+  if (description && typeof description === 'string') {
+    speak(description, {
+      voice: 'marin',
+      speed: 1.2,
+      interrupt: true // Cancel any previous playback
+    });
+  }
 }
 ```
 
@@ -353,12 +444,20 @@ const handleTourComplete = () => {
   const urlParams = new URLSearchParams(window.location.search);
   const redirectUrl = urlParams.get('redirect_back_to') || '/courses';
 
-  // 2. Add return_from_tour=true to skip animations on return
-  const redirectWithParam = redirectUrl.includes('?')
-    ? `${redirectUrl}&return_from_tour=true`
-    : `${redirectUrl}?return_from_tour=true`;
+  // 2. Security: Validate redirect URL to prevent open redirect attacks
+  // Only allow same-origin relative paths starting with /
+  const isValidRedirect = redirectUrl.startsWith('/') &&
+                         !redirectUrl.startsWith('//') &&
+                         !redirectUrl.includes('://');
 
-  // 3. Redirect back immediately
+  const safeRedirectUrl = isValidRedirect ? redirectUrl : '/courses';
+
+  // 3. Add return_from_tour=true to skip animations on return
+  const redirectWithParam = safeRedirectUrl.includes('?')
+    ? `${safeRedirectUrl}&return_from_tour=true`
+    : `${safeRedirectUrl}?return_from_tour=true`;
+
+  // 4. Redirect back immediately
   router.push(redirectWithParam);
 };
 ```
@@ -380,8 +479,12 @@ useEffect(() => {
   if (returnFromTour) {
     // Skip typing animation, show content immediately
     setShowButtons(true);
-    // Optionally clean URL
-    window.history.replaceState({}, '', '/courses');
+
+    // Clean URL while preserving other query params
+    urlParams.delete('return_from_tour');
+    const newSearch = urlParams.toString();
+    const newUrl = newSearch ? `/courses?${newSearch}` : '/courses';
+    window.history.replaceState({}, '', newUrl);
   } else {
     // Normal flow with animations
     startWelcomeSequence();
@@ -464,6 +567,48 @@ If tour mode fails or mock data doesn't load:
 
 ---
 
+## Security & Reliability Considerations
+
+### Security Fixes
+
+1. **Open Redirect Protection**
+   - Validate `redirect_back_to` parameter
+   - Only allow same-origin relative paths starting with `/`
+   - Reject absolute URLs, protocol-relative URLs, or external domains
+   - Fallback to `/courses` if validation fails
+
+2. **Demo Mode Collision Prevention**
+   - Require both route params (`demo/demo`) AND query param (`tour=true`)
+   - Prevents accidental mock mode if real course has ID "demo"
+   - Double validation ensures intentional tour activation only
+
+### Reliability Fixes
+
+3. **SSR/Client-Side Rendering Safety**
+   - Dynamic import of driver.js to avoid SSR errors
+   - Guard with `typeof window !== 'undefined'`
+   - Only initialize tour in client-side useEffect
+   - Component marked as `"use client"`
+
+4. **Missing Element Handling**
+   - Validate all required selectors before starting tour
+   - Skip steps with missing elements gracefully
+   - Log warnings for debugging but don't crash
+   - Fallback redirect if critical elements missing
+
+5. **TTS Robustness**
+   - Guard against undefined descriptions
+   - Type check before speaking
+   - Use `interrupt: true` to cancel previous playback
+   - Prevent audio overlap when navigating quickly
+
+6. **Query Parameter Preservation**
+   - Only remove `return_from_tour` parameter
+   - Preserve all other existing query params
+   - Clean URL without losing user state
+
+---
+
 ## Technical Notes
 
 - **Driver.js size:** ~5KB gzipped (lightweight)
@@ -471,6 +616,7 @@ If tour mode fails or mock data doesn't load:
 - **No API calls:** All client-side tour logic
 - **Respects existing patterns:** Uses existing TTS, routing, styling conventions
 - **Backward compatible:** Doesn't affect existing onboarding flow
+- **Client-only execution:** No SSR compatibility issues
 
 ---
 
