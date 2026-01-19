@@ -98,6 +98,8 @@ interface UseLiveKitReturn {
   userTranscript: string;
   /** Whether user is currently speaking (in voice mode) */
   isUserSpeaking: boolean;
+  /** Whether agent audio output is muted (TTS disabled) */
+  isOutputMuted: boolean;
   connect: () => Promise<void>;
   disconnect: () => Promise<void>;
   toggleMute: () => Promise<void>;
@@ -113,6 +115,8 @@ interface UseLiveKitReturn {
   disableVoiceMode: () => Promise<boolean>;
   /** Clear the user transcript */
   clearUserTranscript: () => void;
+  /** Enable or disable agent audio output (TTS) - called from AudioToggleButton */
+  setAudioOutputEnabled: (enabled: boolean) => Promise<boolean>;
 }
 
 interface TokenResponse {
@@ -163,6 +167,9 @@ export function useLiveKit({
   const [isVoiceModeEnabled, setIsVoiceModeEnabled] = useState(false);
   const [userTranscript, setUserTranscript] = useState("");
   const [isUserSpeaking, setIsUserSpeaking] = useState(false);
+
+  // Audio output state (TTS mute control)
+  const [isOutputMuted, setIsOutputMuted] = useState(false);
 
   // References to persist across renders
   const roomRef = useRef<Room | null>(null);
@@ -949,6 +956,69 @@ export function useLiveKit({
     }
   }, []);
 
+  /**
+   * Enable or disable agent audio output (TTS)
+   * Called from AudioToggleButton to mute/unmute agent speech
+   *
+   * This does TWO things:
+   * 1. Immediately mutes/unmutes the client-side audio element (stops currently playing audio)
+   * 2. Sends RPC to agent to stop/start generating new TTS audio (saves compute)
+   *
+   * Text transcription continues because sync_transcription=False on agent.
+   */
+  const setAudioOutputEnabled = useCallback(async (enabled: boolean): Promise<boolean> => {
+    console.log(`[LiveKit] Setting audio output to: ${enabled}`);
+
+    // 1. IMMEDIATELY mute/unmute the client-side audio element
+    if (audioRef.current) {
+      audioRef.current.muted = !enabled;
+      console.log(`[LiveKit] Client audio element muted: ${!enabled}`);
+    }
+
+    // Update local state for UI
+    setIsOutputMuted(!enabled);
+
+    // 2. Send RPC to agent to stop/start TTS generation (saves compute)
+    if (!roomRef.current) {
+      console.warn("[LiveKit] Cannot send RPC - not connected");
+      return true; // Client-side mute still worked
+    }
+
+    let agentIdentity = agentIdentityRef.current;
+    if (!agentIdentity) {
+      // Try to find agent from participants
+      roomRef.current.remoteParticipants.forEach((participant) => {
+        if (participant.isAgent || participant.identity.includes("agent")) {
+          agentIdentityRef.current = participant.identity;
+        }
+      });
+      agentIdentity = agentIdentityRef.current;
+      if (!agentIdentity) {
+        console.warn("[LiveKit] No agent found in room");
+        return true; // Client-side mute still worked
+      }
+    }
+
+    try {
+      const response = await roomRef.current.localParticipant.performRpc({
+        destinationIdentity: agentIdentity,
+        method: "set_audio_output",
+        payload: JSON.stringify({ enabled }),
+      });
+
+      const result = JSON.parse(response);
+      console.log("[LiveKit] Audio output RPC response:", result);
+
+      if (result.success) {
+        console.log(`[LiveKit] Agent TTS ${enabled ? "ENABLED" : "DISABLED"}`);
+      }
+      return true;
+    } catch (err) {
+      console.error("[LiveKit] Failed to set audio output via RPC:", err);
+      return true; // Client-side mute still worked
+    }
+  }, []);
+
   return {
     isConnected,
     isConnecting,
@@ -965,6 +1035,8 @@ export function useLiveKit({
     isVoiceModeEnabled,
     userTranscript,
     isUserSpeaking,
+    // Audio output state
+    isOutputMuted,
     // Actions
     connect,
     disconnect,
@@ -976,5 +1048,7 @@ export function useLiveKit({
     enableVoiceMode,
     disableVoiceMode,
     clearUserTranscript,
+    // Audio output actions
+    setAudioOutputEnabled,
   };
 }
