@@ -4,6 +4,7 @@ import { ReactNode, useMemo } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { PeerLearningPanel } from "@/components/learning/PeerLearningPanel";
 import { LearningPanelProvider, useLearningPanel } from "@/contexts/LearningPanelContext";
+import { CourseProgressProvider } from "@/contexts/CourseProgressContext";
 
 function LearningLayoutContent({ children }: { children: ReactNode }) {
   const { isCollapsed, toggleCollapse } = useLearningPanel();
@@ -23,7 +24,7 @@ function LearningLayoutContent({ children }: { children: ReactNode }) {
     <div className="flex h-screen overflow-hidden">
       {/* Left Panel - Course Navigation */}
       <div
-        className={`shrink-0 border-r border-gray-200 bg-white hidden lg:block overflow-hidden transition-all duration-300 ${
+        className={`tour-lesson-sidebar shrink-0 border-r border-gray-200 bg-white hidden lg:block overflow-hidden transition-all duration-300 ${
           isCollapsed ? "w-16" : "w-80"
         }`}
       >
@@ -45,7 +46,9 @@ function LearningLayoutContent({ children }: { children: ReactNode }) {
 export default function LearningLayout({ children }: { children: ReactNode }) {
   return (
     <LearningPanelProvider>
-      <LearningLayoutContent>{children}</LearningLayoutContent>
+      <CourseProgressProvider>
+        <LearningLayoutContent>{children}</LearningLayoutContent>
+      </CourseProgressProvider>
     </LearningPanelProvider>
   );
 }

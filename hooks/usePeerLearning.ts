@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import type { Course, Module } from "@/types/learning";
+import { useCourseProgress } from "@/contexts/CourseProgressContext";
 
 interface UsePeerLearningOptions {
   userId?: string;
@@ -25,10 +26,11 @@ interface UsePeerLearningReturn {
 export function usePeerLearning(options: UsePeerLearningOptions): UsePeerLearningReturn {
   const { userId: propUserId, activeCourseId, activeModuleId } = options;
 
+  // Use context for courses data
+  const { courses, isLoading, error, setCourses, setIsLoading, setError } = useCourseProgress();
+
+  // Local state for UI concerns
   const [userId, setUserId] = useState<string | null>(propUserId || null);
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [expandedModules, setExpandedModules] = useState<string[]>([]);
 
@@ -106,7 +108,7 @@ export function usePeerLearning(options: UsePeerLearningOptions): UsePeerLearnin
     if (userId) {
       fetchCourses();
     }
-  }, [userId, activeCourseId, activeModuleId]);
+  }, [userId, activeCourseId, activeModuleId, setCourses, setIsLoading, setError]);
 
   const toggleModule = useCallback((moduleId: string) => {
     // Don't collapse if this is the active module
