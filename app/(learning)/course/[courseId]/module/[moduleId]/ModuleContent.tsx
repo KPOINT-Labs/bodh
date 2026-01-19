@@ -12,6 +12,9 @@ import { AnimatedBackground } from "@/components/ui/animated-background";
 import { OnboardingModal } from "@/components/onboarding/OnboardingModal";
 import { X } from "lucide-react";
 import { toast } from "sonner";
+import { mockTourData } from "@/lib/mockTourData";
+import { useTour } from "@/hooks/useTour";
+import { MessageBubble } from "@/components/ui/message-bubble";
 
 // Hooks
 import { useKPointPlayer } from "@/hooks/useKPointPlayer";
@@ -19,6 +22,8 @@ import { useChatSession } from "@/hooks/useChatSession";
 import { useLiveKit, TranscriptSegment, UserTranscription, FAIntroData } from "@/hooks/useLiveKit";
 import { useSessionType } from "@/hooks/useSessionType";
 import { useLearningPanel } from "@/contexts/LearningPanelContext";
+import { useAudioContext } from "@/contexts/AudioContext";
+import { getLessonProgress } from "@/lib/actions/lesson-progress";
 
 interface Lesson {
   id: string;
@@ -27,6 +32,7 @@ interface Lesson {
   kpointVideoId?: string | null;
   youtubeVideoId?: string | null;
   description?: string | null;
+  duration?: number; // Duration in seconds
 }
 
 interface Module {
@@ -47,14 +53,129 @@ interface ModuleContentProps {
   module: Module;
   userId: string;
   initialLessonId?: string;
+  isTourMode?: boolean;
 }
 
-export function ModuleContent({ course, module, userId, initialLessonId }: ModuleContentProps) {
+export function ModuleContent({ course, module, userId, initialLessonId, isTourMode = false }: ModuleContentProps) {
   const router = useRouter();
   const pathname = usePathname();
 
-  // Get panel state and controls from context
+  // Get panel state and controls from context (needed for both modes)
   const { highlightRightPanel, collapsePanel, expandPanel } = useLearningPanel();
+
+  // Tour mode: simplified rendering with mock data
+  const { startTour, isReady: isTourReady } = useTour({
+    onExpandSidebar: expandPanel,
+  });
+
+  // Auto-start tour when in tour mode and tour is ready
+  useEffect(() => {
+    if (isTourMode && isTourReady) {
+      // Small delay to ensure DOM is fully rendered
+      const timer = setTimeout(() => {
+        startTour();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [isTourMode, isTourReady, startTour]);
+
+  // Early return for tour mode with simplified UI
+  if (isTourMode) {
+    const tourHeader = (
+      <LessonHeader courseTitle={course.title} moduleTitle={module.title} />
+    );
+
+    const tourContent = (
+      <div className="space-y-6 pb-3">
+        {/* Chat area for tour - showing mock messages */}
+        <div className="tour-chat-area">
+          {mockTourData.chatMessages.map((message) => (
+            <MessageBubble
+              key={message.id}
+              type={message.type}
+              content={message.content}
+              enableAnimation={false}
+            />
+          ))}
+        </div>
+      </div>
+    );
+
+    const tourFooter = (
+      <ChatInput
+        placeholder="Ask me anything about this lesson..."
+        onAddUserMessage={() => {}} // No-op in tour mode
+        isLoading={false}
+        conversationId={undefined}
+        courseId={course.id}
+        userId={userId}
+        videoIds={[]}
+        liveKitState={{
+          isConnected: false,
+          isConnecting: false,
+          isMuted: false,
+          isSpeaking: false,
+          audioLevel: 0,
+          error: null,
+          agentTranscript: "",
+          transcriptSegments: [],
+          isAgentSpeaking: false,
+          isAudioBlocked: false,
+          isWaitingForAgentResponse: false,
+          isVoiceModeEnabled: false,
+          userTranscript: "",
+          isUserSpeaking: false,
+          connect: async () => {},
+          disconnect: async () => {},
+          toggleMute: async () => {},
+          startAudio: async () => {},
+          sendTextToAgent: async () => {},
+          clearAgentTranscript: () => {},
+          enableVoiceMode: async () => false,
+          disableVoiceMode: async () => false,
+          clearUserTranscript: () => {},
+        }}
+      />
+    );
+
+    const tourRightPanel = (
+      <div className="tour-video-panel h-full flex flex-col bg-white p-4">
+        <div className="bg-background rounded-2xl shadow-xl overflow-hidden border-2 border-blue-200">
+          <div className="aspect-video bg-gray-100 flex items-center justify-center">
+            <div className="text-center">
+              <div className="text-4xl mb-2">🎥</div>
+              <div className="text-lg font-semibold text-gray-700">
+                {mockTourData.videoPlaceholder.title}
+              </div>
+              <div className="text-sm text-gray-500 mt-1">
+                {mockTourData.videoPlaceholder.description}
+              </div>
+            </div>
+          </div>
+          <div className="p-3">
+            <h3 className="font-medium text-xs text-foreground">
+              {mockTourData.videoPlaceholder.title}
+            </h3>
+          </div>
+        </div>
+      </div>
+    );
+
+    return (
+      <>
+        <AnimatedBackground variant="full" intensity="medium" theme="learning" />
+        <ResizableContent
+          header={tourHeader}
+          content={tourContent}
+          footer={tourFooter}
+          rightPanel={tourRightPanel}
+        />
+      </>
+    );
+  }
+
+  // Get audio context for mute state and callback registration
+  const { isMuted: isAudioMuted, registerMuteCallback, unregisterMuteCallback } = useAudioContext();
 
   // Find initial lesson from URL parameter or default to null (will show first lesson)
   const getInitialLesson = (): Lesson | null => {
@@ -68,6 +189,10 @@ export function ModuleContent({ course, module, userId, initialLessonId }: Modul
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(getInitialLesson);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [videoStartOffset, setVideoStartOffset] = useState<number | null>(null);
+  const [lessonProgress, setLessonProgress] = useState<{
+    lastPosition: number;
+    status: string;
+  } | null>(null);
 
   // Sync selectedLesson with URL when initialLessonId changes (e.g., clicking lesson in sidebar)
   useEffect(() => {
@@ -78,6 +203,26 @@ export function ModuleContent({ course, module, userId, initialLessonId }: Modul
       }
     }
   }, [initialLessonId, module.lessons]);
+
+  // Fetch lesson progress when lesson is selected
+  useEffect(() => {
+    if (!selectedLesson || !userId) {
+      setLessonProgress(null);
+      return;
+    }
+
+    async function fetchProgress() {
+      try {
+        const progress = await getLessonProgress(userId, selectedLesson!.id);
+        setLessonProgress(progress);
+      } catch (error) {
+        console.error("Failed to fetch lesson progress:", error);
+        setLessonProgress(null);
+      }
+    }
+
+    fetchProgress();
+  }, [selectedLesson?.id, userId]);
 
   // FA intro state - when highlight triggers FA, show intro with buttons first
   const [pendingFAIntro, setPendingFAIntro] = useState<FAIntroData | null>(null);
@@ -370,6 +515,40 @@ export function ModuleContent({ course, module, userId, initialLessonId }: Modul
     }
   }, [liveKit.isAudioBlocked, liveKit.startAudio]);
 
+  // Ref to track current mute state for initial sync (avoids dependency issues)
+  const isAudioMutedRef = useRef(isAudioMuted);
+  useEffect(() => {
+    isAudioMutedRef.current = isAudioMuted;
+  }, [isAudioMuted]);
+
+  // Register callback to sync AudioToggleButton mute state with LiveKit audio output
+  useEffect(() => {
+    if (!liveKit.isConnected) return;
+
+    // Sync initial mute state when LiveKit connects
+    const initialMuted = isAudioMutedRef.current;
+    console.log("[ModuleContent] LiveKit connected, syncing initial mute state:", initialMuted);
+    liveKit.setAudioOutputEnabled(!initialMuted).catch((err) => {
+      console.warn("[ModuleContent] Failed to sync initial mute state:", err);
+    });
+
+    // Register callback for future mute state changes
+    const handleMuteChange = (muted: boolean) => {
+      console.log("[ModuleContent] AudioContext mute changed:", muted);
+      liveKit.setAudioOutputEnabled(!muted).catch((err) => {
+        console.warn("[ModuleContent] Failed to sync audio output with mute state:", err);
+      });
+    };
+
+    registerMuteCallback(handleMuteChange);
+    console.log("[ModuleContent] Registered mute callback for LiveKit audio output");
+
+    return () => {
+      unregisterMuteCallback(handleMuteChange);
+      console.log("[ModuleContent] Unregistered mute callback");
+    };
+  }, [liveKit.isConnected, liveKit.setAudioOutputEnabled, registerMuteCallback, unregisterMuteCallback]);
+
   // Handle video end - auto-play next lesson
   const handleVideoEnd = useCallback(async () => {
     console.log("[ModuleContent] handleVideoEnd called", {
@@ -449,9 +628,27 @@ export function ModuleContent({ course, module, userId, initialLessonId }: Modul
     }
   }, [selectedLesson, module.lessons, module.id, course.id, liveKit.isConnected, liveKit.sendTextToAgent, router, pathname]);
 
+  // Get video duration from lesson (stored in seconds in database)
+  const videoDuration = selectedLesson?.duration || 0;
+
+  // Calculate effective start offset (manual timestamp OR saved position for in_progress lessons)
+  const effectiveStartOffset = videoStartOffset ??
+    (lessonProgress?.status === "in_progress" ? lessonProgress.lastPosition : null);
+
+  // DEBUG: Log progress tracking parameters
+  console.log("[ModuleContent] Progress tracking params:", {
+    userId,
+    lessonId: selectedLesson?.id,
+    videoDuration,
+    hasKpointVideoId: !!selectedLesson?.kpointVideoId,
+  });
+
   // KPoint player hook with FA trigger integration
   const { seekTo, getCurrentTime, isPlayerReady, isPlaying, playerRef } = useKPointPlayer({
     kpointVideoId: selectedLesson?.kpointVideoId,
+    userId,
+    lessonId: selectedLesson?.id,
+    videoDuration,
     onVideoEnd: handleVideoEnd,
     onFATrigger: async (_message: string, _timestampSeconds: number, topic?: string, _pauseVideo?: boolean) => {
       // NEW FLOW: Instead of directly starting FA, first show intro with buttons
@@ -734,7 +931,7 @@ export function ModuleContent({ course, module, userId, initialLessonId }: Modul
         <div className="aspect-video">
           <KPointVideoPlayer
             kpointVideoId={selectedLesson.kpointVideoId}
-            startOffset={videoStartOffset}
+            startOffset={effectiveStartOffset}
           />
         </div>
         {/* Lesson Title Below Video */}

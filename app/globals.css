@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "driver.js/dist/driver.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -458,6 +459,63 @@
 
 .animate-fade-in {
   animation: fade-in 0.4s ease-out;
+}
+
+/* Interactive product tour styles (driver.js) */
+.driver-popover {
+  background: linear-gradient(to bottom right, rgba(139, 92, 246, 0.95), rgba(217, 70, 239, 0.95)) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 2px solid rgb(196, 181, 253) !important;
+  border-radius: 1rem !important;
+  color: white !important;
+  box-shadow: 0 20px 25px -5px rgba(139, 92, 246, 0.3), 0 10px 10px -5px rgba(139, 92, 246, 0.1) !important;
+}
+
+.driver-popover-title {
+  font-weight: 600 !important;
+  font-size: 1.125rem !important;
+  color: white !important;
+}
+
+.driver-popover-description {
+  line-height: 1.6 !important;
+  margin-top: 0.5rem !important;
+  color: rgba(255, 255, 255, 0.95) !important;
+}
+
+.driver-popover-footer {
+  margin-top: 1rem !important;
+}
+
+.driver-popover-footer button {
+  background: white !important;
+  color: rgb(139, 92, 246) !important;
+  border-radius: 0.5rem !important;
+  padding: 0.5rem 1rem !important;
+  font-weight: 500 !important;
+  transition: all 0.2s !important;
+  border: none !important;
+}
+
+.driver-popover-footer button:hover {
+  background: rgb(243, 232, 255) !important;
+  transform: translateY(-1px);
+}
+
+.driver-popover-close-btn {
+  color: white !important;
+  opacity: 0.8;
+  transition: opacity 0.2s;
+}
+
+.driver-popover-close-btn:hover {
+  opacity: 1;
+}
+
+.driver-popover-progress-text {
+  color: rgba(255, 255, 255, 0.9) !important;
+  font-size: 0.875rem !important;
 }
 
 /* Reduced motion support */

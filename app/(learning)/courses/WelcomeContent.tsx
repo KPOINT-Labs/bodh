@@ -3,13 +3,15 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { ResizableContent } from "@/components/layout/resizable-content";
-import { LessonHeader } from "@/components/course/LessonHeader";
 import { AnimatedBackground } from "@/components/ui/animated-background";
 import { OnboardingModal } from "@/components/onboarding/OnboardingModal";
 import { MessageBubble } from "@/components/ui/message-bubble";
 import { CourseBrowser } from "@/components/course/course-browser";
 import { ChoiceButtons } from "@/components/ui/choice-buttons";
 import { useTTS } from "@/hooks/useTTS";
+import { Button } from "@/components/ui/button";
+import { HelpCircle } from "lucide-react";
+import { LessonHeader } from "@/components/course/LessonHeader";
 
 interface WelcomeContentProps {
   firstCourse: {
@@ -75,6 +77,32 @@ export function WelcomeContent({ firstCourse, lastCourse, allCourses }: WelcomeC
   }, []);
 
   useEffect(() => {
+    // Check for return_from_tour query parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    const returnFromTour = urlParams.get("return_from_tour") === "true";
+
+    if (returnFromTour) {
+      // Skip typing animation, show content immediately
+      hasStartedRef.current = true;
+
+      // Add welcome message instantly without animation
+      const welcomeMessage: Message = {
+        id: Date.now().toString() + Math.random(),
+        type: "ai",
+        content: "नमस्ते! I'm your personal AI learning companion. I'm here whenever you need help—clarifying a concept, checking your understanding, or even just exploring new ideas. Let's learn together.",
+        enableAnimation: false, // No animation when returning from tour
+      };
+      setMessages([welcomeMessage]);
+      setShowButtons(true);
+
+      // Clean URL while preserving other query params
+      urlParams.delete("return_from_tour");
+      const newSearch = urlParams.toString();
+      const newUrl = newSearch ? `/courses?${newSearch}` : "/courses";
+      window.history.replaceState({}, "", newUrl);
+      return;
+    }
+
     // Start the orchestrated welcome sequence (only once and after onboarding)
     if (!hasStartedRef.current && onboardingComplete) {
       hasStartedRef.current = true;
@@ -174,7 +202,28 @@ export function WelcomeContent({ firstCourse, lastCourse, allCourses }: WelcomeC
     });
   };
 
-  const header = <LessonHeader courseTitle="Welcome" moduleTitle="Getting Started" />;
+  const handleTakeTour = () => {
+    // Redirect to tour mode with current page as return destination
+    router.push("/course/demo/module/demo?tour=true&redirect_back_to=/courses");
+  };
+
+  const header = (
+    <LessonHeader
+      courseTitle="Welcome"
+      moduleTitle="Getting Started"
+      additionalActions={
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleTakeTour}
+          className="gap-2"
+        >
+          <HelpCircle className="h-4 w-4" />
+          Take a Tour
+        </Button>
+      }
+    />
+  );
 
   const content = (
     <div className="px-2 py-3">

@@ -20,7 +20,7 @@ export function CollapsedPanel({ className = "", onToggleCollapse }: CollapsedPa
       </button>
       <button
         onClick={onToggleCollapse}
-        className="p-3 hover:bg-gray-100 rounded-lg transition-colors"
+        className="tour-sidebar-toggle p-3 hover:bg-gray-100 rounded-lg transition-colors"
         title="My Courses"
       >
         <Monitor className="h-5 w-5 text-gray-600" />

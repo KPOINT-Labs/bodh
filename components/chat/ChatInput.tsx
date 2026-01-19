@@ -231,7 +231,7 @@ export function ChatInput({
             placeholder={getPlaceholder()}
             disabled={isDisabled || (isConnected && isVoiceModeEnabled)}
             onKeyDown={handleKeyDown}
-            className="flex-1 bg-transparent border-none outline-none font-normal text-[16px] text-gray-900 placeholder-[#99a1af] tracking-[-0.3125px] leading-[24px] disabled:opacity-50"
+            className="tour-text-input flex-1 bg-transparent border-none outline-none font-normal text-[16px] text-gray-900 placeholder-[#99a1af] tracking-[-0.3125px] leading-[24px] disabled:opacity-50"
           />
         )}
         <div className="flex items-center gap-2">
@@ -239,7 +239,7 @@ export function ChatInput({
           <button
             onClick={inputValue.trim() ? handleSubmit : handleVoiceClick}
             disabled={isDisabled || isConnecting}
-            className="flex items-center justify-center w-[44px] h-[44px] rounded-full shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+            className="tour-mic-button flex items-center justify-center w-[44px] h-[44px] rounded-full shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
             style={{
               background: isConnected
                 ? isVoiceModeEnabled

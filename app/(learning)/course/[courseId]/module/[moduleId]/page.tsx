@@ -2,13 +2,14 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { ModuleContent } from "./ModuleContent";
+import { mockTourData } from "@/lib/mockTourData";
 
 // Render at request time (database required)
 export const dynamic = "force-dynamic";
 
 interface ModulePageProps {
   params: Promise<{ courseId: string; moduleId: string }>;
-  searchParams: Promise<{ lesson?: string }>;
+  searchParams: Promise<{ lesson?: string; tour?: string }>;
 }
 
 async function getModuleData(courseIdOrSlug: string, moduleId: string) {
@@ -63,6 +64,7 @@ async function getModuleData(courseIdOrSlug: string, moduleId: string) {
           kpointVideoId: true,
           youtubeVideoId: true,
           description: true,
+          duration: true,
         },
       },
     },
@@ -78,7 +80,8 @@ async function getModuleData(courseIdOrSlug: string, moduleId: string) {
 
 export default async function ModulePage({ params, searchParams }: ModulePageProps) {
   const { courseId, moduleId } = await params;
-  const { lesson: initialLessonId } = await searchParams;
+  const resolvedSearchParams = await searchParams;
+  const { lesson: initialLessonId } = resolvedSearchParams;
 
   // Get authenticated user
   const session = await auth();
@@ -86,6 +89,24 @@ export default async function ModulePage({ params, searchParams }: ModulePagePro
     notFound();
   }
 
+  // Detect tour mode: both route params AND query parameter must match
+  const tourParam = resolvedSearchParams.tour;
+  const isTourMode = courseId === "demo" && moduleId === "demo" && tourParam === "true";
+
+  // If tour mode, use mock data instead of database
+  if (isTourMode) {
+    return (
+      <ModuleContent
+        course={mockTourData.course}
+        module={mockTourData.module}
+        userId={session.user.id}
+        initialLessonId={mockTourData.module.lessons[0]?.id}
+        isTourMode={true}
+      />
+    );
+  }
+
+  // Normal mode: query database
   const data = await getModuleData(courseId, moduleId);
   if (!data) {
     notFound();
@@ -99,6 +120,7 @@ export default async function ModulePage({ params, searchParams }: ModulePagePro
       module={module}
       userId={session.user.id}
       initialLessonId={initialLessonId}
+      isTourMode={false}
     />
   );
 }

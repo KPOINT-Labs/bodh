@@ -9,7 +9,7 @@ export function AudioToggleButton() {
   return (
     <button
       onClick={toggleMute}
-      className={`p-2 rounded-lg transition-all hover:scale-110 ${
+      className={`tour-audio-toggle p-2 rounded-lg transition-all hover:scale-110 ${
         isMuted
           ? "bg-gray-300 text-gray-600 hover:bg-gray-400"
           : "bg-blue-500 text-white hover:bg-blue-600"

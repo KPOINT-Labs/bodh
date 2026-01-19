@@ -4,9 +4,10 @@ import { AudioToggleButton } from "@/components/audio/AudioToggleButton";
 interface LessonHeaderProps {
   courseTitle: string;
   moduleTitle: string;
+  additionalActions?: React.ReactNode;
 }
 
-export function LessonHeader({ courseTitle, moduleTitle }: LessonHeaderProps) {
+export function LessonHeader({ courseTitle, moduleTitle, additionalActions }: LessonHeaderProps) {
   return (
     <div className="border-b bg-background px-6 py-4">
       <div className="flex items-center justify-between">
@@ -22,6 +23,7 @@ export function LessonHeader({ courseTitle, moduleTitle }: LessonHeaderProps) {
         </div>
         <div className="flex items-center gap-2">
           <AudioToggleButton />
+          {additionalActions}
         </div>
       </div>
     </div>
