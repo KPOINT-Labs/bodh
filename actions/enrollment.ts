@@ -3,6 +3,31 @@
 import { prisma } from "@/lib/prisma";
 
 /**
+ * Ensures a user is enrolled in a specific course.
+ * Uses upsert to create enrollment if missing, no-op if exists.
+ * @param userId - The user ID
+ * @param courseId - The course ID to enroll in
+ */
+export async function ensureEnrollment(userId: string, courseId: string): Promise<void> {
+  try {
+    await prisma.enrollment.upsert({
+      where: {
+        userId_courseId: { userId, courseId }
+      },
+      create: {
+        userId,
+        courseId,
+        status: "active"
+      },
+      update: {} // No update needed if exists
+    });
+  } catch (error) {
+    console.error(`[EnsureEnrollment] Failed for user ${userId}, course ${courseId}:`, error);
+    // Don't throw - enrollment failure shouldn't block course access
+  }
+}
+
+/**
  * Auto-enrolls a new user in all published courses
  * @param userId - The user ID to enroll
  * @returns Promise<void>

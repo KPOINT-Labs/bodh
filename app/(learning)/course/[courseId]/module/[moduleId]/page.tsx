@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { ModuleContent } from "./ModuleContent";
 import { mockTourData } from "@/lib/mockTourData";
+import { ensureEnrollment } from "@/actions/enrollment";
 
 // Render at request time (database required)
 export const dynamic = "force-dynamic";
@@ -113,6 +114,9 @@ export default async function ModulePage({ params, searchParams }: ModulePagePro
   }
 
   const { course, module } = data;
+
+  // Auto-enroll user if not already enrolled
+  await ensureEnrollment(session.user.id, course.id);
 
   return (
     <ModuleContent
