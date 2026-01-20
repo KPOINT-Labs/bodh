@@ -497,10 +497,11 @@ export function ChatAgent({
 
         {/* Action Buttons - show when there's a pending action and agent has finished speaking */}
         {/* Uses the unified ActionButtons component from the action registry */}
+        {/* Show if there's a welcome message, agent transcript, OR an introMessage in the action metadata (for FA intro) */}
         {!isAgentSpeaking &&
          pendingAction &&
          isLiveKitConnected &&
-         (welcomeMessage || agentTranscript) &&
+         (welcomeMessage || agentTranscript || Boolean(pendingAction.metadata?.introMessage)) &&
          onActionButtonClick && (
           <ActionButtons
             pendingAction={pendingAction}
