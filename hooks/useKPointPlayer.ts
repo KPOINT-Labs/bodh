@@ -90,7 +90,7 @@ export function useKPointPlayer({ kpointVideoId, userId, lessonId, videoDuration
     userId,
     lessonId,
     videoDuration,
-    hasProgressTracking: !!(userId && lessonId && videoDuration),
+    hasProgressTracking: !!(userId && lessonId), // Duration will be fetched from player if not provided
   });
   
   // Store callbacks in refs to avoid effect re-runs
@@ -291,6 +291,15 @@ export function useKPointPlayer({ kpointVideoId, userId, lessonId, videoDuration
 
       const currentTimeMs = playerRef.current.getCurrentTime();
       const currentTimeSec = currentTimeMs / 1000;
+
+      // Try to get video duration if not already obtained
+      if (actualVideoDurationRef.current === 0) {
+        const duration = getVideoDurationFromPlayer(playerRef.current);
+        if (duration > 0) {
+          actualVideoDurationRef.current = duration;
+          console.log("[useKPointPlayer] Got duration on timeUpdate:", duration, "seconds");
+        }
+      }
 
       // Get current values from refs (not stale closure values)
       const currentBookmarks = bookmarksRef.current;
