@@ -190,6 +190,7 @@ export function ModuleContent({ course, module, userId, initialLessonId, isTourM
   };
 
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(getInitialLesson);
+  const [isPanelClosed, setIsPanelClosed] = useState(false); // Track if user explicitly closed the panel
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [videoStartOffset, setVideoStartOffset] = useState<number | null>(null);
   const [lessonProgress, setLessonProgress] = useState<{
@@ -202,6 +203,7 @@ export function ModuleContent({ course, module, userId, initialLessonId, isTourM
     if (initialLessonId) {
       const lesson = module.lessons.find((l) => l.id === initialLessonId);
       if (lesson) {
+        setIsPanelClosed(false); // Reset closed state when lesson selected via URL
         setSelectedLesson(lesson);
       }
     }
@@ -285,6 +287,8 @@ export function ModuleContent({ course, module, userId, initialLessonId, isTourM
   const clearUserTranscriptRef = useRef<(() => void) | null>(null);
   // Ref for showAction to use in callbacks (set after useActionButtons)
   const showActionRef = useRef<((type: ActionType, metadata?: Record<string, unknown>) => void) | null>(null);
+  // Ref for dismissAction to use in handleAddUserMessage (set after useActionButtons)
+  const dismissActionRef = useRef<(() => void) | null>(null);
 
   // Keep isReturningUserRef updated
   useEffect(() => {
@@ -719,6 +723,10 @@ export function ModuleContent({ course, module, userId, initialLessonId, isTourM
       console.log("[ModuleContent] User sent message, setting userHasSentMessageRef = true, messageType:", messageType);
       userHasSentMessageRef.current = true; // Mark that user has interacted
       lastUserMessageTypeRef.current = messageType; // Track message type for agent response
+      // Dismiss any pending action buttons when user sends a message
+      if (dismissActionRef.current) {
+        dismissActionRef.current();
+      }
       await addUserMessage(message, messageType, inputType);
     },
     [addUserMessage]
@@ -733,6 +741,7 @@ export function ModuleContent({ course, module, userId, initialLessonId, isTourM
   const actionDeps: ActionDependencies = {
     seekTo,
     playVideo: () => {
+      setIsPanelClosed(false); // Ensure panel is visible when playing
       if (playerRef.current) {
         if (playerRef.current.playVideo) {
           playerRef.current.playVideo();
@@ -761,12 +770,17 @@ export function ModuleContent({ course, module, userId, initialLessonId, isTourM
     startTour,
   };
 
-  const { pendingAction, showAction, handleButtonClick, isActioned, resetHandledActions } = useActionButtons(actionDeps);
+  const { pendingAction, showAction, dismissAction, handleButtonClick, isActioned, resetHandledActions } = useActionButtons(actionDeps);
 
   // Keep showActionRef updated for use in callbacks
   useEffect(() => {
     showActionRef.current = showAction;
   }, [showAction]);
+
+  // Keep dismissActionRef updated for use in handleAddUserMessage
+  useEffect(() => {
+    dismissActionRef.current = dismissAction;
+  }, [dismissAction]);
 
   // Reset handled actions when lesson changes (allows new welcome flows)
   useEffect(() => {
@@ -816,6 +830,7 @@ export function ModuleContent({ course, module, userId, initialLessonId, isTourM
 
   // Handle lesson selection
   const handleLessonSelect = useCallback((lesson: Lesson) => {
+    setIsPanelClosed(false); // Reset closed state when selecting a lesson
     setSelectedLesson(lesson);
   }, []);
 
@@ -915,12 +930,13 @@ export function ModuleContent({ course, module, userId, initialLessonId, isTourM
 
   // Handle closing the right panel (video player)
   const handleCloseRightPanel = useCallback(() => {
+    setIsPanelClosed(true); // Mark panel as explicitly closed
     setSelectedLesson(null);
     // Also update URL to remove the lesson param so clicking on lessons works again
     router.replace(pathname, { scroll: false });
   }, [router, pathname]);
 
-  const rightPanel = activeLesson?.kpointVideoId ? (
+  const rightPanel = !isPanelClosed && activeLesson?.kpointVideoId ? (
     <div
       data-tour="video-panel"
       className={`h-full flex flex-col bg-white p-4 transition-all duration-300 ${

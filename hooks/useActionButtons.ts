@@ -50,9 +50,13 @@ export function useActionButtons(deps: ActionDependencies): UseActionButtonsRetu
   }, []);
 
   const dismissAction = useCallback(() => {
+    // Mark the current action as handled so it won't be re-shown
+    if (pendingAction) {
+      handledActionsRef.current.add(pendingAction.type);
+    }
     setPendingAction(null);
     setIsActioned(false);
-  }, []);
+  }, [pendingAction]);
 
   const handleButtonClick = useCallback(
     async (buttonId: string) => {
