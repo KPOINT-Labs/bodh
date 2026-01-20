@@ -13,11 +13,16 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Fetch user's enrollments with full course data
+    // Fetch user's enrollments with full course data, sorted by course title
     const enrollments = await prisma.enrollment.findMany({
       where: {
         userId,
         status: "active",
+      },
+      orderBy: {
+        course: {
+          title: "asc",
+        },
       },
       include: {
         course: {
