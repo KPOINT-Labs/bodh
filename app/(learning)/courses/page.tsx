@@ -95,7 +95,7 @@ async function getAllPublishedCourses() {
         },
       },
     },
-    orderBy: { createdAt: "desc" },
+    orderBy: { title: "asc" },
   });
 
   // Map to extract firstModule and firstLesson from arrays
