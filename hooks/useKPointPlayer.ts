@@ -213,16 +213,18 @@ export function useKPointPlayer({ kpointVideoId, userId, lessonId, videoDuration
   const updateProgress = useCallback(async (currentTimeSec: number, videoEnded: boolean) => {
     const currentVideoDuration = actualVideoDurationRef.current;
 
-    if (!userId || !lessonId || !currentVideoDuration) {
+    if (!userId || !lessonId) {
       console.warn("[useKPointPlayer] updateProgress called but missing params:", {
         userId: !!userId,
         lessonId: !!lessonId,
-        videoDuration: currentVideoDuration,
       });
       return;
     }
 
-    const completionPercentage = Math.min((currentTimeSec / currentVideoDuration) * 100, 100);
+    // Calculate completion percentage (0 if duration unknown)
+    const completionPercentage = currentVideoDuration > 0
+      ? Math.min((currentTimeSec / currentVideoDuration) * 100, 100)
+      : 0;
 
     console.log("[useKPointPlayer] Calling updateLessonProgress server action:", {
       userId,
@@ -299,9 +301,8 @@ export function useKPointPlayer({ kpointVideoId, userId, lessonId, videoDuration
         checkForFATriggersInternal(currentTimeMs, currentBookmarks);
       }
 
-      // Update progress every 15 seconds
-      const currentVideoDuration = actualVideoDurationRef.current;
-      if (userId && lessonId && currentVideoDuration && currentIsPlaying) {
+      // Update progress every 15 seconds (duration not required - completion % will be 0 if unknown)
+      if (userId && lessonId && currentIsPlaying) {
         const now = Date.now();
         const timeSinceLastUpdate = now - lastProgressUpdateRef.current;
 
@@ -312,7 +313,7 @@ export function useKPointPlayer({ kpointVideoId, userId, lessonId, videoDuration
             timeSinceLastUpdate,
             userId,
             lessonId,
-            videoDuration: currentVideoDuration,
+            videoDuration: actualVideoDurationRef.current,
           });
           lastProgressUpdateRef.current = now;
           updateProgress(currentTimeSec, false);
@@ -322,11 +323,10 @@ export function useKPointPlayer({ kpointVideoId, userId, lessonId, videoDuration
         const now = Date.now();
         if (!currentIsPlaying) {
           // Silent - video not playing
-        } else if ((!userId || !lessonId || !currentVideoDuration) && now - lastProgressUpdateRef.current > 60000) {
+        } else if ((!userId || !lessonId) && now - lastProgressUpdateRef.current > 60000) {
           console.warn("[useKPointPlayer] Progress tracking skipped - missing params:", {
             userId: !!userId,
             lessonId: !!lessonId,
-            videoDuration: currentVideoDuration,
           });
           lastProgressUpdateRef.current = now; // Update to avoid spam
         }

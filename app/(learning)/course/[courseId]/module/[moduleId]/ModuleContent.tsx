@@ -19,11 +19,14 @@ import { MessageBubble } from "@/components/ui/message-bubble";
 // Hooks
 import { useKPointPlayer } from "@/hooks/useKPointPlayer";
 import { useChatSession } from "@/hooks/useChatSession";
-import { useLiveKit, TranscriptSegment, UserTranscription, FAIntroData } from "@/hooks/useLiveKit";
+import { useLiveKit, TranscriptSegment, UserTranscription } from "@/hooks/useLiveKit";
 import { useSessionType } from "@/hooks/useSessionType";
 import { useLearningPanel } from "@/contexts/LearningPanelContext";
 import { useAudioContext } from "@/contexts/AudioContext";
 import { getLessonProgress } from "@/lib/actions/lesson-progress";
+import { useActionButtons } from "@/hooks/useActionButtons";
+import type { ActionType } from "@/lib/actions/actionRegistry";
+import type { ActionDependencies } from "@/lib/actions/actionHandlers";
 
 interface Lesson {
   id: string;
@@ -204,16 +207,20 @@ export function ModuleContent({ course, module, userId, initialLessonId, isTourM
     }
   }, [initialLessonId, module.lessons]);
 
+  // Get active lesson (selected or first) - defined early so it can be used in useEffects
+  const sortedLessons = [...module.lessons].sort((a, b) => a.orderIndex - b.orderIndex);
+  const activeLesson = selectedLesson || sortedLessons[0];
+
   // Fetch lesson progress when lesson is selected
   useEffect(() => {
-    if (!selectedLesson || !userId) {
+    if (!activeLesson || !userId) {
       setLessonProgress(null);
       return;
     }
 
     async function fetchProgress() {
       try {
-        const progress = await getLessonProgress(userId, selectedLesson!.id);
+        const progress = await getLessonProgress(userId, activeLesson!.id);
         setLessonProgress(progress);
       } catch (error) {
         console.error("Failed to fetch lesson progress:", error);
@@ -222,35 +229,38 @@ export function ModuleContent({ course, module, userId, initialLessonId, isTourM
     }
 
     fetchProgress();
-  }, [selectedLesson?.id, userId]);
-
-  // FA intro state - when highlight triggers FA, show intro with buttons first
-  const [pendingFAIntro, setPendingFAIntro] = useState<FAIntroData | null>(null);
-  // Track when we're waiting for FA intro (agent is speaking intro, data message not yet received)
-  const [isWaitingForFAIntro, setIsWaitingForFAIntro] = useState(false);
-  // Track when FA intro buttons have been actioned (to disable buttons but keep section visible)
-  const [faIntroActioned, setFaIntroActioned] = useState(false);
-  // Store the topic when sending FA_INTRO (used to show buttons even if data message fails)
-  const pendingFATopicRef = useRef<string | null>(null);
+  }, [activeLesson?.id, userId]);
 
   // Collapse left panel when video panel opens, expand when closed
   useEffect(() => {
-    if (selectedLesson?.kpointVideoId) {
+    if (activeLesson?.kpointVideoId) {
       collapsePanel();
     } else {
       expandPanel();
     }
-  }, [selectedLesson?.kpointVideoId, collapsePanel, expandPanel]);
+  }, [activeLesson?.kpointVideoId, collapsePanel, expandPanel]);
 
-  // Get active lesson (selected or first)
-  const activeLesson = selectedLesson || module.lessons.sort((a, b) => a.orderIndex - b.orderIndex)[0];
   // Use youtubeVideoId for Sarvam AI (video context), kpointVideoId for player
   const videoIds = activeLesson?.youtubeVideoId ? [activeLesson.youtubeVideoId] : [];
 
-  // Determine session type (welcome vs welcome_back) before connecting to LiveKit
-  const { sessionType, isLoading: isSessionTypeLoading, isReturningUser } = useSessionType({
+  // Determine session type based on enrollment + lesson progress
+  // Session types: course_welcome, course_welcome_back, lesson_welcome, lesson_welcome_back
+  // Also returns lessonNumber (1-based global) and prevLessonTitle for warm-up context
+  const {
+    sessionType,
+    isLoading: isSessionTypeLoading,
+    isReturningUser,
+    isFirstCourseVisit,
+    isIntroLesson,
+    isFirstLessonVisit,
+    lessonNumber,
+    prevLessonTitle,
+    courseProgress,
+    lessonProgress: sessionLessonProgress,
+  } = useSessionType({
     userId,
-    moduleId: module.id,
+    courseId: course.id,
+    lessonId: activeLesson?.id,
   });
 
   // Track which transcript segments have been stored to avoid duplicates
@@ -273,6 +283,8 @@ export function ModuleContent({ course, module, userId, initialLessonId, isTourM
   const handleAddUserMessageRef = useRef<((message: string, messageType?: string, inputType?: string) => Promise<void>) | null>(null);
   // Ref for clearUserTranscript to use after storing voice message
   const clearUserTranscriptRef = useRef<(() => void) | null>(null);
+  // Ref for showAction to use in callbacks (set after useActionButtons)
+  const showActionRef = useRef<((type: ActionType, metadata?: Record<string, unknown>) => void) | null>(null);
 
   // Keep isReturningUserRef updated
   useEffect(() => {
@@ -349,15 +361,15 @@ export function ModuleContent({ course, module, userId, initialLessonId, isTourM
       if (segment.text.startsWith("We've just completed a full idea covering")) {
         if (segment.isFinal) {
           const text = segment.text;
-          const topicRegex = /covering (.*)\\. Let's do a quick check/;
+          const topicRegex = /covering ([^.]+)\. Let's do a quick check/;
           const match = text.match(topicRegex);
           if (match && match[1]) {
             const topic = match[1];
             console.log("[ModuleContent] FA intro transcript detected, showing buttons for topic:", topic);
-            setPendingFAIntro({
-              topic: topic,
-              introMessage: text,
-            });
+            // Use the action registry pattern
+            if (showActionRef.current) {
+              showActionRef.current("fa_intro", { topic, introMessage: text });
+            }
 
             // Clear the transcript so it's not stored in history and doesn't appear twice.
             setTimeout(() => {
@@ -435,11 +447,12 @@ export function ModuleContent({ course, module, userId, initialLessonId, isTourM
   );
 
   // Handle FA intro complete - agent spoke intro, now show buttons
-  const handleFAIntroComplete = useCallback((data: FAIntroData) => {
+  const handleFAIntroComplete = useCallback((data: { topic: string; introMessage: string }) => {
     console.log("[ModuleContent] FA intro complete, showing buttons for topic:", data.topic);
-    setIsWaitingForFAIntro(false); // Stop showing live transcript
-    setPendingFAIntro(data); // Show buttons
-    setFaIntroActioned(false); // Reset button state for new FA intro
+    // Use the action registry pattern
+    if (showActionRef.current) {
+      showActionRef.current("fa_intro", { topic: data.topic, introMessage: data.introMessage });
+    }
   }, []);
 
   // LiveKit voice session - auto-connect in listen-only mode (text-to-speech)
@@ -465,7 +478,18 @@ export function ModuleContent({ course, module, userId, initialLessonId, isTourM
       moduleTitle: module.title,
       lessonId: activeLesson?.id,
       lessonTitle: activeLesson?.title,
-      sessionType: sessionType, // Dynamic: "welcome" or "welcome_back"
+      lessonOrderIndex: activeLesson?.orderIndex,
+      lessonNumber: lessonNumber, // 1-based global lesson number
+      prevLessonTitle: prevLessonTitle ?? undefined, // Previous lesson title for warm-up context (from API)
+      // New session type system: course_welcome | course_welcome_back | lesson_welcome | lesson_welcome_back
+      sessionType: sessionType,
+      isFirstCourseVisit: isFirstCourseVisit,
+      isIntroLesson: isIntroLesson,
+      isFirstLessonVisit: isFirstLessonVisit,
+      // Course progress for welcome_back messages
+      courseProgress: courseProgress ? JSON.stringify(courseProgress) : undefined,
+      // Lesson progress for lesson_welcome_back messages
+      lessonProgressData: sessionLessonProgress ? JSON.stringify(sessionLessonProgress) : undefined,
       userId: userId, // User ID for conversation creation in prism
     },
   });
@@ -552,22 +576,22 @@ export function ModuleContent({ course, module, userId, initialLessonId, isTourM
   // Handle video end - auto-play next lesson
   const handleVideoEnd = useCallback(async () => {
     console.log("[ModuleContent] handleVideoEnd called", {
-      selectedLesson: selectedLesson?.title,
+      activeLesson: activeLesson?.title,
       lessonsCount: module.lessons.length,
     });
 
-    if (!selectedLesson || !module.lessons.length) {
-      console.log("[ModuleContent] handleVideoEnd early return - no selected lesson or lessons");
+    if (!activeLesson || !module.lessons.length) {
+      console.log("[ModuleContent] handleVideoEnd early return - no active lesson or lessons");
       return;
     }
 
     // Sort lessons by orderIndex to find the next one
-    const sortedLessons = [...module.lessons].sort((a, b) => a.orderIndex - b.orderIndex);
-    const currentIndex = sortedLessons.findIndex((l) => l.id === selectedLesson.id);
+    const sortedLessonsList = [...module.lessons].sort((a, b) => a.orderIndex - b.orderIndex);
+    const currentIndex = sortedLessonsList.findIndex((l) => l.id === activeLesson.id);
 
     // Check if there's a next lesson
-    if (currentIndex >= 0 && currentIndex < sortedLessons.length - 1) {
-      const nextLesson = sortedLessons[currentIndex + 1];
+    if (currentIndex >= 0 && currentIndex < sortedLessonsList.length - 1) {
+      const nextLesson = sortedLessonsList[currentIndex + 1];
       console.log(`[ModuleContent] Video ended, auto-playing next lesson: ${nextLesson.title}`);
 
       // Select the next lesson (this will trigger the video player to load)
@@ -626,10 +650,10 @@ export function ModuleContent({ course, module, userId, initialLessonId, isTourM
         });
       }
     }
-  }, [selectedLesson, module.lessons, module.id, course.id, liveKit.isConnected, liveKit.sendTextToAgent, router, pathname]);
+  }, [activeLesson, module.lessons, module.id, course.id, liveKit.isConnected, liveKit.sendTextToAgent, router, pathname]);
 
   // Get video duration from lesson (stored in seconds in database)
-  const videoDuration = selectedLesson?.duration || 0;
+  const videoDuration = activeLesson?.duration || 0;
 
   // Calculate effective start offset (manual timestamp OR saved position for in_progress lessons)
   const effectiveStartOffset = videoStartOffset ??
@@ -638,23 +662,23 @@ export function ModuleContent({ course, module, userId, initialLessonId, isTourM
   // DEBUG: Log progress tracking parameters
   console.log("[ModuleContent] Progress tracking params:", {
     userId,
-    lessonId: selectedLesson?.id,
+    lessonId: activeLesson?.id,
     videoDuration,
-    hasKpointVideoId: !!selectedLesson?.kpointVideoId,
+    hasKpointVideoId: !!activeLesson?.kpointVideoId,
   });
 
   // KPoint player hook with FA trigger integration
   const { seekTo, getCurrentTime, isPlayerReady, isPlaying, playerRef } = useKPointPlayer({
-    kpointVideoId: selectedLesson?.kpointVideoId,
+    kpointVideoId: activeLesson?.kpointVideoId,
     userId,
-    lessonId: selectedLesson?.id,
+    lessonId: activeLesson?.id,
     videoDuration,
     onVideoEnd: handleVideoEnd,
     onFATrigger: async (_message: string, _timestampSeconds: number, topic?: string, _pauseVideo?: boolean) => {
       // NEW FLOW: Instead of directly starting FA, first show intro with buttons
       // 1. Send FA_INTRO:topic to agent - agent speaks intro message
-      // 2. Agent sends fa_intro_complete signal
-      // 3. Frontend shows "Start quick check" and "Skip for now" buttons
+      // 2. Agent sends fa_intro_complete signal (or transcript callback detects it)
+      // 3. Frontend shows "Start quick check" and "Skip for now" buttons via action registry
       // 4. User clicks button to either start FA or resume video
 
       if (liveKit.isConnected) {
@@ -662,14 +686,10 @@ export function ModuleContent({ course, module, userId, initialLessonId, isTourM
           const topicName = topic || "the topic";
           const introMessage = `FA_INTRO:${topicName}`;
           console.log("[ModuleContent] FA trigger - sending intro request:", introMessage);
-          pendingFATopicRef.current = topicName; // Store topic for button click
-          setIsWaitingForFAIntro(true); // Show transcript while agent speaks
-          setFaIntroActioned(false); // Reset button state
           await liveKit.sendTextToAgent(introMessage);
+          // Buttons will be shown when agent finishes speaking (via handleFAIntroComplete or transcript callback)
         } catch (err) {
           console.error("[ModuleContent] Failed to send FA intro via LiveKit:", err);
-          setIsWaitingForFAIntro(false);
-          pendingFATopicRef.current = null;
         }
       } else {
         console.warn("[ModuleContent] LiveKit not connected, cannot send FA intro");
@@ -682,7 +702,7 @@ export function ModuleContent({ course, module, userId, initialLessonId, isTourM
   const { chatMessages, isSending, addUserMessage, addAssistantMessage } = useChatSession({
     courseId: course.id,
     conversationId,
-    selectedLesson,
+    selectedLesson: activeLesson,
     lessons: module.lessons,
     getCurrentTime,
   });
@@ -709,91 +729,90 @@ export function ModuleContent({ course, module, userId, initialLessonId, isTourM
     handleAddUserMessageRef.current = handleAddUserMessage;
   }, [handleAddUserMessage]);
 
-  // Handle FA intro button clicks
-  const handleStartQuickCheck = useCallback(async () => {
-    // Get topic from pendingFAIntro (data message) or fallback to stored ref
-    const topic = pendingFAIntro?.topic || pendingFATopicRef.current;
-    console.log("[ModuleContent] handleStartQuickCheck called", { topic, faIntroActioned, pendingFAIntro: !!pendingFAIntro });
-
-    if (!topic || faIntroActioned) {
-      console.log("[ModuleContent] Early return - topic:", topic, "faIntroActioned:", faIntroActioned);
-      return;
-    }
-
-    console.log("[ModuleContent] Starting quick check for topic:", topic);
-
-    // 1. Save the FA intro message to chat history (so it appears in conversation)
-    const introMessage = liveKit.agentTranscript || pendingFAIntro?.introMessage;
-    if (introMessage && addAssistantMessageRef.current) {
-      await addAssistantMessageRef.current(introMessage, "fa");
-    }
-
-    // 2. Hide the FA intro section
-    setIsWaitingForFAIntro(false);
-    setPendingFAIntro(null);
-    pendingFATopicRef.current = null;
-    setFaIntroActioned(false); // Reset for next time
-
-    // 3. Clear the agent transcript so it doesn't linger
-    if (liveKit.clearAgentTranscript) {
-      liveKit.clearAgentTranscript();
-    }
-
-    // 4. Display user message in chat UI
-    const displayMessage = "Ask me a formative assessment";
-    if (handleAddUserMessageRef.current) {
-      userHasSentMessageRef.current = true;
-      await handleAddUserMessageRef.current(displayMessage, "fa", "auto");
-    }
-
-    // 5. Send the actual FA request to agent
-    if (liveKit.isConnected) {
-      try {
-        const agentMessage = `
-          Be in assessment mode.
-
-          Generate EXACTLY 3 questions on Iteration (use mixed question types if needed).
-          Ask questions one by one.
-          If the user answers 2 questions correctly, stop the assessment and provide feedback.
-
-          IMPORTANT:
-          - Do NOT tell the user about the 3 question limit or the 2 correct answers threshold.
-          - Do NOT mention "I will ask 3 questions" or similar.
-          - Just start with the first question naturally.
-          - Give answer explanation in strictly 2 sentences.
-
-          User query: Ask me a formative assessment on "${topic}".
-        `.trim();
-        await liveKit.sendTextToAgent(agentMessage);
-      } catch (err) {
-        console.error("[ModuleContent] Failed to send FA request:", err);
-      }
-    }
-  }, [pendingFAIntro, faIntroActioned, liveKit.isConnected, liveKit.sendTextToAgent, liveKit.agentTranscript, liveKit.clearAgentTranscript]);
-
-  const handleSkipQuickCheck = useCallback(() => {
-    if (faIntroActioned) return;
-
-    console.log("[ModuleContent] Skipping quick check, resuming video");
-
-    // Disable buttons (but keep FA intro section visible)
-    setFaIntroActioned(true);
-
-    // Resume the video
-    if (playerRef.current) {
-      try {
+  // Set up action button dependencies and hook
+  const actionDeps: ActionDependencies = {
+    seekTo,
+    playVideo: () => {
+      if (playerRef.current) {
         if (playerRef.current.playVideo) {
           playerRef.current.playVideo();
         } else if (playerRef.current.setState) {
-          // Fallback to setState with PLAYING state
           playerRef.current.setState(1); // PLAYING = 1
         }
-        console.log("[ModuleContent] Video resumed after skip");
-      } catch (error) {
-        console.error("[ModuleContent] Failed to resume video:", error);
+      }
+    },
+    pauseVideo: () => {
+      if (playerRef.current?.pauseVideo) {
+        playerRef.current.pauseVideo();
+      }
+    },
+    selectLesson: (lesson) => {
+      // If already on this lesson, just play the video
+      if (activeLesson?.id === lesson.id) {
+        if (playerRef.current?.playVideo) {
+          playerRef.current.playVideo();
+        }
+      } else {
+        setSelectedLesson(lesson);
+      }
+    },
+    sendTextToAgent: liveKit.sendTextToAgent,
+    addUserMessage: handleAddUserMessage,
+    startTour,
+  };
+
+  const { pendingAction, showAction, handleButtonClick, isActioned, resetHandledActions } = useActionButtons(actionDeps);
+
+  // Keep showActionRef updated for use in callbacks
+  useEffect(() => {
+    showActionRef.current = showAction;
+  }, [showAction]);
+
+  // Reset handled actions when lesson changes (allows new welcome flows)
+  useEffect(() => {
+    resetHandledActions();
+  }, [activeLesson?.id, resetHandledActions]);
+
+  // Trigger session type action when agent finishes welcome message
+  useEffect(() => {
+    if (
+      !liveKit.isAgentSpeaking &&
+      liveKit.isConnected &&
+      sessionType &&
+      !pendingAction &&
+      (liveKit.agentTranscript || welcomeStoredRef.current)
+    ) {
+      // Map session type to action type and show action buttons
+      const sessionTypeToAction: Record<string, ActionType> = {
+        course_welcome: "course_welcome",
+        course_welcome_back: "course_welcome_back",
+        lesson_welcome: "lesson_welcome",
+        lesson_welcome_back: "lesson_welcome_back",
+      };
+
+      const actionType = sessionTypeToAction[sessionType];
+      if (actionType) {
+        showAction(actionType, {
+          introLesson: sortedLessons[0],
+          firstLesson: sortedLessons[1] || sortedLessons[0],
+          lastLesson: activeLesson,
+          lastPosition: sessionLessonProgress?.lastPosition || 0,
+          prevLessonTitle,
+        });
       }
     }
-  }, [faIntroActioned, playerRef]);
+  }, [
+    liveKit.isAgentSpeaking,
+    liveKit.isConnected,
+    liveKit.agentTranscript,
+    sessionType,
+    pendingAction,
+    showAction,
+    sortedLessons,
+    activeLesson,
+    sessionLessonProgress?.lastPosition,
+    prevLessonTitle,
+  ]);
 
   // Handle lesson selection
   const handleLessonSelect = useCallback((lesson: Lesson) => {
@@ -814,7 +833,7 @@ export function ModuleContent({ course, module, userId, initialLessonId, isTourM
         : null;
 
       // Check if this lesson is already selected (avoid re-render)
-      const isAlreadySelected = matchingLesson && selectedLesson?.id === matchingLesson.id;
+      const isAlreadySelected = matchingLesson && activeLesson?.id === matchingLesson.id;
 
       if (isAlreadySelected) {
         // Same lesson already selected - just seek, don't re-render
@@ -836,7 +855,7 @@ export function ModuleContent({ course, module, userId, initialLessonId, isTourM
         console.log(`Player not ready. Stored ${seconds} seconds as start offset.`);
       }
     },
-    [module.lessons, selectedLesson?.id, isPlayerReady, seekTo]
+    [module.lessons, activeLesson?.id, isPlayerReady, seekTo]
   );
 
   // Layout sections
@@ -857,7 +876,7 @@ export function ModuleContent({ course, module, userId, initialLessonId, isTourM
         chatMessages={chatMessages}
         isWaitingForResponse={isSending || liveKit.isWaitingForAgentResponse}
         isVideoPlaying={isPlaying}
-        hasSelectedLesson={!!selectedLesson}
+        hasSelectedLesson={!!activeLesson}
         // LiveKit agent transcript
         agentTranscript={liveKit.agentTranscript}
         isAgentSpeaking={liveKit.isAgentSpeaking}
@@ -870,12 +889,10 @@ export function ModuleContent({ course, module, userId, initialLessonId, isTourM
         isVoiceModeEnabled={liveKit.isVoiceModeEnabled}
         userTranscript={liveKit.userTranscript}
         isUserSpeaking={liveKit.isUserSpeaking}
-        // FA intro state and handlers
-        pendingFAIntro={pendingFAIntro}
-        isWaitingForFAIntro={isWaitingForFAIntro}
-        faIntroActioned={faIntroActioned}
-        onStartQuickCheck={handleStartQuickCheck}
-        onSkipQuickCheck={handleSkipQuickCheck}
+        // Action buttons (unified pattern for all action types)
+        pendingAction={pendingAction}
+        onActionButtonClick={handleButtonClick}
+        isActionDisabled={isActioned}
       />
 
       {/* Module Lessons Overview - Removed as not needed */}
@@ -903,7 +920,7 @@ export function ModuleContent({ course, module, userId, initialLessonId, isTourM
     router.replace(pathname, { scroll: false });
   }, [router, pathname]);
 
-  const rightPanel = selectedLesson?.kpointVideoId ? (
+  const rightPanel = activeLesson?.kpointVideoId ? (
     <div
       data-tour="video-panel"
       className={`h-full flex flex-col bg-white p-4 transition-all duration-300 ${
@@ -930,14 +947,14 @@ export function ModuleContent({ course, module, userId, initialLessonId, isTourM
         {/* Video Player */}
         <div className="aspect-video">
           <KPointVideoPlayer
-            kpointVideoId={selectedLesson.kpointVideoId}
+            kpointVideoId={activeLesson.kpointVideoId}
             startOffset={effectiveStartOffset}
           />
         </div>
         {/* Lesson Title Below Video */}
         <div className="p-3">
           <h3 className="font-medium text-xs text-foreground line-clamp-2">
-            Lesson {selectedLesson.orderIndex + 1}: {selectedLesson.title}
+            Lesson {activeLesson.orderIndex + 1}: {activeLesson.title}
           </h3>
         </div>
       </div>

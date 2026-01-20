@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { Sparkles } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 
 // Types
 import type { Course, Module, Lesson, MessageData } from "@/types/chat";
@@ -169,16 +168,12 @@ interface ChatAgentProps {
   userTranscript?: string;
   /** Whether user is currently speaking in voice mode */
   isUserSpeaking?: boolean;
-  /** Pending FA intro data (topic, intro message) - shows buttons when set */
-  pendingFAIntro?: { topic: string; introMessage: string } | null;
-  /** Whether we're waiting for FA intro (agent is speaking intro) */
-  isWaitingForFAIntro?: boolean;
-  /** Whether FA intro buttons have been actioned (disable buttons) */
-  faIntroActioned?: boolean;
-  /** Called when user clicks "Start quick check" */
-  onStartQuickCheck?: () => void;
-  /** Called when user clicks "Skip for now" */
-  onSkipQuickCheck?: () => void;
+  /** Pending action from the action registry */
+  pendingAction?: import("@/lib/actions/actionRegistry").PendingAction | null;
+  /** Handler for action button clicks */
+  onActionButtonClick?: (buttonId: string) => void;
+  /** Whether action buttons should be disabled */
+  isActionDisabled?: boolean;
 }
 
 /**
@@ -191,16 +186,16 @@ interface ChatAgentProps {
  * - Shows action buttons to start/continue lessons
  */
 export function ChatAgent({
-  course,
+  course: _course,
   module,
   userId,
-  onLessonSelect,
+  onLessonSelect: _onLessonSelect,
   onConversationReady,
   onTimestampClick,
   chatMessages = [],
   isWaitingForResponse = false,
-  isVideoPlaying = false,
-  hasSelectedLesson = false,
+  isVideoPlaying: _isVideoPlaying = false,
+  hasSelectedLesson: _hasSelectedLesson = false,
   agentTranscript = "",
   isAgentSpeaking = false,
   isLiveKitConnected = false,
@@ -210,11 +205,9 @@ export function ChatAgent({
   isVoiceModeEnabled = false,
   userTranscript = "",
   isUserSpeaking = false,
-  pendingFAIntro = null,
-  isWaitingForFAIntro = false,
-  faIntroActioned = false,
-  onStartQuickCheck,
-  onSkipQuickCheck,
+  pendingAction = null,
+  onActionButtonClick,
+  isActionDisabled = false,
 }: ChatAgentProps) {
   // State for session initialization
   const [historyMessages, setHistoryMessages] = useState<MessageData[]>([]);
@@ -427,20 +420,6 @@ export function ChatAgent({
     }
   }, [isLoading, forceScrollToBottom]);
 
-  // Event handlers
-  const handleStartLesson = () => {
-    if (firstLesson) {
-      onLessonSelect(firstLesson);
-    }
-  };
-
-  const handleContinueFromLastLesson = () => {
-    // TODO: Get actual last lesson from progress
-    if (firstLesson) {
-      onLessonSelect(firstLesson);
-    }
-  };
-
   // Loading state
   if (isLoading) {
     return <LoadingState isReturningUser={isReturningUser} />;
@@ -516,21 +495,17 @@ export function ChatAgent({
           </div>
         )}
 
-        {/* Action Buttons - show only after LiveKit connects and agent finishes speaking */}
-        {/* Conditions: LiveKit connected, agent has spoken, not speaking, no user messages, no lesson selected yet */}
+        {/* Action Buttons - show when there's a pending action and agent has finished speaking */}
+        {/* Uses the unified ActionButtons component from the action registry */}
         {!isAgentSpeaking &&
-         firstLesson &&
-         filteredChatMessages.length === 0 &&
+         pendingAction &&
          isLiveKitConnected &&
          (welcomeMessage || agentTranscript) &&
-         !hasSelectedLesson && (
+         onActionButtonClick && (
           <ActionButtons
-            firstLesson={firstLesson}
-            module={module}
-            isReturningUser={isReturningUser}
-            isVideoPlaying={isVideoPlaying}
-            onStartLesson={handleStartLesson}
-            onContinueLearning={handleContinueFromLastLesson}
+            pendingAction={pendingAction}
+            onButtonClick={onActionButtonClick}
+            disabled={isActionDisabled}
           />
         )}
 
@@ -593,61 +568,8 @@ export function ChatAgent({
           </div>
         )}
 
-        {/* FA Intro - show transcript with buttons when ready */}
-        {/* Show when waiting for FA intro OR when pendingFAIntro is set */}
-        {(isWaitingForFAIntro || pendingFAIntro) && (
-          <div className="space-y-3">
-            {/* Agent intro message - show live transcript or final message */}
-            <div className="flex items-start gap-3">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-500">
-                <Sparkles className="h-4 w-4 text-white" />
-              </div>
-              <div className="bg-gray-50 rounded-2xl rounded-tl-sm px-4 py-3 max-w-[85%]">
-                <div className="text-sm leading-relaxed text-gray-800">
-                  {/* Show live transcript if available, otherwise show pendingFAIntro message */}
-                  {agentTranscript ? (
-                    <>
-                      <MessageContent
-                        content={typedAgentTranscript}
-                        onTimestampClick={onTimestampClick}
-                      />
-                      {/* Show cursor when agent is speaking or typing effect in progress */}
-                      {(isAgentSpeaking || typedAgentTranscript.length < agentTranscript.length) && (
-                        <span className="inline-block w-2 h-4 bg-blue-500 animate-pulse ml-0.5" />
-                      )}
-                    </>
-                  ) : pendingFAIntro ? (
-                    pendingFAIntro.introMessage
-                  ) : null}
-                </div>
-              </div>
-            </div>
-
-            {/* Action buttons - show when agent finishes speaking during FA intro (or when pendingFAIntro is set) */}
-            {!isAgentSpeaking && (pendingFAIntro || (isWaitingForFAIntro && agentTranscript)) && (
-              <div className="flex items-center gap-3 ml-11">
-                <Button
-                  onClick={onStartQuickCheck}
-                  disabled={faIntroActioned}
-                  className="gap-2 bg-blue-500 hover:bg-blue-600 text-white rounded-full px-5 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Start quick check
-                </Button>
-                <Button
-                  onClick={onSkipQuickCheck}
-                  disabled={faIntroActioned}
-                  variant="outline"
-                  className="gap-2 border-gray-300 text-gray-700 hover:bg-gray-50 rounded-full px-5 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Skip for now
-                </Button>
-              </div>
-            )}
-          </div>
-        )}
-
         {/* Typing Indicator - show when waiting but agent hasn't started responding yet */}
-        {isWaitingForResponse && !agentTranscript && !pendingFAIntro && <TypingIndicator />}
+        {isWaitingForResponse && !agentTranscript && !pendingAction && <TypingIndicator />}
 
         {/* No lessons message */}
         {!firstLesson && (

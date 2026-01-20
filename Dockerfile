@@ -54,7 +54,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY prisma ./prisma/
 COPY public ./public/
 COPY package.json bun.lock next.config.ts tsconfig.json ./
-COPY prisma.config.ts postcss.config.mjs ./
+COPY prisma.config.ts postcss.config.mjs auth.ts ./
 COPY components.json ./
 COPY lib ./lib/
 COPY hooks ./hooks/
@@ -65,11 +65,15 @@ COPY app ./app/
 COPY contexts ./contexts/
 
 # Generate Prisma Client (no real DATABASE_URL needed at build time)
+ENV DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"
 RUN bunx prisma generate
 
 # Build Next.js application
-ENV NEXT_TELEMETRY_DISABLED=1
-ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1 \
+    NODE_ENV=production \
+    LIVEKIT_URL="wss://livekit.kpoint.ai" \
+    LIVEKIT_API_KEY="API2xJx7wdrMVkQ" \
+    LIVEKIT_API_SECRET="PeilFr6CbZWii0B1NYXZZOj67oYo0fefse46IxpKcqVE"
 RUN bun run build
 
 # =============================================================================

@@ -143,8 +143,8 @@ export interface ActionDependencies {
   pauseVideo: () => void;
   selectLesson: (lesson: Lesson) => void;
   sendTextToAgent: (message: string) => Promise<void>;
+  addUserMessage: (message: string, messageType?: string, inputType?: string) => Promise<void>;
   startTour: () => void;
-  router: ReturnType<typeof useRouter>;
 }
 
 type ActionHandler = (
@@ -319,7 +319,7 @@ export function useActionButtons(deps: ActionDependencies): UseActionButtonsRetu
 
 ## UI Component: ActionButtons
 
-### File: `components/chat/ActionButtons.tsx`
+### File: `components/agent/ActionButtons.tsx`
 
 ```typescript
 import { Button } from "@/components/ui/button";
