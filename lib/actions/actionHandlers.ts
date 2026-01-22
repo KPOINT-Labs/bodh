@@ -17,6 +17,7 @@ export interface ActionDependencies {
   sendTextToAgent: (message: string) => Promise<void>;
   addUserMessage: (message: string, messageType?: string, inputType?: string) => Promise<void>;
   startTour: () => void;
+  startWarmup?: () => Promise<void>; // Start DB-driven warmup quiz
 }
 
 type ActionHandler = (
@@ -60,16 +61,16 @@ export const ACTION_HANDLERS: Record<ActionType, ActionHandler> = {
     }
   },
 
-  lesson_welcome: async (buttonId, metadata, deps) => {
+  lesson_welcome: async (buttonId, _metadata, deps) => {
     switch (buttonId) {
       case "start_warmup":
-        // Display user message in chat UI
-        await deps.addUserMessage("Start warm-up", "warmup", "auto");
-        // Send to agent with fallback for missing prevLessonTitle
-        const prevTitle = metadata.prevLessonTitle || "the previous lesson";
-        await deps.sendTextToAgent(
-          `Start a quick warm-up quiz from the previous lesson "${prevTitle}". Ask 3 quick questions.`
-        );
+        // Start DB-driven warmup quiz if available
+        if (deps.startWarmup) {
+          await deps.startWarmup();
+        } else {
+          // Fallback: just play the video
+          deps.playVideo();
+        }
         break;
       case "skip":
         deps.playVideo();

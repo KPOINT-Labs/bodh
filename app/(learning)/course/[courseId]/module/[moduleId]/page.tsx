@@ -66,6 +66,7 @@ async function getModuleData(courseIdOrSlug: string, moduleId: string) {
           youtubeVideoId: true,
           description: true,
           duration: true,
+          quiz: true,
         },
       },
     },

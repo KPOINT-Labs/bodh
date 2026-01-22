@@ -307,3 +307,19 @@ model TTSCache {
   @@index([textHash])
   @@index([lastUsedAt])
 }
+
+model AssessmentAttempt {
+  id             String   @id @default(cuid())
+  odataUserId    String   // User ID from auth system
+  lessonId       String   // Reference to lesson (no FK to avoid foreign key issues)
+  assessmentType String   // "warmup" | "inlesson"
+  questionId     String   // ID of the question within the quiz JSON
+  answer         String?  // User's answer (option ID for MCQ, text for open-ended)
+  isCorrect      Boolean? // Whether the answer was correct (null if not evaluated)
+  isSkipped      Boolean  @default(false) // Whether the user skipped the question
+  feedback       String?  @db.Text // Feedback shown to user
+  createdAt      DateTime @default(now())
+
+  @@index([odataUserId, lessonId])
+  @@index([odataUserId, lessonId, assessmentType])
+}

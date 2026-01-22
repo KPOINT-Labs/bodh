@@ -54,6 +54,13 @@ export interface FAIntroData {
   ttsFailed?: boolean;
 }
 
+/** Quiz evaluation result from agent (for text questions) */
+export interface QuizEvaluationResultData {
+  questionId: string;
+  isCorrect: boolean;
+  feedback: string;
+}
+
 interface UseLiveKitProps {
   conversationId: string;
   courseId: string;
@@ -73,6 +80,8 @@ interface UseLiveKitProps {
   onUserTranscript?: (transcription: UserTranscription) => void;
   /** Callback when FA intro is complete and buttons should be shown */
   onFAIntroComplete?: (data: FAIntroData) => void;
+  /** Callback when quiz text evaluation result is received */
+  onQuizEvaluationResult?: (result: QuizEvaluationResultData) => void;
 }
 
 interface UseLiveKitReturn {
@@ -148,6 +157,7 @@ export function useLiveKit({
   onUserMessage,
   onUserTranscript,
   onFAIntroComplete,
+  onQuizEvaluationResult,
 }: UseLiveKitProps): UseLiveKitReturn {
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -185,6 +195,7 @@ export function useLiveKit({
   const onUserMessageRef = useRef(onUserMessage); // Ref for user message callback
   const onUserTranscriptRef = useRef(onUserTranscript); // Ref for user transcript callback
   const onFAIntroCompleteRef = useRef(onFAIntroComplete); // Ref for FA intro complete callback
+  const onQuizEvaluationResultRef = useRef(onQuizEvaluationResult); // Ref for quiz evaluation result callback
   const metadataRef = useRef(metadata); // Ref for metadata to always use current values
   const agentIdentityRef = useRef<string | null>(null); // Store agent identity for RPC calls
   const lastFinalTranscriptRef = useRef<string>(""); // Track last final transcript to prevent duplicates
@@ -205,6 +216,10 @@ export function useLiveKit({
   useEffect(() => {
     onFAIntroCompleteRef.current = onFAIntroComplete;
   }, [onFAIntroComplete]);
+
+  useEffect(() => {
+    onQuizEvaluationResultRef.current = onQuizEvaluationResult;
+  }, [onQuizEvaluationResult]);
 
   useEffect(() => {
     metadataRef.current = metadata;
@@ -431,6 +446,17 @@ export function useLiveKit({
             };
             console.log("[LiveKit] Calling onFAIntroComplete with:", introData);
             onFAIntroCompleteRef.current?.(introData);
+          }
+
+          // Handle quiz text evaluation result from Sarvam
+          if (data.type === "quiz_evaluation_result") {
+            console.log("[LiveKit] Quiz evaluation result received:", data);
+            const result: QuizEvaluationResultData = {
+              questionId: data.questionId || data.question_id || "",
+              isCorrect: data.isCorrect === true || data.is_correct === true,
+              feedback: data.feedback || "",
+            };
+            onQuizEvaluationResultRef.current?.(result);
           }
 
           // Handle TTS fallback response

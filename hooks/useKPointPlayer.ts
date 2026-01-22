@@ -3,6 +3,7 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import { updateLessonProgress } from "@/lib/actions/lesson-progress";
 import { useCourseProgress } from "@/contexts/CourseProgressContext";
+import type { LessonQuiz } from "@/types/assessment";
 
 // KPoint player state constants
 const PLAYER_STATE = {
@@ -60,19 +61,22 @@ interface UseKPointPlayerOptions {
   onPlayerReady?: () => void;
   onFATrigger?: (message: string, timestampSeconds: number, topic?: string, pauseVideo?: boolean) => Promise<void>;
   onVideoEnd?: () => void;
+  quizData?: LessonQuiz | null; // Quiz data for in-lesson question detection
+  onInLessonTrigger?: (questionId: string) => void; // Callback when in-lesson question timestamp is reached
 }
 
 /**
  * Hook to manage KPoint video player lifecycle
  * Handles player initialization, event subscriptions, and cleanup
  */
-export function useKPointPlayer({ kpointVideoId, userId, lessonId, videoDuration, onBookmarksReady, onPlayerReady, onFATrigger, onVideoEnd }: UseKPointPlayerOptions) {
+export function useKPointPlayer({ kpointVideoId, userId, lessonId, videoDuration, onBookmarksReady, onPlayerReady, onFATrigger, onVideoEnd, quizData, onInLessonTrigger }: UseKPointPlayerOptions) {
   const playerRef = useRef<KPointPlayer | null>(null);
   const eventHandlersRef = useRef<Map<string, (data: unknown) => void>>(new Map());
   const kpointVideoIdRef = useRef<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const triggeredBookmarksRef = useRef<Set<string>>(new Set());
+  const triggeredInlessonRef = useRef<Set<string>>(new Set()); // Track triggered in-lesson questions
   const isPlayingRef = useRef(false);
   const bookmarksRef = useRef<Bookmark[]>([]);
 
@@ -98,6 +102,8 @@ export function useKPointPlayer({ kpointVideoId, userId, lessonId, videoDuration
   const onPlayerReadyRef = useRef(onPlayerReady);
   const onFATriggerRef = useRef(onFATrigger);
   const onVideoEndRef = useRef(onVideoEnd);
+  const onInLessonTriggerRef = useRef(onInLessonTrigger);
+  const quizDataRef = useRef(quizData);
 
   // Keep refs updated
   useEffect(() => {
@@ -105,6 +111,8 @@ export function useKPointPlayer({ kpointVideoId, userId, lessonId, videoDuration
     onPlayerReadyRef.current = onPlayerReady;
     onFATriggerRef.current = onFATrigger;
     onVideoEndRef.current = onVideoEnd;
+    onInLessonTriggerRef.current = onInLessonTrigger;
+    quizDataRef.current = quizData;
   });
   
   // Keep state refs updated
@@ -308,6 +316,45 @@ export function useKPointPlayer({ kpointVideoId, userId, lessonId, videoDuration
       // Check for FA triggers on time update
       if (currentBookmarks.length > 0 && currentIsPlaying) {
         checkForFATriggersInternal(currentTimeMs, currentBookmarks);
+      }
+
+      // Check for in-lesson question triggers
+      const currentQuizData = quizDataRef.current;
+      if (currentQuizData?.inlesson && currentIsPlaying) {
+        for (const question of currentQuizData.inlesson) {
+          // Skip if already triggered
+          if (triggeredInlessonRef.current.has(question.id)) {
+            continue;
+          }
+
+          // Check if we've reached the question timestamp (within 1 second tolerance)
+          const timeDiff = currentTimeSec - question.timestamp;
+          if (timeDiff >= 0 && timeDiff < 1) {
+            console.log(`[useKPointPlayer] In-lesson question trigger: ${question.id} at ${question.timestamp}s`);
+
+            // Mark as triggered
+            triggeredInlessonRef.current.add(question.id);
+
+            // Pause the video
+            if (playerRef.current) {
+              try {
+                if (playerRef.current.pauseVideo) {
+                  playerRef.current.pauseVideo();
+                } else if (playerRef.current.setState) {
+                  playerRef.current.setState(PLAYER_STATE.PAUSED);
+                }
+                setIsPlaying(false);
+              } catch (error) {
+                console.error("Failed to pause video:", error);
+              }
+            }
+
+            // Trigger the callback
+            onInLessonTriggerRef.current?.(question.id);
+
+            break; // Only trigger one at a time
+          }
+        }
       }
 
       // Update progress every 15 seconds (duration not required - completion % will be 0 if unknown)

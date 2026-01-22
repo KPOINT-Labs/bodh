@@ -15,9 +15,11 @@ import { toast } from "sonner";
 import { mockTourData } from "@/lib/mockTourData";
 import { useTour } from "@/hooks/useTour";
 import { MessageBubble } from "@/components/ui/message-bubble";
+import { QuizOverlay } from "@/components/assessment/QuizOverlay";
 
 // Hooks
 import { useKPointPlayer } from "@/hooks/useKPointPlayer";
+import { useAssessmentQuiz } from "@/hooks/useAssessmentQuiz";
 import { useChatSession } from "@/hooks/useChatSession";
 import { useLiveKit, TranscriptSegment, UserTranscription } from "@/hooks/useLiveKit";
 import { useSessionType } from "@/hooks/useSessionType";
@@ -27,6 +29,7 @@ import { getLessonProgress } from "@/lib/actions/lesson-progress";
 import { useActionButtons } from "@/hooks/useActionButtons";
 import type { ActionType } from "@/lib/actions/actionRegistry";
 import type { ActionDependencies } from "@/lib/actions/actionHandlers";
+import type { LessonQuiz } from "@/types/assessment";
 
 interface Lesson {
   id: string;
@@ -36,6 +39,7 @@ interface Lesson {
   youtubeVideoId?: string | null;
   description?: string | null;
   duration?: number; // Duration in seconds
+  quiz?: unknown; // Quiz configuration for warmup and in-lesson questions (JSON from Prisma)
 }
 
 interface Module {
@@ -266,6 +270,34 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
     lessonId: activeLesson?.id,
   });
 
+  // Ref for sendTextToAgent to use in assessment quiz (set after useLiveKit)
+  const sendTextToAgentRef = useRef<((message: string) => Promise<void>) | null>(null);
+
+  // Assessment quiz hook for warmup and in-lesson questions
+  const assessmentQuiz = useAssessmentQuiz({
+    userId,
+    lessonId: activeLesson?.id,
+    quiz: (activeLesson?.quiz ?? null) as LessonQuiz | null,
+    onQuizComplete: () => {
+      // Resume video after quiz is complete
+      if (playerRef.current?.playVideo) {
+        playerRef.current.playVideo();
+      }
+    },
+    onTextEvaluationRequest: async (questionId, question, answer) => {
+      // Send to LiveKit agent for evaluation
+      if (sendTextToAgentRef.current) {
+        const message = JSON.stringify({
+          type: "quiz_evaluate_text",
+          questionId,
+          question,
+          answer,
+        });
+        await sendTextToAgentRef.current(`QUIZ_EVAL:${message}`);
+      }
+    },
+  });
+
   // Track which transcript segments have been stored to avoid duplicates
   const storedSegmentsRef = useRef<Set<string>>(new Set());
   // Track which voice messages have been stored to avoid duplicates
@@ -371,12 +403,18 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
           if (match && match[1]) {
             const topic = match[1];
             console.log("[ModuleContent] FA intro transcript detected, showing buttons for topic:", topic);
-            // Use the action registry pattern
-            if (showActionRef.current) {
-              showActionRef.current("fa_intro", { topic, introMessage: text });
+
+            // Save the FA intro message to DB and show in chat
+            if (addAssistantMessageRef.current) {
+              addAssistantMessageRef.current(text, "fa");
             }
 
-            // Clear the transcript so it's not stored in history and doesn't appear twice.
+            // Show action buttons (no introMessage since it's already saved above)
+            if (showActionRef.current) {
+              showActionRef.current("fa_intro", { topic });
+            }
+
+            // Clear the transcript so it doesn't appear twice (already saved to DB above)
             setTimeout(() => {
               if (clearAgentTranscriptRef.current) {
                 clearAgentTranscriptRef.current();
@@ -384,7 +422,7 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
             }, 100);
           }
         }
-        // Don't store this as a regular message.
+        // Don't store this as a regular message (already handled above).
         return;
       }
       if (segment.isFinal) {
@@ -454,9 +492,15 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
   // Handle FA intro complete - agent spoke intro, now show buttons
   const handleFAIntroComplete = useCallback((data: { topic: string; introMessage: string }) => {
     console.log("[ModuleContent] FA intro complete, showing buttons for topic:", data.topic);
-    // Use the action registry pattern
+
+    // Save the FA intro message to DB and show in chat
+    if (data.introMessage && addAssistantMessageRef.current) {
+      addAssistantMessageRef.current(data.introMessage, "fa");
+    }
+
+    // Show action buttons (no introMessage since it's saved above)
     if (showActionRef.current) {
-      showActionRef.current("fa_intro", { topic: data.topic, introMessage: data.introMessage });
+      showActionRef.current("fa_intro", { topic: data.topic });
     }
   }, []);
 
@@ -474,6 +518,7 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
     onTranscript: handleTranscriptCallback, // Store agent transcripts in DB
     onUserTranscript: handleUserTranscriptCallback, // Handle user voice transcription
     onFAIntroComplete: handleFAIntroComplete, // Show buttons after FA intro
+    onQuizEvaluationResult: assessmentQuiz.handleTextEvaluationResult, // Handle quiz text evaluation results
     metadata: {
       courseId: course.id,
       courseTitle: course.title,
@@ -508,6 +553,11 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
   useEffect(() => {
     clearUserTranscriptRef.current = liveKit.clearUserTranscript;
   }, [liveKit.clearUserTranscript]);
+
+  // Keep sendTextToAgentRef updated for use in assessment quiz
+  useEffect(() => {
+    sendTextToAgentRef.current = liveKit.sendTextToAgent;
+  }, [liveKit.sendTextToAgent]);
 
   // Show toast notifications for LiveKit connection status
   useEffect(() => {
@@ -679,6 +729,12 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
     lessonId: activeLesson?.id,
     videoDuration,
     onVideoEnd: handleVideoEnd,
+    quizData: (activeLesson?.quiz ?? null) as LessonQuiz | null,
+    onInLessonTrigger: (questionId: string) => {
+      // Trigger in-lesson question from quiz data
+      console.log("[ModuleContent] In-lesson question triggered:", questionId);
+      assessmentQuiz.startInlesson(questionId);
+    },
     onFATrigger: async (_message: string, _timestampSeconds: number, topic?: string, _pauseVideo?: boolean) => {
       // NEW FLOW: Instead of directly starting FA, first show intro with buttons
       // 1. Send FA_INTRO:topic to agent - agent speaks intro message
@@ -769,6 +825,7 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
     sendTextToAgent: liveKit.sendTextToAgent,
     addUserMessage: handleAddUserMessage,
     startTour,
+    startWarmup: assessmentQuiz.startWarmup,
   };
 
   const { pendingAction, showAction, dismissAction, handleButtonClick, isActioned, resetHandledActions } = useActionButtons(actionDeps);
@@ -1002,6 +1059,20 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
         content={content}
         footer={footer}
         rightPanel={rightPanel}
+      />
+      {/* Quiz Overlay for warmup and in-lesson questions */}
+      <QuizOverlay
+        isOpen={assessmentQuiz.isOpen}
+        quizType={assessmentQuiz.quizType || "warmup"}
+        questions={assessmentQuiz.questions}
+        currentQuestionIndex={assessmentQuiz.currentQuestionIndex}
+        showFeedback={assessmentQuiz.showFeedback}
+        lastAnswer={assessmentQuiz.lastAnswer}
+        isLoading={assessmentQuiz.isLoading}
+        onSubmitAnswer={assessmentQuiz.submitAnswer}
+        onSkipQuestion={assessmentQuiz.skipQuestion}
+        onContinue={assessmentQuiz.continueQuiz}
+        onClose={assessmentQuiz.close}
       />
     </>
   );
