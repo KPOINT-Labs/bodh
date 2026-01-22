@@ -522,12 +522,24 @@ export function useLiveKit({
           const segmentId = attributes["lk.segment_id"] || `seg-${Date.now()}`;
           const transcribedTrackId = attributes["lk.transcribed_track_id"];
 
+          console.log("[LiveKit] Transcript stream opened:", {
+            participantIdentity: typeof participantIdentity === "string" ? participantIdentity : participantIdentity.identity,
+            isFinalFlag: isFinal,
+            segmentId,
+            transcribedTrackId,
+            attributes,
+          });
+
           // Check if this is from an agent (has transcribed track ID and is not from local participant)
           const participantId = typeof participantIdentity === "string" ? participantIdentity : participantIdentity.identity;
           const isFromAgent = !!transcribedTrackId && participantId !== userId;
 
           if (!isFromAgent) {
             // Skip non-agent transcripts
+            console.log("[LiveKit] Skipping non-agent transcript:", {
+              participantIdentity: participantId,
+              transcribedTrackId,
+            });
             return;
           }
 
@@ -536,9 +548,20 @@ export function useLiveKit({
           setIsAgentSpeaking(true);
           setIsWaitingForAgentResponse(false); // Agent started responding
 
+          console.log("[LiveKit] Agent transcript stream started:", {
+            participantIdentity: participantId,
+            segmentId,
+          });
+
           // Stream chunks incrementally using for-await-of
           for await (const chunk of reader) {
             accumulatedText += chunk;
+
+            console.log("[LiveKit] Transcript chunk received:", {
+              segmentId,
+              chunkLength: chunk.length,
+              totalLength: accumulatedText.length,
+            });
 
             // Update agentTranscript in real-time for UI display
             setAgentTranscript(accumulatedText);
@@ -607,6 +630,10 @@ export function useLiveKit({
           }
 
           setIsAgentSpeaking(false);
+          console.log("[LiveKit] Transcript stream closed:", {
+            participantIdentity: participantId,
+            segmentId,
+          });
         } catch (err) {
           console.error("[LiveKit] Error processing transcript:", err);
           setIsAgentSpeaking(false);

@@ -9,6 +9,7 @@ import {
 import { parseAssessmentContent, isAssessmentContent, detectAnswerFeedback } from "@/lib/chat/assessment";
 import { AssessmentQuestion } from "./AssessmentQuestion";
 import { FeedbackBadge } from "./FeedbackBadge";
+import { InLessonQuestion } from "./InLessonQuestion";
 import type { QuizOption } from "@/types/assessment";
 
 interface MessageContentProps {
@@ -56,42 +57,24 @@ export function MessageContent({
   if (messageType === "inlesson" && role === "assistant" && inlessonMetadata) {
     const { questionId, questionType, options, isAnswered, isSkipped } = inlessonMetadata;
 
-    // Convert QuizOption[] to string[] for AssessmentQuestion component
-    // Format: "A) Option text" to match FA format
-    const formattedOptions = options?.map((opt, idx) => {
-      const letter = String.fromCharCode(65 + idx); // A, B, C, D...
-      return `${letter}) ${opt.text}`;
-    });
-
-    // Determine answer type based on question type
-    const answerType = questionType === "mcq" ? "multiple_choice" : "short_answer";
+    if (questionType === "mcq" && options && questionId) {
+      return (
+        <div className="space-y-4">
+          <InLessonQuestion
+            question={content}
+            options={options}
+            isAnswered={isAnswered}
+            isSkipped={isSkipped}
+            onAnswer={(optionId: string) => onInlessonAnswer?.(questionId, optionId)}
+            onSkip={() => onInlessonSkip?.(questionId)}
+          />
+        </div>
+      );
+    }
 
     return (
-      <div className="space-y-4">
-        <AssessmentQuestion
-          question={content}
-          options={formattedOptions}
-          answerType={answerType}
-          onAnswer={(answer) => {
-            if (questionId) {
-              // For MCQ, map the selected letter back to the option ID
-              if (questionType === "mcq" && options) {
-                const letterMatch = answer.match(/^([A-Z])/);
-                if (letterMatch) {
-                  const idx = letterMatch[1].charCodeAt(0) - 65;
-                  if (idx >= 0 && idx < options.length) {
-                    onInlessonAnswer?.(questionId, options[idx].id);
-                    return;
-                  }
-                }
-              }
-              onInlessonAnswer?.(questionId, answer);
-            }
-          }}
-          onSkip={() => questionId && onInlessonSkip?.(questionId)}
-          isAnswered={isAnswered}
-          isFromHistory={isAnswered || isSkipped}
-        />
+      <div className="text-sm leading-relaxed">
+        {content}
       </div>
     );
   }

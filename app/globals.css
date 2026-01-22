@@ -518,12 +518,177 @@
   font-size: 0.875rem !important;
 }
 
+/* ============================================
+   Quiz/Assessment Celebration Animations
+   (ported from demo for warmup + in-lesson)
+   ============================================ */
+
+/* Float up animation for celebration particles */
+@keyframes float-up {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0);
+  }
+  10% {
+    opacity: 1;
+    transform: translateY(-20px) scale(1);
+  }
+  90% {
+    opacity: 1;
+    transform: translateY(-400px) scale(1.2);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-500px) scale(0.8);
+  }
+}
+
+.animate-float-up {
+  animation: float-up 3s ease-out forwards;
+}
+
+/* Slow spin for icons */
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 3s linear infinite;
+}
+
+/* Success bounce animation for selected options */
+@keyframes success-bounce {
+  0% {
+    transform: scale(0.5) rotate(-5deg);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.15) rotate(2deg);
+  }
+  70% {
+    transform: scale(0.95) rotate(-1deg);
+  }
+  85% {
+    transform: scale(1.05) rotate(0.5deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+.animate-success-bounce {
+  animation: success-bounce 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+/* Screen shake animation for incorrect answers */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-10px); }
+  20%, 40%, 60%, 80% { transform: translateX(10px); }
+}
+
+.animate-shake {
+  animation: shake 0.5s;
+}
+
+/* Glow pulse for correct answers */
+@keyframes glow-pulse-success {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(34, 197, 94, 0.4),
+                0 0 40px rgba(34, 197, 94, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(34, 197, 94, 0.6),
+                0 0 60px rgba(34, 197, 94, 0.4),
+                0 0 80px rgba(34, 197, 94, 0.2);
+  }
+}
+
+.animate-glow-success {
+  animation: glow-pulse-success 1s ease-in-out 2;
+}
+
+/* Pop-in scale animation for options */
+@keyframes pop-in {
+  0% {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-pop-in {
+  animation: pop-in 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+/* Pulse scale animation for submit button */
+@keyframes pulse-scale {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+.animate-pulse-scale {
+  animation: pulse-scale 1s ease-in-out infinite;
+}
+
+/* Bounce in animation for success/error toasts */
+@keyframes bounce-in {
+  0% {
+    transform: scale(0) translateY(-100px);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.2) translateY(0);
+  }
+  70% {
+    transform: scale(0.9);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-bounce-in {
+  animation: bounce-in 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+/* Wiggle animation for attention */
+@keyframes wiggle {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-5deg); }
+  75% { transform: rotate(5deg); }
+}
+
+.animate-wiggle {
+  animation: wiggle 0.5s ease-in-out 3;
+}
+
 /* Reduced motion support */
 @media (prefers-reduced-motion: reduce) {
   .animate-float-1, .animate-float-2, .animate-float-3, .animate-float-4,
   .animate-float-5, .animate-float-6, .animate-float-7, .animate-float-8,
   .animate-float-9, .animate-float-10, .animate-float-11, .animate-float-12,
-  .animate-color-rotate-1, .animate-color-rotate-2, .animate-color-rotate-3 {
+  .animate-color-rotate-1, .animate-color-rotate-2, .animate-color-rotate-3,
+  .animate-float-up, .animate-spin-slow, .animate-success-bounce, .animate-shake,
+  .animate-glow-success, .animate-pop-in, .animate-pulse-scale, .animate-bounce-in,
+  .animate-wiggle {
     animation: none;
   }
 }

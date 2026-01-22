@@ -10,12 +10,16 @@ import { ChatInput } from "@/components/chat/ChatInput";
 import { KPointVideoPlayer } from "@/components/video/KPointVideoPlayer";
 import { AnimatedBackground } from "@/components/ui/animated-background";
 import { OnboardingModal } from "@/components/onboarding/OnboardingModal";
+import { SuccessMessage } from "@/components/feedback/SuccessMessage";
+import { ErrorMessage } from "@/components/feedback/ErrorMessage";
 import { X } from "lucide-react";
 import { toast } from "sonner";
 import { mockTourData } from "@/lib/mockTourData";
 import { useTour } from "@/hooks/useTour";
 import { MessageBubble } from "@/components/ui/message-bubble";
 import { QuizOverlay } from "@/components/assessment/QuizOverlay";
+import { audioManager } from "@/lib/audio/quizAudio";
+import { fireConfetti } from "@/components/ui/confetti";
 
 // Hooks
 import { useKPointPlayer } from "@/hooks/useKPointPlayer";
@@ -204,13 +208,15 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
     status: string;
   } | null>(null);
 
-  // Track active in-lesson question for answer handling
   const [activeInlessonQuestion, setActiveInlessonQuestion] = useState<{
     questionId: string;
     messageId: string;
     type: "mcq" | "text";
     correctOption?: string;
   } | null>(null);
+
+  const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const [showErrorToast, setShowErrorToast] = useState(false);
 
   // Sync selectedLesson with URL when initialLessonId changes (e.g., clicking lesson in sidebar)
   // Note: Panel state is controlled by ?panel=true search param, not by lesson selection
@@ -902,43 +908,48 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
 
       const { messageId, type, correctOption } = activeInlessonQuestion;
 
-      if (type === "mcq") {
-        // MCQ: Evaluate locally
-        const isCorrect = answer === correctOption;
-        const feedback = isCorrect
-          ? "Great job! You got it right."
-          : "That's not quite right, but don't worry - keep learning!";
+        if (type === "mcq") {
+          const isCorrect = answer === correctOption;
+          const feedback = isCorrect
+            ? "Great job! You got it right."
+            : "That's not quite right, but don't worry - keep learning!";
 
-        console.log("[ModuleContent] MCQ evaluation:", { isCorrect, answer, correctOption });
+          if (isCorrect) {
+            audioManager?.play("success");
+            fireConfetti();
+            setShowSuccessToast(true);
+            setTimeout(() => setShowSuccessToast(false), 900);
+          } else {
+            audioManager?.play("error");
+            setShowErrorToast(true);
+            setTimeout(() => setShowErrorToast(false), 900);
+          }
 
-        // Mark question as answered
-        markInlessonAnswered(messageId);
+          markInlessonAnswered(messageId);
 
-        // Record attempt in DB
-        if (activeLesson?.id) {
-          await recordAttempt({
-            odataUserId: userId,
-            lessonId: activeLesson.id,
-            assessmentType: "inlesson",
-            questionId,
-            answer,
-            isCorrect,
-            isSkipped: false,
-            feedback,
-          });
-        }
+          if (activeLesson?.id) {
+            await recordAttempt({
+              odataUserId: userId,
+              lessonId: activeLesson.id,
+              assessmentType: "inlesson",
+              questionId,
+              answer,
+              isCorrect,
+              isSkipped: false,
+              feedback,
+            });
+          }
 
-        // Add feedback message
-        addInlessonFeedback(isCorrect, feedback);
+          await new Promise((resolve) => setTimeout(resolve, 900));
 
-        // Show "Continue watching" button (no introMessage - feedback already added above)
-        if (showActionRef.current) {
-          showActionRef.current("inlesson_complete", {});
-        }
+          const feedbackMessageId = addInlessonFeedback(isCorrect, feedback);
 
-        // Clear active question
-        setActiveInlessonQuestion(null);
-      } else {
+          if (showActionRef.current) {
+            showActionRef.current("inlesson_complete", {}, feedbackMessageId);
+          }
+
+          setActiveInlessonQuestion(null);
+        } else {
         // Text: Send to agent for evaluation
         console.log("[ModuleContent] Sending text answer to agent for evaluation");
 
@@ -1274,7 +1285,6 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
         footer={footer}
         rightPanel={rightPanel}
       />
-      {/* Quiz Overlay for warmup and in-lesson questions */}
       <QuizOverlay
         isOpen={assessmentQuiz.isOpen}
         quizType={assessmentQuiz.quizType || "warmup"}
@@ -1288,6 +1298,8 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
         onContinue={assessmentQuiz.continueQuiz}
         onClose={assessmentQuiz.close}
       />
+      <SuccessMessage show={showSuccessToast} onClose={() => setShowSuccessToast(false)} />
+      <ErrorMessage show={showErrorToast} onClose={() => setShowErrorToast(false)} />
     </>
   );
 }

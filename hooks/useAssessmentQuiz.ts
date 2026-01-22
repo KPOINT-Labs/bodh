@@ -2,6 +2,8 @@
 
 import { useState, useCallback, useRef } from "react";
 import { recordAttempt, getAnsweredQuestionIds } from "@/lib/actions/assessment";
+import { audioManager } from "@/lib/audio/quizAudio";
+import { fireConfetti } from "@/components/ui/confetti";
 import type {
   LessonQuiz,
   WarmupQuestion,
@@ -161,7 +163,6 @@ export function useAssessmentQuiz({
         const questionType = "type" in currentQuestion ? currentQuestion.type : "mcq";
 
         if (questionType === "mcq") {
-          // MCQ: Check answer locally
           const correctOption =
             "correct_option" in currentQuestion
               ? currentQuestion.correct_option
@@ -169,7 +170,6 @@ export function useAssessmentQuiz({
 
           const isCorrect = answer === correctOption;
 
-          // Get feedback from the question
           const feedback =
             "feedback" in currentQuestion && currentQuestion.feedback
               ? currentQuestion.feedback
@@ -177,7 +177,13 @@ export function useAssessmentQuiz({
               ? "Great job!"
               : "That's not quite right. Review the material and try again.";
 
-          // Record the attempt
+          if (isCorrect) {
+            audioManager?.play("success");
+            fireConfetti();
+          } else {
+            audioManager?.play("error");
+          }
+
           await recordAttempt({
             odataUserId: userId,
             lessonId,
@@ -188,6 +194,8 @@ export function useAssessmentQuiz({
             isSkipped: false,
             feedback,
           });
+
+          await new Promise((resolve) => setTimeout(resolve, 900));
 
           setLastAnswer({ isCorrect, feedback });
           setShowFeedback(true);
