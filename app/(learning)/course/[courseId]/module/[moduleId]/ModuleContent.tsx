@@ -56,10 +56,11 @@ interface ModuleContentProps {
   module: Module;
   userId: string;
   initialLessonId?: string;
+  initialPanelOpen?: boolean;
   isTourMode?: boolean;
 }
 
-export function ModuleContent({ course, module, userId, initialLessonId, isTourMode = false }: ModuleContentProps) {
+export function ModuleContent({ course, module, userId, initialLessonId, initialPanelOpen = false, isTourMode = false }: ModuleContentProps) {
   const router = useRouter();
   const pathname = usePathname();
 
@@ -190,7 +191,7 @@ export function ModuleContent({ course, module, userId, initialLessonId, isTourM
   };
 
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(getInitialLesson);
-  const [isPanelClosed, setIsPanelClosed] = useState(false); // Track if user explicitly closed the panel
+  const [isPanelClosed, setIsPanelClosed] = useState(!initialPanelOpen); // Panel closed by default unless ?panel=true
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [videoStartOffset, setVideoStartOffset] = useState<number | null>(null);
   const [lessonProgress, setLessonProgress] = useState<{
@@ -199,11 +200,11 @@ export function ModuleContent({ course, module, userId, initialLessonId, isTourM
   } | null>(null);
 
   // Sync selectedLesson with URL when initialLessonId changes (e.g., clicking lesson in sidebar)
+  // Note: Panel state is controlled by ?panel=true search param, not by lesson selection
   useEffect(() => {
     if (initialLessonId) {
       const lesson = module.lessons.find((l) => l.id === initialLessonId);
       if (lesson) {
-        setIsPanelClosed(false); // Reset closed state when lesson selected via URL
         setSelectedLesson(lesson);
       }
     }
@@ -789,6 +790,16 @@ export function ModuleContent({ course, module, userId, initialLessonId, isTourM
 
   // Trigger session type action when agent finishes welcome message
   useEffect(() => {
+    // Debug logging
+    console.log("[ModuleContent] Action trigger check:", {
+      isAgentSpeaking: liveKit.isAgentSpeaking,
+      isConnected: liveKit.isConnected,
+      sessionType,
+      pendingAction: pendingAction?.type,
+      agentTranscript: liveKit.agentTranscript?.substring(0, 30),
+      welcomeStored: welcomeStoredRef.current,
+    });
+
     if (
       !liveKit.isAgentSpeaking &&
       liveKit.isConnected &&
@@ -805,6 +816,7 @@ export function ModuleContent({ course, module, userId, initialLessonId, isTourM
       };
 
       const actionType = sessionTypeToAction[sessionType];
+      console.log("[ModuleContent] Showing action buttons for:", actionType);
       if (actionType) {
         showAction(actionType, {
           introLesson: sortedLessons[0],
