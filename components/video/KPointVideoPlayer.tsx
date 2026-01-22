@@ -19,7 +19,7 @@ export function KPointVideoPlayer({
 
   // Build video params with optional start offset (convert seconds to milliseconds)
   const videoParams = JSON.stringify({
-    autoplay: true,
+    autoplay: false,
     ...(startOffset ? { offset: startOffset * 1000 } : {}),
   });
 
