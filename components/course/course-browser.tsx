@@ -63,7 +63,7 @@ export function CourseBrowser({ courses }: CourseBrowserProps) {
               <Link
                 key={course.id}
                 href={href}
-                className={`group relative bg-white border-2 ${borderColor} rounded-2xl p-6 transition-all duration-300 hover:shadow-lg text-left block`}
+                className={`group relative overflow-hidden bg-white border-2 ${borderColor} rounded-2xl p-6 transition-all duration-300 hover:shadow-lg text-left block`}
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 rounded-2xl"></div>
 
