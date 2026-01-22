@@ -114,6 +114,21 @@ export function useKPointPlayer({ kpointVideoId, userId, lessonId, videoDuration
     onInLessonTriggerRef.current = onInLessonTrigger;
     quizDataRef.current = quizData;
   });
+
+  // DEBUG: Log quiz data when it changes
+  useEffect(() => {
+    console.log("[useKPointPlayer] Quiz data updated:", {
+      hasQuizData: !!quizData,
+      warmupCount: quizData?.warmup?.length ?? 0,
+      inlessonCount: quizData?.inlesson?.length ?? 0,
+      inlessonQuestions: quizData?.inlesson?.map(q => ({
+        id: q.id,
+        timestamp: q.timestamp,
+        question: q.question?.substring(0, 50) + "..."
+      })) ?? [],
+      alreadyTriggered: Array.from(triggeredInlessonRef.current)
+    });
+  }, [quizData]);
   
   // Keep state refs updated
   useEffect(() => {
@@ -321,6 +336,18 @@ export function useKPointPlayer({ kpointVideoId, userId, lessonId, videoDuration
       // Check for in-lesson question triggers
       const currentQuizData = quizDataRef.current;
       if (currentQuizData?.inlesson && currentIsPlaying) {
+        // DEBUG: Log every 5 seconds to show quiz checking is active
+        if (Math.floor(currentTimeSec) % 5 === 0 && Math.floor(currentTimeSec) !== Math.floor((currentTimeMs - 100) / 1000)) {
+          console.log(`[useKPointPlayer] Quiz check at ${currentTimeSec.toFixed(1)}s:`, {
+            inlessonCount: currentQuizData.inlesson.length,
+            nextPendingQuestions: currentQuizData.inlesson
+              .filter(q => !triggeredInlessonRef.current.has(q.id))
+              .map(q => ({ id: q.id, timestamp: q.timestamp, timeTillTrigger: (q.timestamp - currentTimeSec).toFixed(1) + "s" }))
+              .slice(0, 3),
+            alreadyTriggered: Array.from(triggeredInlessonRef.current)
+          });
+        }
+
         for (const question of currentQuizData.inlesson) {
           // Skip if already triggered
           if (triggeredInlessonRef.current.has(question.id)) {
@@ -330,7 +357,12 @@ export function useKPointPlayer({ kpointVideoId, userId, lessonId, videoDuration
           // Check if we've reached the question timestamp (within 1 second tolerance)
           const timeDiff = currentTimeSec - question.timestamp;
           if (timeDiff >= 0 && timeDiff < 1) {
-            console.log(`[useKPointPlayer] In-lesson question trigger: ${question.id} at ${question.timestamp}s`);
+            console.log(`[useKPointPlayer] 🎯 In-lesson question TRIGGERED:`, {
+              questionId: question.id,
+              timestamp: question.timestamp,
+              currentTime: currentTimeSec.toFixed(2),
+              timeDiff: timeDiff.toFixed(3)
+            });
 
             // Mark as triggered
             triggeredInlessonRef.current.add(question.id);
@@ -350,7 +382,9 @@ export function useKPointPlayer({ kpointVideoId, userId, lessonId, videoDuration
             }
 
             // Trigger the callback
+            console.log(`[useKPointPlayer] Calling onInLessonTrigger callback with questionId:`, question.id);
             onInLessonTriggerRef.current?.(question.id);
+            console.log(`[useKPointPlayer] onInLessonTrigger callback completed`);
 
             break; // Only trigger one at a time
           }

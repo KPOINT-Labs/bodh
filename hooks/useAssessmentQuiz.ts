@@ -86,32 +86,57 @@ export function useAssessmentQuiz({
    */
   const startInlesson = useCallback(
     async (questionId: string) => {
+      console.log("[useAssessmentQuiz] 📝 startInlesson called:", {
+        questionId,
+        hasQuiz: !!quiz,
+        hasInlesson: !!quiz?.inlesson,
+        inlessonCount: quiz?.inlesson?.length ?? 0,
+        lessonId,
+      });
+
       if (!quiz?.inlesson || !lessonId) {
-        console.warn("[useAssessmentQuiz] No in-lesson questions available");
+        console.warn("[useAssessmentQuiz] ❌ No in-lesson questions available:", {
+          hasQuiz: !!quiz,
+          hasInlesson: !!quiz?.inlesson,
+          lessonId,
+        });
         return;
       }
 
       // Find the specific question
       const question = quiz.inlesson.find((q) => q.id === questionId);
       if (!question) {
-        console.warn(`[useAssessmentQuiz] Question ${questionId} not found`);
+        console.warn(`[useAssessmentQuiz] ❌ Question ${questionId} not found in:`,
+          quiz.inlesson.map(q => q.id)
+        );
         return;
       }
 
+      console.log("[useAssessmentQuiz] ✓ Found question:", {
+        id: question.id,
+        type: question.type,
+        timestamp: question.timestamp,
+        questionText: question.question?.substring(0, 50) + "...",
+      });
+
       // Check if already answered
       const answeredIds = await getAnsweredQuestionIds(userId, lessonId, "inlesson");
+      console.log("[useAssessmentQuiz] Already answered IDs:", Array.from(answeredIds));
+
       if (answeredIds.has(questionId)) {
-        console.log(`[useAssessmentQuiz] Question ${questionId} already answered`);
+        console.log(`[useAssessmentQuiz] ⏭️ Question ${questionId} already answered, calling onQuizComplete`);
         onQuizComplete?.();
         return;
       }
 
+      console.log("[useAssessmentQuiz] 🎉 Opening quiz overlay for question:", questionId);
       setQuestions([question]);
       setCurrentQuestionIndex(0);
       setQuizType("inlesson");
       setShowFeedback(false);
       setLastAnswer(null);
       setIsOpen(true);
+      console.log("[useAssessmentQuiz] ✓ Quiz state updated, isOpen should now be true");
     },
     [quiz, lessonId, userId, onQuizComplete]
   );

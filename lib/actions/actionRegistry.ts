@@ -29,6 +29,7 @@ export type ActionType =
   | "lesson_welcome" // First time lesson 2+ → "Start warm-up", "Skip"
   | "lesson_welcome_back" // Returning to lesson → "Continue where left", "Start from beginning"
   | "fa_intro" // Mid-lesson FA trigger → "Start quick check", "Skip for now"
+  | "inlesson_complete" // After in-lesson question answered → "Continue watching"
   | "concept_check" // Concept completion → "Submit", "Skip"
   | "lesson_complete" // After lesson ends → "Take assessment", "Warm-up", "Next lesson"
   | "assessment_complete" // After FA done → "View feedback"
@@ -38,6 +39,7 @@ export type ActionType =
 export interface PendingAction {
   type: ActionType;
   metadata?: Record<string, unknown>; // e.g., { lastPosition: 326, topic: "Iteration" }
+  anchorMessageId?: string;
 }
 
 // Central registry of all action configurations
@@ -75,6 +77,11 @@ export const ACTION_REGISTRY: Record<ActionType, ActionDefinition> = {
     buttons: [
       { id: "start", label: "Start quick check", variant: "primary" },
       { id: "skip", label: "Skip for now", variant: "secondary" },
+    ],
+  },
+  inlesson_complete: {
+    buttons: [
+      { id: "continue_video", label: "Continue watching", variant: "primary" },
     ],
   },
   concept_check: {

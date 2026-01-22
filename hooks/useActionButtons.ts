@@ -13,7 +13,7 @@ interface UseActionButtonsReturn {
   /** Currently pending action, or null if none */
   pendingAction: PendingAction | null;
   /** Show an action with optional metadata */
-  showAction: (type: ActionType, metadata?: Record<string, unknown>) => void;
+  showAction: (type: ActionType, metadata?: Record<string, unknown>, anchorMessageId?: string) => void;
   /** Dismiss the current action without clicking a button */
   dismissAction: () => void;
   /** Handle a button click - executes handler and dismisses */
@@ -29,7 +29,6 @@ interface UseActionButtonsReturn {
 export function useActionButtons(deps: ActionDependencies): UseActionButtonsReturn {
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
   const [isActioned, setIsActioned] = useState(false);
-  // Track which action types have been handled to prevent re-showing
   const handledActionsRef = useRef<Set<ActionType>>(new Set());
 
   const hasBeenHandled = useCallback((type: ActionType) => {
@@ -40,13 +39,12 @@ export function useActionButtons(deps: ActionDependencies): UseActionButtonsRetu
     handledActionsRef.current.clear();
   }, []);
 
-  const showAction = useCallback((type: ActionType, metadata?: Record<string, unknown>) => {
-    // Don't show if already handled
+  const showAction = useCallback((type: ActionType, metadata?: Record<string, unknown>, anchorMessageId?: string) => {
     if (handledActionsRef.current.has(type)) {
       return;
     }
-    setPendingAction({ type, metadata });
-    setIsActioned(false); // Reset for new action
+    setPendingAction({ type, metadata, anchorMessageId });
+    setIsActioned(false);
   }, []);
 
   const dismissAction = useCallback(() => {
@@ -74,16 +72,12 @@ export function useActionButtons(deps: ActionDependencies): UseActionButtonsRetu
         }
       }
 
-      // Check if this action type should dismiss after click
       const definition = ACTION_REGISTRY[pendingAction.type];
-      const shouldDismiss = definition?.dismissAfterClick !== false;
+      const shouldReEnable = definition?.dismissAfterClick === false;
 
-      if (shouldDismiss) {
-        // Mark as handled and dismiss
-        handledActionsRef.current.add(pendingAction.type);
-        setPendingAction(null);
-      } else {
-        // Keep buttons visible but re-enable them
+      handledActionsRef.current.add(pendingAction.type);
+
+      if (shouldReEnable) {
         setIsActioned(false);
       }
     },

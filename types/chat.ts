@@ -34,6 +34,8 @@ export interface ChatAgentProps {
   isWaitingForResponse?: boolean;
 }
 
+import type { QuizOption } from "./assessment";
+
 export interface MessageData {
   id: string;
   conversationId: string;
@@ -42,4 +44,13 @@ export interface MessageData {
   inputType: string;
   messageType: string;
   createdAt: string;
+  // Optional metadata for in-lesson questions (not persisted to DB)
+  metadata?: {
+    questionId?: string;
+    questionType?: "mcq" | "text";
+    options?: QuizOption[];
+    correctOption?: string;
+    isAnswered?: boolean;
+    isSkipped?: boolean;
+  };
 }

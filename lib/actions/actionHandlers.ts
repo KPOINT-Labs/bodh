@@ -137,6 +137,14 @@ export const ACTION_HANDLERS: Record<ActionType, ActionHandler> = {
     }
   },
 
+  inlesson_complete: (buttonId, _metadata, deps) => {
+    switch (buttonId) {
+      case "continue_video":
+        deps.playVideo();
+        break;
+    }
+  },
+
   lesson_complete: async (buttonId, metadata, deps) => {
     switch (buttonId) {
       case "assessment":

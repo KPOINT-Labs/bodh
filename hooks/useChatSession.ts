@@ -2,9 +2,22 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { type MessageData, storeMessage } from "@/lib/chat/message-store";
+import type { QuizOption } from "@/types/assessment";
 
 // Counter for generating unique temp IDs (prevents duplicates when called in same millisecond)
 let tempIdCounter = 0;
+
+// Extended message data for local UI state (includes metadata for in-lesson questions)
+export interface ExtendedMessageData extends MessageData {
+  metadata?: {
+    questionId?: string;
+    questionType?: "mcq" | "text";
+    options?: QuizOption[];
+    correctOption?: string;
+    isAnswered?: boolean;
+    isSkipped?: boolean;
+  };
+}
 
 interface Lesson {
   id: string;
@@ -34,7 +47,7 @@ export function useChatSession({
   lessons,
   getCurrentTime,
 }: UseChatSessionOptions) {
-  const [chatMessages, setChatMessages] = useState<MessageData[]>([]);
+  const [chatMessages, setChatMessages] = useState<ExtendedMessageData[]>([]);
   const [isSending, setIsSending] = useState(false);
 
   // Use refs for values that change but shouldn't recreate sendMessage
@@ -243,7 +256,7 @@ export function useChatSession({
 
       // Optimistically add to UI with temp ID (use counter to ensure uniqueness)
       const tempId = `assistant-${Date.now()}-${++tempIdCounter}`;
-      const assistantMessage: MessageData = {
+      const assistantMessage: ExtendedMessageData = {
         id: tempId,
         conversationId: convId,
         role: "assistant",
@@ -274,6 +287,100 @@ export function useChatSession({
     []
   );
 
+  // Add in-lesson question to chat (local only - not stored in DB initially)
+  // The question will be stored as an attempt when answered
+  const addInlessonQuestion = useCallback(
+    (question: {
+      id: string;
+      question: string;
+      type: "mcq" | "text";
+      options?: QuizOption[];
+      correctOption?: string;
+    }) => {
+      const convId = conversationIdRef.current;
+      if (!convId) {
+        console.error("Conversation not ready");
+        return null;
+      }
+
+      const tempId = `inlesson-${Date.now()}-${++tempIdCounter}`;
+      const inlessonMessage: ExtendedMessageData = {
+        id: tempId,
+        conversationId: convId,
+        role: "assistant",
+        content: question.question,
+        inputType: "text",
+        messageType: "inlesson",
+        createdAt: new Date().toISOString(),
+        metadata: {
+          questionId: question.id,
+          questionType: question.type,
+          options: question.options,
+          correctOption: question.correctOption,
+          isAnswered: false,
+          isSkipped: false,
+        },
+      };
+
+      console.log("[ChatSession] Adding in-lesson question to chat:", {
+        questionId: question.id,
+        type: question.type,
+      });
+
+      setChatMessages((prev) => [...prev, inlessonMessage]);
+      return tempId;
+    },
+    []
+  );
+
+  // Mark an in-lesson question as answered
+  const markInlessonAnswered = useCallback((messageId: string) => {
+    setChatMessages((prev) =>
+      prev.map((msg) =>
+        msg.id === messageId && msg.metadata
+          ? { ...msg, metadata: { ...msg.metadata, isAnswered: true } }
+          : msg
+      )
+    );
+  }, []);
+
+  // Mark an in-lesson question as skipped
+  const markInlessonSkipped = useCallback((messageId: string) => {
+    setChatMessages((prev) =>
+      prev.map((msg) =>
+        msg.id === messageId && msg.metadata
+          ? { ...msg, metadata: { ...msg.metadata, isSkipped: true } }
+          : msg
+      )
+    );
+  }, []);
+
+  // Add feedback message for in-lesson answer
+  const addInlessonFeedback = useCallback(
+    (isCorrect: boolean, feedback: string) => {
+      const convId = conversationIdRef.current;
+      if (!convId) {
+        console.error("Conversation not ready");
+        return;
+      }
+
+      const tempId = `inlesson-feedback-${Date.now()}-${++tempIdCounter}`;
+      const feedbackMessage: ExtendedMessageData = {
+        id: tempId,
+        conversationId: convId,
+        role: "assistant",
+        content: `${isCorrect ? "**Correct!**" : "**Not quite.**"} ${feedback}`,
+        inputType: "text",
+        messageType: "inlesson_feedback",
+        createdAt: new Date().toISOString(),
+      };
+
+      setChatMessages((prev) => [...prev, feedbackMessage]);
+      return tempId;
+    },
+    []
+  );
+
   return {
     chatMessages,
     setChatMessages,
@@ -282,5 +389,9 @@ export function useChatSession({
     sendFAMessage,
     addUserMessage,
     addAssistantMessage,
+    addInlessonQuestion,
+    markInlessonAnswered,
+    markInlessonSkipped,
+    addInlessonFeedback,
   };
 }

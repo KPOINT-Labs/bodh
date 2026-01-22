@@ -9,6 +9,7 @@ import {
 import { parseAssessmentContent, isAssessmentContent, detectAnswerFeedback } from "@/lib/chat/assessment";
 import { AssessmentQuestion } from "./AssessmentQuestion";
 import { FeedbackBadge } from "./FeedbackBadge";
+import type { QuizOption } from "@/types/assessment";
 
 interface MessageContentProps {
   content: string;
@@ -18,6 +19,17 @@ interface MessageContentProps {
   onQuestionSkip?: (questionNumber: number) => void;
   onTimestampClick?: (seconds: number, youtubeVideoId?: string | null) => void;
   isFromHistory?: boolean;
+  // In-lesson question props
+  inlessonMetadata?: {
+    questionId?: string;
+    questionType?: "mcq" | "text";
+    options?: QuizOption[];
+    correctOption?: string;
+    isAnswered?: boolean;
+    isSkipped?: boolean;
+  };
+  onInlessonAnswer?: (questionId: string, answer: string) => void;
+  onInlessonSkip?: (questionId: string) => void;
 }
 
 /**
@@ -28,7 +40,97 @@ interface MessageContentProps {
  * - Learning headers ("You'll learn:")
  * - Assessment questions (FA messages)
  */
-export function MessageContent({ content, messageType, role, onQuestionAnswer, onQuestionSkip, onTimestampClick, isFromHistory = false }: MessageContentProps) {
+export function MessageContent({
+  content,
+  messageType,
+  role,
+  onQuestionAnswer,
+  onQuestionSkip,
+  onTimestampClick,
+  isFromHistory = false,
+  inlessonMetadata,
+  onInlessonAnswer,
+  onInlessonSkip,
+}: MessageContentProps) {
+  // Handle in-lesson question messages
+  if (messageType === "inlesson" && role === "assistant" && inlessonMetadata) {
+    const { questionId, questionType, options, isAnswered, isSkipped } = inlessonMetadata;
+
+    // Convert QuizOption[] to string[] for AssessmentQuestion component
+    // Format: "A) Option text" to match FA format
+    const formattedOptions = options?.map((opt, idx) => {
+      const letter = String.fromCharCode(65 + idx); // A, B, C, D...
+      return `${letter}) ${opt.text}`;
+    });
+
+    // Determine answer type based on question type
+    const answerType = questionType === "mcq" ? "multiple_choice" : "short_answer";
+
+    return (
+      <div className="space-y-4">
+        <AssessmentQuestion
+          question={content}
+          options={formattedOptions}
+          answerType={answerType}
+          onAnswer={(answer) => {
+            if (questionId) {
+              // For MCQ, map the selected letter back to the option ID
+              if (questionType === "mcq" && options) {
+                const letterMatch = answer.match(/^([A-Z])/);
+                if (letterMatch) {
+                  const idx = letterMatch[1].charCodeAt(0) - 65;
+                  if (idx >= 0 && idx < options.length) {
+                    onInlessonAnswer?.(questionId, options[idx].id);
+                    return;
+                  }
+                }
+              }
+              onInlessonAnswer?.(questionId, answer);
+            }
+          }}
+          onSkip={() => questionId && onInlessonSkip?.(questionId)}
+          isAnswered={isAnswered}
+          isFromHistory={isAnswered || isSkipped}
+        />
+      </div>
+    );
+  }
+
+  // Handle in-lesson feedback messages
+  if (messageType === "inlesson_feedback" && role === "assistant") {
+    const feedback = detectAnswerFeedback(content);
+    const lines = content.split('\n').filter(line => line.trim());
+    const feedbackLine = lines[0] || '';
+    const restLines = lines.slice(1);
+
+    return (
+      <div className="space-y-3">
+        {/* Feedback Badge */}
+        {(feedback.type === 'correct' || feedback.type === 'incorrect') && (
+          <FeedbackBadge type={feedback.type} />
+        )}
+
+        {/* Feedback line in bold/colored */}
+        {feedbackLine && (
+          <p className={`text-sm font-bold ${feedback.type === 'correct' ? 'text-emerald-600' : 'text-red-600'}`}>
+            {parseInlineMarkdownWithTimestamps(feedbackLine, onTimestampClick)}
+          </p>
+        )}
+
+        {/* Rest of explanation in normal text */}
+        {restLines.length > 0 && (
+          <div className="text-sm leading-relaxed text-gray-700">
+            {restLines.map((line, idx) => (
+              <p key={idx} className={idx > 0 ? "mt-2" : ""}>
+                {parseInlineMarkdownWithTimestamps(line, onTimestampClick)}
+              </p>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   // Check if this is an FA assistant message with feedback (correct/incorrect response)
   // Only show feedback badge for assistant messages, not user answers
   if (messageType === "fa" && role === "assistant") {

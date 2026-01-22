@@ -174,6 +174,8 @@ interface ChatAgentProps {
   onActionButtonClick?: (buttonId: string) => void;
   /** Whether action buttons should be disabled */
   isActionDisabled?: boolean;
+  onInlessonAnswer?: (questionId: string, answer: string) => void;
+  onInlessonSkip?: (questionId: string) => void;
 }
 
 /**
@@ -208,6 +210,8 @@ export function ChatAgent({
   pendingAction = null,
   onActionButtonClick,
   isActionDisabled = false,
+  onInlessonAnswer: _onInlessonAnswer,
+  onInlessonSkip: _onInlessonSkip,
 }: ChatAgentProps) {
   // State for session initialization
   const [historyMessages, setHistoryMessages] = useState<MessageData[]>([]);
@@ -434,7 +438,7 @@ export function ChatAgent({
         {historyMessages.length > 0 && (
           <div className="space-y-4">
             {expandMessagesWithSeparator(historyMessages).map((msg) => (
-              <ChatMessage key={msg.id} message={msg} onQuestionAnswer={handleQuestionAnswer} onQuestionSkip={handleQuestionSkip} onTimestampClick={onTimestampClick} isFromHistory={true} />
+              <ChatMessage key={msg.id} message={msg} onQuestionAnswer={handleQuestionAnswer} onQuestionSkip={handleQuestionSkip} onTimestampClick={onTimestampClick} isFromHistory={true} onInlessonAnswer={_onInlessonAnswer} onInlessonSkip={_onInlessonSkip} />
             ))}
           </div>
         )}
@@ -478,46 +482,78 @@ export function ChatAgent({
           </>
         )}
 
-        {/* Case 2: Welcome captured - show it persistently (even when chat messages exist) */}
-        {welcomeMessage && (
-          <div className="flex items-start gap-3">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-500">
-              <Sparkles className="h-4 w-4 text-white" />
+         {/* Case 2: Welcome captured - show it persistently (even when chat messages exist) */}
+         {welcomeMessage && (
+           <div>
+             <div className="flex items-start gap-3">
+               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-500">
+                 <Sparkles className="h-4 w-4 text-white" />
+               </div>
+               <div className="bg-gray-50 rounded-2xl rounded-tl-sm px-4 py-3 max-w-[85%]">
+                 <div className="text-sm leading-relaxed text-gray-800">
+                   <MessageContent
+                     content={welcomeMessage}
+                     onTimestampClick={onTimestampClick}
+                   />
+                 </div>
+               </div>
+             </div>
+             {!isAgentSpeaking &&
+               !filteredChatMessages.length &&
+               pendingAction &&
+               isLiveKitConnected &&
+               pendingAction.anchorMessageId === "welcome" &&
+               onActionButtonClick && (
+                 <ActionButtons
+                   pendingAction={pendingAction}
+                   onButtonClick={onActionButtonClick}
+                   disabled={isActionDisabled}
+                 />
+               )}
             </div>
-            <div className="bg-gray-50 rounded-2xl rounded-tl-sm px-4 py-3 max-w-[85%]">
-              <div className="text-sm leading-relaxed text-gray-800">
-                <MessageContent
-                  content={welcomeMessage}
-                  onTimestampClick={onTimestampClick}
-                />
-              </div>
-            </div>
-          </div>
-        )}
+         )}
 
-        {/* Action Buttons - show when there's a pending action and agent has finished speaking */}
-        {/* Uses the unified ActionButtons component from the action registry */}
-        {/* Show if there's a welcome message, agent transcript, OR an introMessage in the action metadata (for FA intro) */}
-        {!isAgentSpeaking &&
-         pendingAction &&
-         isLiveKitConnected &&
-         (welcomeMessage || agentTranscript || Boolean(pendingAction.metadata?.introMessage)) &&
-         onActionButtonClick && (
-          <ActionButtons
-            pendingAction={pendingAction}
-            onButtonClick={onActionButtonClick}
-            disabled={isActionDisabled}
-          />
-        )}
 
-        {/* Chat Messages (from current session) - flows naturally after history */}
-        {filteredChatMessages.length > 0 && (
-          <div className="space-y-4">
-            {expandMessagesWithSeparator(filteredChatMessages).map((msg) => (
-              <ChatMessage key={msg.id} message={msg} onQuestionAnswer={handleQuestionAnswer} onQuestionSkip={handleQuestionSkip} onTimestampClick={onTimestampClick} isFromHistory={false} />
-            ))}
-          </div>
-        )}
+
+         {/* Chat Messages (from current session) - flows naturally after history */}
+         {filteredChatMessages.length > 0 && (
+           <div className="space-y-4">
+             {expandMessagesWithSeparator(filteredChatMessages).map((msg, index, all) => {
+               const isLast = index === all.length - 1;
+               const anchor = pendingAction?.anchorMessageId;
+               const matchesAnchor = anchor ? anchor === msg.id : isLast;
+               const shouldShowActionButtons =
+                 matchesAnchor &&
+                 !isAgentSpeaking &&
+                 pendingAction &&
+                 isLiveKitConnected &&
+                 (welcomeMessage || agentTranscript || Boolean(pendingAction.metadata?.introMessage)) &&
+                 onActionButtonClick;
+
+               return (
+                 <div key={msg.id}>
+                   <ChatMessage
+                     message={msg}
+                     onQuestionAnswer={handleQuestionAnswer}
+                     onQuestionSkip={handleQuestionSkip}
+                     onTimestampClick={onTimestampClick}
+                     isFromHistory={false}
+onInlessonAnswer={_onInlessonAnswer}
+                      onInlessonSkip={_onInlessonSkip}
+                   />
+                   {shouldShowActionButtons && (
+                     <ActionButtons
+                       pendingAction={pendingAction}
+                       onButtonClick={onActionButtonClick}
+                       disabled={isActionDisabled}
+                     />
+                   )}
+                 </div>
+               );
+             })}
+           </div>
+         )}
+
 
         {/* User voice transcript - shows when user is speaking in voice mode */}
         {isVoiceModeEnabled && userTranscript && (

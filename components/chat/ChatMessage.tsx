@@ -9,6 +9,9 @@ interface ChatMessageProps {
   onQuestionSkip?: (questionNumber: number) => void;
   onTimestampClick?: (seconds: number, youtubeVideoId?: string | null) => void;
   isFromHistory?: boolean;
+  // In-lesson question handlers
+  onInlessonAnswer?: (questionId: string, answer: string) => void;
+  onInlessonSkip?: (questionId: string) => void;
 }
 
 /**
@@ -16,7 +19,15 @@ interface ChatMessageProps {
  * Handles both user and assistant messages with appropriate styling
  * Supports special rendering for FA (formative assessment) messages
  */
-export function ChatMessage({ message, onQuestionAnswer, onQuestionSkip, onTimestampClick, isFromHistory = false }: ChatMessageProps) {
+export function ChatMessage({
+  message,
+  onQuestionAnswer,
+  onQuestionSkip,
+  onTimestampClick,
+  isFromHistory = false,
+  onInlessonAnswer,
+  onInlessonSkip,
+}: ChatMessageProps) {
   const isUser = message.role === "user";
   // Check if this is an assessment summary (second part of a split FA message)
   const isAssessmentSummary = message.id.endsWith('-part2') && message.messageType === 'fa';
@@ -54,6 +65,9 @@ export function ChatMessage({ message, onQuestionAnswer, onQuestionSkip, onTimes
             onQuestionSkip={onQuestionSkip}
             onTimestampClick={onTimestampClick}
             isFromHistory={isFromHistory}
+            inlessonMetadata={message.metadata}
+            onInlessonAnswer={onInlessonAnswer}
+            onInlessonSkip={onInlessonSkip}
           />
         )}
       </div>

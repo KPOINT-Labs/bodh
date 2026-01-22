@@ -30,6 +30,7 @@ import { useActionButtons } from "@/hooks/useActionButtons";
 import type { ActionType } from "@/lib/actions/actionRegistry";
 import type { ActionDependencies } from "@/lib/actions/actionHandlers";
 import type { LessonQuiz } from "@/types/assessment";
+import { recordAttempt } from "@/lib/actions/assessment";
 
 interface Lesson {
   id: string;
@@ -203,6 +204,14 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
     status: string;
   } | null>(null);
 
+  // Track active in-lesson question for answer handling
+  const [activeInlessonQuestion, setActiveInlessonQuestion] = useState<{
+    questionId: string;
+    messageId: string;
+    type: "mcq" | "text";
+    correctOption?: string;
+  } | null>(null);
+
   // Sync selectedLesson with URL when initialLessonId changes (e.g., clicking lesson in sidebar)
   // Note: Panel state is controlled by ?panel=true search param, not by lesson selection
   useEffect(() => {
@@ -319,9 +328,26 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
   // Ref for clearUserTranscript to use after storing voice message
   const clearUserTranscriptRef = useRef<(() => void) | null>(null);
   // Ref for showAction to use in callbacks (set after useActionButtons)
-  const showActionRef = useRef<((type: ActionType, metadata?: Record<string, unknown>) => void) | null>(null);
+  const showActionRef = useRef<((type: ActionType, metadata?: Record<string, unknown>, anchorMessageId?: string) => void) | null>(null);
   // Ref for dismissAction to use in handleAddUserMessage (set after useActionButtons)
   const dismissActionRef = useRef<(() => void) | null>(null);
+  // Refs for in-lesson question functions (set after useChatSession)
+  const addInlessonQuestionRef = useRef<((question: {
+    id: string;
+    question: string;
+    type: "mcq" | "text";
+    options?: { id: string; text: string }[];
+    correctOption?: string;
+  }) => string | null) | null>(null);
+  const markInlessonAnsweredRef = useRef<((messageId: string) => void) | null>(null);
+  const markInlessonSkippedRef = useRef<((messageId: string) => void) | null>(null);
+  const addInlessonFeedbackRef = useRef<((isCorrect: boolean, feedback: string) => string | undefined) | null>(null);
+  const setActiveInlessonQuestionRef = useRef<((question: {
+    questionId: string;
+    messageId: string;
+    type: "mcq" | "text";
+    correctOption?: string;
+  } | null) => void) | null>(null);
 
   // Keep isReturningUserRef updated
   useEffect(() => {
@@ -404,14 +430,21 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
             const topic = match[1];
             console.log("[ModuleContent] FA intro transcript detected, showing buttons for topic:", topic);
 
-            // Save the FA intro message to DB and show in chat
             if (addAssistantMessageRef.current) {
               addAssistantMessageRef.current(text, "fa");
             }
 
-            // Show action buttons (no introMessage since it's already saved above)
             if (showActionRef.current) {
-              showActionRef.current("fa_intro", { topic });
+              showActionRef.current(
+                "fa_intro",
+                { topic, introMessage: text },
+                addAssistantMessageRef.current ? undefined : `fa-intro-${segment.id}`
+              );
+            }
+
+
+            if (showActionRef.current) {
+              showActionRef.current("fa_intro", { topic, introMessage: text }, `fa-intro-${segment.id}`);
             }
 
             // Clear the transcript so it doesn't appear twice (already saved to DB above)
@@ -498,9 +531,8 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
       addAssistantMessageRef.current(data.introMessage, "fa");
     }
 
-    // Show action buttons (no introMessage since it's saved above)
     if (showActionRef.current) {
-      showActionRef.current("fa_intro", { topic: data.topic });
+      showActionRef.current("fa_intro", { topic: data.topic, introMessage: data.introMessage });
     }
   }, []);
 
@@ -731,9 +763,55 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
     onVideoEnd: handleVideoEnd,
     quizData: (activeLesson?.quiz ?? null) as LessonQuiz | null,
     onInLessonTrigger: (questionId: string) => {
-      // Trigger in-lesson question from quiz data
-      console.log("[ModuleContent] In-lesson question triggered:", questionId);
-      assessmentQuiz.startInlesson(questionId);
+      // Find the question from quiz data
+      const quizData = activeLesson?.quiz as LessonQuiz | null;
+      const question = quizData?.inlesson?.find(q => q.id === questionId);
+
+      console.log("[ModuleContent] 🎬 In-lesson question triggered:", {
+        questionId,
+        activeLessonId: activeLesson?.id,
+        hasQuiz: !!quizData,
+        questionFound: !!question,
+        questionType: question?.type,
+      });
+
+      if (!question) {
+        console.warn("[ModuleContent] Question not found:", questionId);
+        return;
+      }
+
+      // Ensure chat panel is open
+      setIsPanelClosed(false);
+      expandPanel();
+
+      // Add question to chat
+      if (addInlessonQuestionRef.current) {
+        const messageId = addInlessonQuestionRef.current({
+          id: question.id,
+          question: question.question,
+          type: question.type,
+          options: question.options,
+          correctOption: question.correct_option,
+        });
+
+        // Track active question for answer handling
+        if (messageId && setActiveInlessonQuestionRef.current) {
+          setActiveInlessonQuestionRef.current({
+            questionId: question.id,
+            messageId,
+            type: question.type,
+            correctOption: question.correct_option,
+          });
+        }
+
+        console.log("[ModuleContent] In-lesson question added to chat:", {
+          messageId,
+          questionId: question.id,
+          type: question.type,
+        });
+      } else {
+        console.warn("[ModuleContent] addInlessonQuestionRef not ready");
+      }
     },
     onFATrigger: async (_message: string, _timestampSeconds: number, topic?: string, _pauseVideo?: boolean) => {
       // NEW FLOW: Instead of directly starting FA, first show intro with buttons
@@ -760,7 +838,16 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
   });
 
   // Chat session hook - only used for message storage, all Sarvam calls go through LiveKit
-  const { chatMessages, isSending, addUserMessage, addAssistantMessage } = useChatSession({
+  const {
+    chatMessages,
+    isSending,
+    addUserMessage,
+    addAssistantMessage,
+    addInlessonQuestion,
+    markInlessonAnswered,
+    markInlessonSkipped,
+    addInlessonFeedback,
+  } = useChatSession({
     courseId: course.id,
     conversationId,
     selectedLesson: activeLesson,
@@ -772,6 +859,15 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
   useEffect(() => {
     addAssistantMessageRef.current = addAssistantMessage;
   }, [addAssistantMessage]);
+
+  // Keep in-lesson refs updated for use in onInLessonTrigger callback
+  useEffect(() => {
+    addInlessonQuestionRef.current = addInlessonQuestion;
+    markInlessonAnsweredRef.current = markInlessonAnswered;
+    markInlessonSkippedRef.current = markInlessonSkipped;
+    addInlessonFeedbackRef.current = addInlessonFeedback;
+    setActiveInlessonQuestionRef.current = setActiveInlessonQuestion;
+  }, [addInlessonQuestion, markInlessonAnswered, markInlessonSkipped, addInlessonFeedback, setActiveInlessonQuestion]);
 
   // Wrapper for addUserMessage that also sets the flag to track user interaction
   // This prevents welcome messages from being stored - only user messages and responses
@@ -793,6 +889,119 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
   useEffect(() => {
     handleAddUserMessageRef.current = handleAddUserMessage;
   }, [handleAddUserMessage]);
+
+  // Handler for in-lesson MCQ/text answers
+  const handleInlessonAnswer = useCallback(
+    async (questionId: string, answer: string) => {
+      console.log("[ModuleContent] In-lesson answer received:", { questionId, answer });
+
+      if (!activeInlessonQuestion || activeInlessonQuestion.questionId !== questionId) {
+        console.warn("[ModuleContent] No active question or ID mismatch");
+        return;
+      }
+
+      const { messageId, type, correctOption } = activeInlessonQuestion;
+
+      if (type === "mcq") {
+        // MCQ: Evaluate locally
+        const isCorrect = answer === correctOption;
+        const feedback = isCorrect
+          ? "Great job! You got it right."
+          : "That's not quite right, but don't worry - keep learning!";
+
+        console.log("[ModuleContent] MCQ evaluation:", { isCorrect, answer, correctOption });
+
+        // Mark question as answered
+        markInlessonAnswered(messageId);
+
+        // Record attempt in DB
+        if (activeLesson?.id) {
+          await recordAttempt({
+            odataUserId: userId,
+            lessonId: activeLesson.id,
+            assessmentType: "inlesson",
+            questionId,
+            answer,
+            isCorrect,
+            isSkipped: false,
+            feedback,
+          });
+        }
+
+        // Add feedback message
+        addInlessonFeedback(isCorrect, feedback);
+
+        // Show "Continue watching" button (no introMessage - feedback already added above)
+        if (showActionRef.current) {
+          showActionRef.current("inlesson_complete", {});
+        }
+
+        // Clear active question
+        setActiveInlessonQuestion(null);
+      } else {
+        // Text: Send to agent for evaluation
+        console.log("[ModuleContent] Sending text answer to agent for evaluation");
+
+        // Mark question as answered
+        markInlessonAnswered(messageId);
+
+        // Send to agent via LiveKit
+        if (liveKit.isConnected && liveKit.sendTextToAgent) {
+          try {
+            await liveKit.sendTextToAgent(`INLESSON_ANSWER:${questionId}:${answer}`);
+          } catch (err) {
+            console.error("[ModuleContent] Failed to send in-lesson answer:", err);
+          }
+        }
+
+        // Clear active question (agent will handle feedback)
+        setActiveInlessonQuestion(null);
+      }
+    },
+    [activeInlessonQuestion, activeLesson?.id, userId, markInlessonAnswered, addInlessonFeedback, liveKit.isConnected, liveKit.sendTextToAgent]
+  );
+
+  // Handler for in-lesson question skip
+  const handleInlessonSkip = useCallback(
+    async (questionId: string) => {
+      console.log("[ModuleContent] In-lesson question skipped:", questionId);
+
+      if (!activeInlessonQuestion || activeInlessonQuestion.questionId !== questionId) {
+        console.warn("[ModuleContent] No active question or ID mismatch");
+        return;
+      }
+
+      const { messageId } = activeInlessonQuestion;
+
+      // Mark question as skipped
+      markInlessonSkipped(messageId);
+
+      // Record skipped attempt in DB
+      if (activeLesson?.id) {
+        await recordAttempt({
+          odataUserId: userId,
+          lessonId: activeLesson.id,
+          assessmentType: "inlesson",
+          questionId,
+          answer: null,
+          isCorrect: null,
+          isSkipped: true,
+          feedback: null,
+        });
+      }
+
+      // Show "Continue watching" button
+      if (showActionRef.current) {
+        showActionRef.current("inlesson_complete", {
+          introMessage: "Question skipped. Let's continue with the video.",
+        });
+      }
+
+      // Clear active question
+      setActiveInlessonQuestion(null);
+    },
+    [activeInlessonQuestion, activeLesson?.id, userId, markInlessonSkipped]
+  );
 
   // Set up action button dependencies and hook
   const actionDeps: ActionDependencies = {
@@ -840,7 +1049,6 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
     dismissActionRef.current = dismissAction;
   }, [dismissAction]);
 
-  // Reset handled actions when lesson changes (allows new welcome flows)
   useEffect(() => {
     resetHandledActions();
   }, [activeLesson?.id, resetHandledActions]);
@@ -864,7 +1072,6 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
       !pendingAction &&
       (liveKit.agentTranscript || welcomeStoredRef.current)
     ) {
-      // Map session type to action type and show action buttons
       const sessionTypeToAction: Record<string, ActionType> = {
         course_welcome: "course_welcome",
         course_welcome_back: "course_welcome_back",
@@ -875,13 +1082,17 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
       const actionType = sessionTypeToAction[sessionType];
       console.log("[ModuleContent] Showing action buttons for:", actionType);
       if (actionType) {
-        showAction(actionType, {
-          introLesson: sortedLessons[0],
-          firstLesson: sortedLessons[1] || sortedLessons[0],
-          lastLesson: activeLesson,
-          lastPosition: sessionLessonProgress?.lastPosition || 0,
-          prevLessonTitle,
-        });
+        showAction(
+          actionType,
+          {
+            introLesson: sortedLessons[0],
+            firstLesson: sortedLessons[1] || sortedLessons[0],
+            lastLesson: activeLesson,
+            lastPosition: sessionLessonProgress?.lastPosition || 0,
+            prevLessonTitle,
+          },
+          "welcome"
+        );
       }
     }
   }, [
@@ -977,6 +1188,9 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
         pendingAction={pendingAction}
         onActionButtonClick={handleButtonClick}
         isActionDisabled={isActioned}
+        // In-lesson question handlers
+        onInlessonAnswer={handleInlessonAnswer}
+        onInlessonSkip={handleInlessonSkip}
       />
 
       {/* Module Lessons Overview - Removed as not needed */}
