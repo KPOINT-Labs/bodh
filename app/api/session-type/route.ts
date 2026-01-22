@@ -36,21 +36,34 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // 1. Check enrollment (course level)
-    const enrollment = await prisma.enrollment.findUnique({
-      where: {
-        userId_courseId: { userId, courseId },
-      },
-    });
+    // 1. Check enrollment and existing progress (course level)
+    // Note: Enrollment may already exist due to auto-enrollment in page.tsx
+    // So we check lesson progress to determine if this is truly a first visit
+    const [enrollment, existingProgressCount] = await Promise.all([
+      prisma.enrollment.findUnique({
+        where: {
+          userId_courseId: { userId, courseId },
+        },
+      }),
+      // Count lesson progress entries for this user in this course
+      prisma.lessonProgress.count({
+        where: {
+          userId,
+          lesson: { courseId },
+        },
+      }),
+    ]);
 
-    const isFirstCourseVisit = !enrollment;
+    // First visit = no lesson progress exists (enrollment may exist due to auto-enroll)
+    const isFirstCourseVisit = existingProgressCount === 0;
     console.log("[SESSION_TYPE] Step 1 - Enrollment check:", {
       hasEnrollment: !!enrollment,
+      existingProgressCount,
       isFirstCourseVisit
     });
 
-    // Create enrollment if first visit
-    if (isFirstCourseVisit) {
+    // Create enrollment if it doesn't exist
+    if (!enrollment) {
       await prisma.enrollment.create({
         data: {
           userId,
