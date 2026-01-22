@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { X, Sparkles, MessageCircle, Play, Keyboard, BookOpen, Rocket } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
+import { X, Sparkles } from "lucide-react";
+import { useTTS } from "@/hooks/useTTS";
 
 interface OnboardingModalProps {
   isReturningUser?: boolean;
@@ -10,42 +12,18 @@ interface OnboardingModalProps {
 
 const STORAGE_KEY = "bodh-onboarding-v1";
 
-const steps = [
-  {
-    icon: Sparkles,
-    title: "Welcome to Your AI Learning Companion!",
-    description: "I'm here to guide you through video lectures with personalized support. Let me show you around!",
-  },
-  {
-    icon: MessageCircle,
-    title: "Chat Interface",
-    description: "This is where we'll have conversations! I'll ask questions, check your understanding, and provide encouragement as you learn.",
-  },
-  {
-    icon: Play,
-    title: "Video Player",
-    description: "Watch video lectures here. I can pause videos to check in with you, ask questions, and help reinforce what you're learning.",
-  },
-  {
-    icon: Keyboard,
-    title: "Your Voice Matters",
-    description: "Type your responses, ask questions, or share your thoughts here. I'm always listening and ready to help!",
-  },
-  {
-    icon: BookOpen,
-    title: "Your Courses",
-    description: "Switch between courses here. Each course has multiple lessons for you to explore at your own pace.",
-  },
-  {
-    icon: Rocket,
-    title: "Ready to Learn?",
-    description: "That's it! Just start chatting with me, and I'll guide you through your learning journey. Let's make learning fun together!",
-  },
-];
+const welcomeContent = {
+  icon: Sparkles,
+  title: "Hi! I'm Aditi",
+  description: "Your personal learning companion. I'll be right here with you as you watch your lessons — asking questions, clearing doubts, and cheering you on.",
+  ttsMessage: "Hi! I'm Aditi, your personal learning companion. I'll be right here with you as you watch your lessons — asking questions, clearing doubts, and cheering you on. Click on Let's Start to take a quick tour and see how I can help you learn!",
+};
 
 export function OnboardingModal({ isReturningUser = false, onComplete }: OnboardingModalProps) {
   const [isVisible, setIsVisible] = useState(false);
-  const [currentStep, setCurrentStep] = useState(0);
+  const router = useRouter();
+  const { speak } = useTTS();
+  const hasSpokenRef = useRef(false);
 
   useEffect(() => {
     // Check if tour query parameter is present
@@ -71,39 +49,36 @@ export function OnboardingModal({ isReturningUser = false, onComplete }: Onboard
     }
   }, [isReturningUser]);
 
-  const handleComplete = () => {
+  // Speak welcome message when modal becomes visible
+  useEffect(() => {
+    if (isVisible && !hasSpokenRef.current) {
+      hasSpokenRef.current = true;
+      // Small delay to let the modal animation complete
+      setTimeout(() => {
+        speak(welcomeContent.ttsMessage);
+      }, 500);
+    }
+  }, [isVisible, speak]);
+
+  const handleSkip = () => {
     localStorage.setItem(STORAGE_KEY, "true");
     setIsVisible(false);
     onComplete?.();
   };
 
-  const handleSkip = () => {
-    handleComplete();
-  };
-
-  const handleNext = () => {
-    if (currentStep < steps.length - 1) {
-      setCurrentStep(currentStep + 1);
-    } else {
-      handleComplete();
-    }
-  };
-
-  const handleBack = () => {
-    if (currentStep > 0) {
-      setCurrentStep(currentStep - 1);
-    }
+  const handleStartTour = () => {
+    localStorage.setItem(STORAGE_KEY, "true");
+    setIsVisible(false);
+    // Don't call onComplete here - it triggers welcome TTS on /courses page
+    // The tour page will handle the flow and redirect back
+    router.push("/course/demo/module/demo?tour=true&redirect_back_to=/courses");
   };
 
   if (!isVisible) {
     return null;
   }
 
-  const step = steps[currentStep];
-  const Icon = step.icon;
-  const progress = ((currentStep + 1) / steps.length) * 100;
-  const isFirstStep = currentStep === 0;
-  const isLastStep = currentStep === steps.length - 1;
+  const Icon = welcomeContent.icon;
 
   return (
     <>
@@ -131,65 +106,29 @@ export function OnboardingModal({ isReturningUser = false, onComplete }: Onboard
 
           {/* Content */}
           <h3 className="text-2xl text-center mb-4 bg-gradient-to-r from-violet-600 to-fuchsia-600 bg-clip-text text-transparent">
-            {step.title}
+            {welcomeContent.title}
           </h3>
 
           <p className="text-gray-700 text-center mb-8 leading-relaxed">
-            {step.description}
+            {welcomeContent.description}
           </p>
 
-          {/* Progress Bar */}
-          <div className="mb-6">
-            <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-violet-500 to-fuchsia-500 transition-all duration-300 rounded-full"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-            <div className="flex justify-center gap-2 mt-3">
-              {steps.map((_, index) => (
-                <div
-                  key={index}
-                  className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                    index === currentStep
-                      ? 'bg-violet-500 w-4'
-                      : index < currentStep
-                      ? 'bg-violet-300'
-                      : 'bg-gray-300'
-                  }`}
-                />
-              ))}
-            </div>
-          </div>
-
-          {/* Navigation */}
-          <div className="flex gap-3">
-            {currentStep > 0 && (
-              <button
-                onClick={handleBack}
-                className="flex-1 px-6 py-3 rounded-xl border-2 border-gray-300 text-gray-700 hover:bg-gray-50 transition-all duration-200"
-              >
-                Back
-              </button>
-            )}
-
+          {/* Action Buttons */}
+          <div className="flex flex-col gap-3">
             <button
-              onClick={handleNext}
-              className="flex-1 px-6 py-3 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white hover:from-violet-600 hover:to-fuchsia-600 transition-all duration-200 shadow-lg hover:shadow-xl"
+              onClick={handleStartTour}
+              className="w-full px-6 py-3 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white hover:from-violet-600 hover:to-fuchsia-600 transition-all duration-200 shadow-lg hover:shadow-xl font-medium"
             >
-              {currentStep === steps.length - 1 ? "Let's Start!" : 'Next'}
+              Let&apos;s Start!
             </button>
-          </div>
 
-          {/* Skip Button */}
-          {currentStep < steps.length - 1 && (
             <button
               onClick={handleSkip}
-              className="w-full mt-4 text-sm text-gray-500 hover:text-gray-700 transition-colors"
+              className="w-full text-sm text-gray-500 hover:text-gray-700 transition-colors py-2"
             >
               Skip Tutorial
             </button>
-          )}
+          </div>
         </div>
       </div>
     </>
