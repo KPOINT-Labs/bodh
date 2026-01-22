@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 
 interface ModulePageProps {
   params: Promise<{ courseId: string; moduleId: string }>;
-  searchParams: Promise<{ lesson?: string; tour?: string }>;
+  searchParams: Promise<{ lesson?: string; tour?: string; panel?: string }>;
 }
 
 async function getModuleData(courseIdOrSlug: string, moduleId: string) {
@@ -82,7 +82,9 @@ async function getModuleData(courseIdOrSlug: string, moduleId: string) {
 export default async function ModulePage({ params, searchParams }: ModulePageProps) {
   const { courseId, moduleId } = await params;
   const resolvedSearchParams = await searchParams;
-  const { lesson: initialLessonId } = resolvedSearchParams;
+  const { lesson: initialLessonId, panel } = resolvedSearchParams;
+  // Panel opens if ?panel=true OR if ?lesson=xxx is specified
+  const initialPanelOpen = panel === "true" || !!initialLessonId;
 
   // Get authenticated user
   const session = await auth();
@@ -124,6 +126,7 @@ export default async function ModulePage({ params, searchParams }: ModulePagePro
       module={module}
       userId={session.user.id}
       initialLessonId={initialLessonId}
+      initialPanelOpen={initialPanelOpen}
       isTourMode={false}
     />
   );
