@@ -412,8 +412,9 @@ export function ChatAgent({
     const userMessages = filteredChatMessages.filter(
       (msg) => msg.role === "user"
     );
-    if (userMessages.length > 0) {
-      return userMessages.at(-1).messageType || "general";
+    const lastUserMsg = userMessages.at(-1);
+    if (lastUserMsg) {
+      return lastUserMsg.messageType || "general";
     }
     return "general";
   }, [filteredChatMessages]);
@@ -451,8 +452,8 @@ export function ChatAgent({
 
   // Auto-scroll when chat messages change
   useEffect(() => {
-    if (filteredChatMessages.length > 0) {
-      const latestMsg = filteredChatMessages.at(-1);
+    const latestMsg = filteredChatMessages.at(-1);
+    if (latestMsg) {
       const isNewMessage =
         filteredChatMessages.length > prevChatMessagesLengthRef.current;
       prevChatMessagesLengthRef.current = filteredChatMessages.length;

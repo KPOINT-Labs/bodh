@@ -2,7 +2,7 @@
 
 import { HelpCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { CourseBrowser } from "@/components/course/course-browser";
 import { LessonHeader } from "@/components/course/LessonHeader";
 import { ResizableContent } from "@/components/layout/resizable-content";
@@ -58,6 +58,32 @@ export function WelcomeContent({
   const [showButtons, setShowButtons] = useState(false);
   const [onboardingComplete, setOnboardingComplete] = useState(false);
   const hasStartedRef = useRef(false);
+
+  const addAIMessage = useCallback(
+    (content: string, onComplete?: () => void) => {
+      console.log("[WelcomeContent] addAIMessage called with:", content);
+      const newMessage: Message = {
+        id: Date.now().toString() + Math.random(),
+        type: "ai",
+        content,
+        enableAnimation: true,
+        onAnimationComplete: () => {
+          if (onComplete) {
+            onComplete();
+          }
+        },
+      };
+      setMessages((prev) => [...prev, newMessage]);
+
+      if (content) {
+        console.log("[WelcomeContent] Calling speak() with interrupt: true");
+        speak(content, { interrupt: true });
+      } else {
+        console.log("[WelcomeContent] Content is empty, skipping TTS");
+      }
+    },
+    [speak]
+  );
 
   // Check if onboarding should be shown
   useEffect(() => {
@@ -133,30 +159,6 @@ export function WelcomeContent({
 
   const handleOnboardingComplete = () => {
     setOnboardingComplete(true);
-  };
-
-  const addAIMessage = (content: string, onComplete?: () => void) => {
-    console.log("[WelcomeContent] addAIMessage called with:", content);
-    const newMessage: Message = {
-      id: Date.now().toString() + Math.random(),
-      type: "ai",
-      content,
-      enableAnimation: true,
-      onAnimationComplete: () => {
-        if (onComplete) {
-          onComplete();
-        }
-      },
-    };
-    setMessages((prev) => [...prev, newMessage]);
-
-    // Trigger TTS immediately with interrupt enabled
-    if (content) {
-      console.log("[WelcomeContent] Calling speak() with interrupt: true");
-      speak(content, { interrupt: true });
-    } else {
-      console.log("[WelcomeContent] Content is empty, skipping TTS");
-    }
   };
 
   const addUserMessage = (content: string, onComplete?: () => void) => {

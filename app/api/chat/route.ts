@@ -546,10 +546,8 @@ export async function POST(request: NextRequest) {
             const parsed = parseAssessmentContent(recentFAQuestion.content);
 
             // If there are questions and user provided a short answer (likely answering a question)
-            if (parsed.questions.length > 0 && message.trim().length <= 500) {
-              // Get the most recent question (usually the last one asked)
-              const lastQuestion = parsed.questions.at(-1);
-
+            const lastQuestion = parsed.questions.at(-1);
+            if (lastQuestion && message.trim().length <= 500) {
               // Create or update FAAttempt record
               await prisma.fAAttempt.upsert({
                 where: {
@@ -565,7 +563,6 @@ export async function POST(request: NextRequest) {
                   answer: message,
                   isAttempted: true,
                   questionType: lastQuestion.answerType,
-                  // isCorrect will be determined later by evaluation
                 },
                 update: {
                   answer: message,

@@ -436,6 +436,10 @@ export function ModuleContent({
   const addWarmupFeedbackRef = useRef<
     ((isCorrect: boolean, feedback: string) => string | undefined) | null
   >(null);
+  // Ref for getLastAssistantMessageId to use in callbacks (set after useChatSession)
+  const getLastAssistantMessageIdRef = useRef<
+    (() => string | undefined) | null
+  >(null);
 
   // State for tracking active warmup flow
   const [warmupState, setWarmupState] = useState<{
@@ -560,7 +564,7 @@ export function ModuleContent({
             }
 
             if (showActionRef.current) {
-              const lastAssistantId = getLastAssistantMessageId?.();
+              const lastAssistantId = getLastAssistantMessageIdRef.current?.();
               const anchorMessageId =
                 faMessageId ?? lastAssistantId ?? `fa-intro-${segment.id}`;
               console.log("[ModuleContent] FA intro showAction", {
@@ -669,7 +673,7 @@ export function ModuleContent({
         }
       }
     },
-    [getLastAssistantMessageId] // No deps needed - uses refs for all dynamic values
+    [] // No deps needed - uses refs for all dynamic values
   );
 
   // Handle FA intro complete - agent spoke intro, now show buttons
@@ -690,7 +694,7 @@ export function ModuleContent({
       }
 
       if (showActionRef.current) {
-        const lastAssistantId = getLastAssistantMessageId?.();
+        const lastAssistantId = getLastAssistantMessageIdRef.current?.();
         const anchorMessageId = faMessageId ?? lastAssistantId;
         showActionRef.current(
           "fa_intro",
@@ -699,7 +703,7 @@ export function ModuleContent({
         );
       }
     },
-    [getLastAssistantMessageId]
+    []
   );
 
   // LiveKit voice session - auto-connect in listen-only mode (text-to-speech)
@@ -1094,6 +1098,11 @@ export function ModuleContent({
   useEffect(() => {
     addAssistantMessageRef.current = addAssistantMessage;
   }, [addAssistantMessage]);
+
+  // Keep getLastAssistantMessageIdRef updated for use in transcript callback
+  useEffect(() => {
+    getLastAssistantMessageIdRef.current = getLastAssistantMessageId;
+  }, [getLastAssistantMessageId]);
 
   // Keep in-lesson refs updated for use in onInLessonTrigger callback
   useEffect(() => {

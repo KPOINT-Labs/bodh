@@ -331,6 +331,20 @@ export function useAssessmentQuiz({
   );
 
   /**
+   * Close the quiz overlay
+   */
+  const close = useCallback(() => {
+    setIsOpen(false);
+    setQuizType(null);
+    setQuestions([]);
+    setCurrentQuestionIndex(0);
+    setShowFeedback(false);
+    setLastAnswer(null);
+    setIsLoading(false);
+    pendingEvaluationRef.current = null;
+  }, []);
+
+  /**
    * Skip the current question
    */
   const skipQuestion = useCallback(async () => {
@@ -401,20 +415,6 @@ export function useAssessmentQuiz({
       onQuizComplete?.();
     }
   }, [currentQuestionIndex, questions.length, onQuizComplete]);
-
-  /**
-   * Close the quiz overlay
-   */
-  const close = useCallback(() => {
-    setIsOpen(false);
-    setQuizType(null);
-    setQuestions([]);
-    setCurrentQuestionIndex(0);
-    setShowFeedback(false);
-    setLastAnswer(null);
-    setIsLoading(false);
-    pendingEvaluationRef.current = null;
-  }, []);
 
   return {
     // State
