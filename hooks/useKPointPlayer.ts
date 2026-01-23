@@ -86,6 +86,7 @@ export function useKPointPlayer({ kpointVideoId, userId, lessonId, videoDuration
   // Progress tracking
   const lastProgressUpdateRef = useRef<number>(0);
   const PROGRESS_UPDATE_INTERVAL = 15000; // 15 seconds
+  const MIN_WATCH_TIME_SECONDS = 5; // Minimum watch time before saving progress
   const actualVideoDurationRef = useRef<number>(videoDuration || 0); // Actual duration in seconds, updated from player
 
   // DEBUG: Log when hook is initialized with progress tracking params
@@ -292,10 +293,14 @@ export function useKPointPlayer({ kpointVideoId, userId, lessonId, videoDuration
       const nowPlaying = stateValue === PLAYER_STATE.PLAYING;
       setIsPlaying(nowPlaying);
 
-      // Save progress on pause
+      // Save progress on pause (only if watched at least 5 seconds)
       if (stateValue === PLAYER_STATE.PAUSED && playerRef.current) {
         const currentTimeSec = playerRef.current.getCurrentTime() / 1000;
-        updateProgress(currentTimeSec, false);
+        if (currentTimeSec >= MIN_WATCH_TIME_SECONDS) {
+          updateProgress(currentTimeSec, false);
+        } else {
+          console.log("[useKPointPlayer] Skipping progress update on pause - watched less than 5 seconds:", currentTimeSec.toFixed(1));
+        }
       }
 
       // Detect video end and trigger callback
@@ -303,7 +308,12 @@ export function useKPointPlayer({ kpointVideoId, userId, lessonId, videoDuration
         console.log("KPoint video ENDED, triggering onVideoEnd callback");
         if (playerRef.current) {
           const currentTimeSec = playerRef.current.getCurrentTime() / 1000;
-          updateProgress(currentTimeSec, true);
+          // Only update progress if watched at least 5 seconds
+          if (currentTimeSec >= MIN_WATCH_TIME_SECONDS) {
+            updateProgress(currentTimeSec, true);
+          } else {
+            console.log("[useKPointPlayer] Skipping progress update on end - watched less than 5 seconds:", currentTimeSec.toFixed(1));
+          }
         }
         onVideoEndRef.current?.();
       }
@@ -391,8 +401,8 @@ export function useKPointPlayer({ kpointVideoId, userId, lessonId, videoDuration
         }
       }
 
-      // Update progress every 15 seconds (duration not required - completion % will be 0 if unknown)
-      if (userId && lessonId && currentIsPlaying) {
+      // Update progress every 15 seconds (only if watched at least 5 seconds)
+      if (userId && lessonId && currentIsPlaying && currentTimeSec >= MIN_WATCH_TIME_SECONDS) {
         const now = Date.now();
         const timeSinceLastUpdate = now - lastProgressUpdateRef.current;
 

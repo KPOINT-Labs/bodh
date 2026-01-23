@@ -2,6 +2,8 @@
 
 import { prisma } from "@/lib/prisma";
 
+const MIN_WATCH_TIME_SECONDS = 5; // Minimum watch time before saving progress
+
 export async function updateLessonProgress({
   userId,
   lessonId,
@@ -22,6 +24,12 @@ export async function updateLessonProgress({
     completionPercentage,
     videoEnded,
   });
+
+  // Server-side safeguard: require minimum 5 seconds of watch time
+  if (lastPosition < MIN_WATCH_TIME_SECONDS) {
+    console.log("[Server Action] Skipping progress update - watched less than 5 seconds:", lastPosition);
+    return;
+  }
 
   // Calculate status based on completion
   let status = "in_progress";
