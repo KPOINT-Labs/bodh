@@ -3,9 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "npx @react-grab/claude-code@latest && next dev",
-    "build": "next build",
-    "start": "next start",
+    "dev": "bun --bun next dev",
+    "devg": "bunx @react-grab/claude-code@latest && bun --bun next dev",
+    "build": "bun --bun next build",
+    "start": "bun --bun next start",
     "lint": "ultracite check",
     "lint:fix": "ultracite fix",
     "typecheck": "tsgo --noEmit",
