@@ -1,7 +1,7 @@
 "use client";
 
+import { Award, Heart, Sparkles, Star, Trophy, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Star, Sparkles, Trophy, Zap, Heart, Award } from "lucide-react";
 import { createPortal } from "react-dom";
 
 interface CelebrationProps {
@@ -54,16 +54,18 @@ export function Celebration({ show }: CelebrationProps) {
     }
   }, [show]);
 
-  if (!show || !mounted) return null;
+  if (!(show && mounted)) {
+    return null;
+  }
 
   return createPortal(
-    <div className="fixed inset-0 pointer-events-none z-[200] overflow-hidden">
+    <div className="pointer-events-none fixed inset-0 z-[200] overflow-hidden">
       {particles.map((particle) => {
         const Icon = particle.icon;
         return (
           <div
-            key={particle.id}
             className="absolute animate-float-up"
+            key={particle.id}
             style={{
               left: `${particle.x}%`,
               top: `${particle.y}%`,
@@ -71,7 +73,7 @@ export function Celebration({ show }: CelebrationProps) {
               transform: `rotate(${particle.rotation}deg) scale(${particle.scale})`,
             }}
           >
-            <Icon className={`w-6 h-6 ${particle.color} animate-spin-slow`} />
+            <Icon className={`h-6 w-6 ${particle.color} animate-spin-slow`} />
           </div>
         );
       })}

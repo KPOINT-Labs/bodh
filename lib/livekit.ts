@@ -20,7 +20,7 @@ function createRoomServiceClient(): RoomServiceClient {
   const apiKey = process.env.LIVEKIT_API_KEY;
   const apiSecret = process.env.LIVEKIT_API_SECRET;
 
-  if (!url || !apiKey || !apiSecret) {
+  if (!(url && apiKey && apiSecret)) {
     throw new Error(
       "Missing LiveKit configuration. Please set LIVEKIT_URL, LIVEKIT_API_KEY, and LIVEKIT_API_SECRET environment variables."
     );
@@ -42,7 +42,7 @@ export function getLiveKitCredentials() {
   const apiSecret = process.env.LIVEKIT_API_SECRET;
   const url = process.env.LIVEKIT_URL;
 
-  if (!apiKey || !apiSecret || !url) {
+  if (!(apiKey && apiSecret && url)) {
     throw new Error(
       "Missing LiveKit configuration. Please set LIVEKIT_URL, LIVEKIT_API_KEY, and LIVEKIT_API_SECRET environment variables."
     );

@@ -7,18 +7,22 @@ interface LessonHeaderProps {
   additionalActions?: React.ReactNode;
 }
 
-export function LessonHeader({ courseTitle, moduleTitle, additionalActions }: LessonHeaderProps) {
+export function LessonHeader({
+  courseTitle,
+  moduleTitle,
+  additionalActions,
+}: LessonHeaderProps) {
   return (
     <div className="border-b bg-background px-6 py-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <FileText className="h-5 w-5 text-muted-foreground" />
           <div className="flex items-center gap-3">
-            <h1 className="text-lg font-semibold text-blue-600">{courseTitle}</h1>
+            <h1 className="font-semibold text-blue-600 text-lg">
+              {courseTitle}
+            </h1>
             <span className="text-muted-foreground">|</span>
-            <span className="text-sm text-muted-foreground">
-              {moduleTitle}
-            </span>
+            <span className="text-muted-foreground text-sm">{moduleTitle}</span>
           </div>
         </div>
         <div className="flex items-center gap-2">

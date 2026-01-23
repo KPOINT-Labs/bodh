@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { type MessageData, storeMessage } from "@/lib/chat/message-store";
 import type { QuizOption } from "@/types/assessment";
 
@@ -70,7 +70,11 @@ export function useChatSession({
   // Stable sendMessage - never recreated
   // isAnswer: true when user is answering an FA question (not starting a new assessment)
   const sendMessage = useCallback(
-    async (message: string, taskGraphType?: "QnA" | "FA", isAnswer?: boolean) => {
+    async (
+      message: string,
+      taskGraphType?: "QnA" | "FA",
+      isAnswer?: boolean
+    ) => {
       const convId = conversationIdRef.current;
       if (!convId) {
         console.error("Conversation not ready");
@@ -97,13 +101,19 @@ export function useChatSession({
         const videoIds: string[] = [];
         const currentLessons = lessonsRef.current;
         const activeLesson =
-          selectedLessonRef.current || currentLessons.sort((a, b) => a.orderIndex - b.orderIndex)[0];
+          selectedLessonRef.current ||
+          currentLessons.sort((a, b) => a.orderIndex - b.orderIndex)[0];
 
         if (activeLesson?.youtubeVideoId) {
           videoIds.push(activeLesson.youtubeVideoId);
         }
 
-        console.log("Active lesson:", activeLesson?.title, "YouTube ID:", activeLesson?.youtubeVideoId);
+        console.log(
+          "Active lesson:",
+          activeLesson?.title,
+          "YouTube ID:",
+          activeLesson?.youtubeVideoId
+        );
 
         // Get current video timestamp
         const startTimestamp = getCurrentTimeRef.current();
@@ -129,7 +139,7 @@ export function useChatSession({
             taskGraphType,
             videoIds,
             startTimestamp,
-            isAnswer: isAnswer || false,
+            isAnswer,
           }),
         });
 
@@ -165,7 +175,8 @@ export function useChatSession({
         const videoIds: string[] = [];
         const currentLessons = lessonsRef.current;
         const activeLesson =
-          selectedLessonRef.current || currentLessons.sort((a, b) => a.orderIndex - b.orderIndex)[0];
+          selectedLessonRef.current ||
+          currentLessons.sort((a, b) => a.orderIndex - b.orderIndex)[0];
 
         if (activeLesson?.youtubeVideoId) {
           videoIds.push(activeLesson.youtubeVideoId);
@@ -206,7 +217,7 @@ export function useChatSession({
 
   // Add user message to chat and store in DB (for LiveKit flow)
   const addUserMessage = useCallback(
-    async (message: string, messageType: string = "general", inputType: string = "text") => {
+    async (message: string, messageType = "general", inputType = "text") => {
       const convId = conversationIdRef.current;
       if (!convId) {
         console.error("Conversation not ready");
@@ -220,8 +231,8 @@ export function useChatSession({
         conversationId: convId,
         role: "user",
         content: message,
-        inputType: inputType,
-        messageType: messageType,
+        inputType,
+        messageType,
         createdAt: new Date().toISOString(),
       };
 
@@ -238,11 +249,16 @@ export function useChatSession({
           inputType,
           messageType,
         });
-        console.log("[ChatSession] User message stored in DB:", savedMessage.id);
+        console.log(
+          "[ChatSession] User message stored in DB:",
+          savedMessage.id
+        );
 
         // Update the temp ID with the real ID
         setChatMessages((prev) =>
-          prev.map((msg) => (msg.id === tempId ? { ...msg, id: savedMessage.id } : msg))
+          prev.map((msg) =>
+            msg.id === tempId ? { ...msg, id: savedMessage.id } : msg
+          )
         );
       } catch (error) {
         console.error("[ChatSession] Failed to store user message:", error);
@@ -253,7 +269,7 @@ export function useChatSession({
 
   // Add assistant message to chat and store in DB (for LiveKit agent transcript)
   const addAssistantMessage = useCallback(
-    async (message: string, messageType: string = "general") => {
+    async (message: string, messageType = "general") => {
       const convId = conversationIdRef.current;
       if (!convId) {
         console.error("Conversation not ready");
@@ -269,7 +285,7 @@ export function useChatSession({
         role: "assistant",
         content: message,
         inputType: "text",
-        messageType: messageType,
+        messageType,
         createdAt: new Date().toISOString(),
       };
 
@@ -286,23 +302,34 @@ export function useChatSession({
           inputType: "text",
           messageType,
         });
-        console.log("[ChatSession] Assistant message stored in DB:", savedMessage.id);
+        console.log(
+          "[ChatSession] Assistant message stored in DB:",
+          savedMessage.id
+        );
         lastAssistantMessageIdRef.current = savedMessage.id;
 
         // Update the temp ID with the real ID
         setChatMessages((prev) =>
-          prev.map((msg) => (msg.id === tempId ? { ...msg, id: savedMessage.id } : msg))
+          prev.map((msg) =>
+            msg.id === tempId ? { ...msg, id: savedMessage.id } : msg
+          )
         );
         return savedMessage.id;
       } catch (error) {
-        console.error("[ChatSession] Failed to store assistant message:", error);
+        console.error(
+          "[ChatSession] Failed to store assistant message:",
+          error
+        );
       }
       return tempId;
     },
     []
   );
 
-  const getLastAssistantMessageId = useCallback(() => lastAssistantMessageIdRef.current, []);
+  const getLastAssistantMessageId = useCallback(
+    () => lastAssistantMessageIdRef.current,
+    []
+  );
 
   // Add in-lesson question to chat (local only - not stored in DB initially)
   // The question will be stored as an attempt when answered
@@ -442,15 +469,21 @@ export function useChatSession({
   );
 
   // Mark a warmup question as answered
-  const markWarmupAnswered = useCallback((messageId: string, userAnswer?: string) => {
-    setChatMessages((prev) =>
-      prev.map((msg) =>
-        msg.id === messageId && msg.metadata
-          ? { ...msg, metadata: { ...msg.metadata, isAnswered: true, userAnswer } }
-          : msg
-      )
-    );
-  }, []);
+  const markWarmupAnswered = useCallback(
+    (messageId: string, userAnswer?: string) => {
+      setChatMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === messageId && msg.metadata
+            ? {
+                ...msg,
+                metadata: { ...msg.metadata, isAnswered: true, userAnswer },
+              }
+            : msg
+        )
+      );
+    },
+    []
+  );
 
   // Mark a warmup question as skipped
   const markWarmupSkipped = useCallback((messageId: string) => {

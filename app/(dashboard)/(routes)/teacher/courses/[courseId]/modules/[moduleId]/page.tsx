@@ -1,34 +1,33 @@
-import { prisma } from "@/lib/prisma";
-import { redirect } from "next/navigation";
-import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-
-import { ModuleTitleForm } from "./_components/module-title-form";
-import { ModuleDescriptionForm } from "./_components/module-description-form";
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { prisma } from "@/lib/prisma";
 import { LessonsForm } from "./_components/lessons-form";
-import { ModuleSlugForm } from "./_components/module-slug-form";
 import { ModuleActions } from "./_components/module-actions";
+import { ModuleDescriptionForm } from "./_components/module-description-form";
+import { ModuleSlugForm } from "./_components/module-slug-form";
+import { ModuleTitleForm } from "./_components/module-title-form";
 
 // Render at request time (database required)
 export const dynamic = "force-dynamic";
 
 const ModuleIdPage = async ({
-  params
+  params,
 }: {
-  params: Promise<{ courseId: string; moduleId: string }>
+  params: Promise<{ courseId: string; moduleId: string }>;
 }) => {
   const { courseId, moduleId } = await params;
 
   // Resolve Course (Slug first, then ID)
   let course = await prisma.course.findUnique({
     where: { slug: courseId },
-    select: { id: true, slug: true }
+    select: { id: true, slug: true },
   });
 
   if (!course) {
     course = await prisma.course.findUnique({
       where: { id: courseId },
-      select: { id: true, slug: true }
+      select: { id: true, slug: true },
     });
   }
 
@@ -74,7 +73,7 @@ const ModuleIdPage = async ({
   const requiredFields = [
     moduleData.title,
     // moduleData.description, // Optional for publish
-    moduleData.lessons.some(lesson => lesson.isPublished), // At least one published lesson
+    moduleData.lessons.some((lesson) => lesson.isPublished), // At least one published lesson
   ];
 
   const totalFields = requiredFields.length;
@@ -90,80 +89,74 @@ const ModuleIdPage = async ({
   return (
     <div className="p-6">
       {!moduleData.isPublished && (
-        <div className="bg-yellow-100 border-yellow-200 border text-yellow-800 px-4 py-2 rounded-md mb-6 text-sm font-medium">
+        <div className="mb-6 rounded-md border border-yellow-200 bg-yellow-100 px-4 py-2 font-medium text-sm text-yellow-800">
           This module is unpublished. It will not be visible in the course.
         </div>
       )}
       <div className="flex items-center justify-between">
         <div className="w-full">
           <Link
+            className="mb-6 flex items-center text-sm transition hover:opacity-75"
             href={`/teacher/courses/${courseUrlParam}`}
-            className="flex items-center text-sm hover:opacity-75 transition mb-6"
           >
-            <ArrowLeft className="h-4 w-4 mr-2" />
+            <ArrowLeft className="mr-2 h-4 w-4" />
             Back to course setup
           </Link>
-          <div className="flex items-center justify-between w-full">
+          <div className="flex w-full items-center justify-between">
             <div className="flex flex-col gap-y-2">
-              <h1 className="text-2xl font-medium">
-                Module setup
-              </h1>
-              <span className="text-sm text-slate-700">
+              <h1 className="font-medium text-2xl">Module setup</h1>
+              <span className="text-slate-700 text-sm">
                 Complete all fields {completionText}
               </span>
             </div>
             <ModuleActions
-              disabled={!isComplete}
-              courseId={courseUrlParam} // Pass slug/id for navigation
-              moduleId={moduleData.id} // ID needed for server action
-              isPublished={moduleData.isPublished}
+              courseId={courseUrlParam}
+              disabled={!isComplete} // Pass slug/id for navigation
+              isPublished={moduleData.isPublished} // ID needed for server action
+              moduleId={moduleData.id}
             />
           </div>
         </div>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-16">
+      <div className="mt-16 grid grid-cols-1 gap-6 md:grid-cols-2">
         <div className="space-y-4">
           <div>
             <div className="flex items-center gap-x-2">
-              <h2 className="text-xl">
-                Customize your module
-              </h2>
+              <h2 className="text-xl">Customize your module</h2>
             </div>
             <ModuleTitleForm
-              initialData={moduleData}
-              courseId={course.id} // Actions need real ID
+              courseId={course.id}
+              initialData={moduleData} // Actions need real ID
               moduleId={moduleData.id}
             />
             <ModuleDescriptionForm
-              initialData={moduleData}
               courseId={course.id}
+              initialData={moduleData}
               moduleId={moduleData.id}
             />
             <ModuleSlugForm
-              initialData={moduleData}
               courseId={course.id}
+              initialData={moduleData}
               moduleId={moduleData.id}
             />
           </div>
         </div>
         <div>
           <div className="flex items-center gap-x-2">
-             <h2 className="text-xl">
-               Module lessons
-             </h2>
+            <h2 className="text-xl">Module lessons</h2>
           </div>
           <LessonsForm
-            initialData={moduleData}
-            moduleId={moduleData.id}
-            courseId={course.id} 
-            // We need to pass the URL params for navigation inside the form
+            courseId={course.id}
             courseUrlParam={courseUrlParam}
+            initialData={moduleData}
+            // We need to pass the URL params for navigation inside the form
+            moduleId={moduleData.id}
             moduleUrlParam={moduleUrlParam}
           />
         </div>
       </div>
     </div>
   );
-}
+};
 
 export default ModuleIdPage;

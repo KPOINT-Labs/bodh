@@ -1,10 +1,14 @@
 "use client";
 
+import {
+  BookAIcon,
+  ChevronDown,
+  ChevronRight,
+  CirclePlay,
+  Clock,
+  Layers,
+} from "lucide-react";
 import { useState } from "react";
-import Link from "next/link";
-import { ChevronRight, ChevronDown, Clock, Layers, BookAIcon, CirclePlay } from "lucide-react";
-import type { Course, CourseStatus, Module, Lesson } from "@/types/learning";
-import { PanelHeader } from "./PanelHeader";
 import { ProfileActions } from "@/components/profile-actions";
 import {
   AlertDialog,
@@ -16,6 +20,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import type { Course, CourseStatus, Lesson, Module } from "@/types/learning";
+import { PanelHeader } from "./PanelHeader";
 
 interface CourseListProps {
   className?: string;
@@ -34,13 +40,15 @@ interface CourseListProps {
 /**
  * Get status display text and color based on course status
  */
-function getStatusDisplay(status: CourseStatus): { text: string; colorClass: string } {
+function getStatusDisplay(status: CourseStatus): {
+  text: string;
+  colorClass: string;
+} {
   switch (status) {
     case "in_progress":
       return { text: "In Progress", colorClass: "text-orange-500" };
     case "completed":
       return { text: "Completed", colorClass: "text-green-500" };
-    case "yet_to_start":
     default:
       return { text: "Yet to start", colorClass: "text-gray-400" };
   }
@@ -50,8 +58,12 @@ function getStatusDisplay(status: CourseStatus): { text: string; colorClass: str
  * Format duration in minutes to display string
  */
 function formatDuration(minutes?: number): string {
-  if (!minutes) return "";
-  if (minutes < 60) return `${minutes} min`;
+  if (!minutes) {
+    return "";
+  }
+  if (minutes < 60) {
+    return `${minutes} min`;
+  }
   const hours = Math.floor(minutes / 60);
   const mins = minutes % 60;
   return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
@@ -70,49 +82,52 @@ function LessonItem({
   onClick: () => void;
 }) {
   const isCompleted = lesson.status === "completed";
-  const isInProgress = lesson.status === "in_progress" || lesson.status === "seen";
+  const isInProgress =
+    lesson.status === "in_progress" || lesson.status === "seen";
 
   return (
     <button
-      onClick={onClick}
-      className={`w-full flex items-center gap-3 py-2.5 pl-8 pr-2 rounded-lg transition-colors group cursor-pointer ${
-        isActive
-          ? "bg-purple-200 hover:bg-purple-300"
-          : "hover:bg-gray-100"
+      className={`group flex w-full cursor-pointer items-center gap-3 rounded-lg py-2.5 pr-2 pl-8 transition-colors ${
+        isActive ? "bg-purple-200 hover:bg-purple-300" : "hover:bg-gray-100"
       }`}
+      onClick={onClick}
     >
       {/* Status circle */}
       <div
-        className={`
-          w-5 h-5 rounded-full border-2 shrink-0 flex items-center justify-center
-          ${isCompleted ? "bg-purple-500 border-purple-500" : ""}
+        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${isCompleted ? "border-purple-500 bg-purple-500" : ""}
           ${isInProgress ? "border-orange-400 bg-white" : ""}
-          ${!isCompleted && !isInProgress ? "border-gray-300" : ""}
+          ${isCompleted || isInProgress ? "" : "border-gray-300"}
         `}
       >
         {isCompleted && (
-          <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+          <svg
+            className="h-3 w-3 text-white"
+            fill="currentColor"
+            viewBox="0 0 20 20"
+          >
+            <path
+              clipRule="evenodd"
+              d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+              fillRule="evenodd"
+            />
           </svg>
         )}
-        {isInProgress && (
-          <div className="w-2 h-2 rounded-full bg-orange-400" />
-        )}
+        {isInProgress && <div className="h-2 w-2 rounded-full bg-orange-400" />}
       </div>
 
       {/* Video icon in circle */}
-      <div className="w-5 h-5 rounded-full border-2 border-gray-700 bg-gray-100 flex items-center justify-center shrink-0">
-        <CirclePlay className="w-3 h-3 text-gray-600" />
+      <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-gray-700 bg-gray-100">
+        <CirclePlay className="h-3 w-3 text-gray-600" />
       </div>
 
       {/* Lesson title */}
-      <span className="text-sm text-gray-800 flex-1 text-left group-hover:text-gray-900 truncate">
+      <span className="flex-1 truncate text-left text-gray-800 text-sm group-hover:text-gray-900">
         {lesson.title}
       </span>
 
       {/* In Progress badge */}
       {isInProgress && (
-        <span className="text-[11px] text-orange-500 font-medium bg-orange-50 px-2 py-0.5 rounded">
+        <span className="rounded bg-orange-50 px-2 py-0.5 font-medium text-[11px] text-orange-500">
           In Progress
         </span>
       )}
@@ -140,39 +155,41 @@ function ModuleItem({
   onLessonClick: (lesson: Lesson) => void;
   onDeleteClick?: () => void;
 }) {
-  const completedCount = module.lessons.filter((l) => l.status === "completed").length;
+  const completedCount = module.lessons.filter(
+    (l) => l.status === "completed"
+  ).length;
 
   return (
     <div
       className={`group/module rounded-lg transition-colors ${
-        isActive ? "bg-purple-100 border-l-4 border-purple-500" : ""
+        isActive ? "border-purple-500 border-l-4 bg-purple-100" : ""
       }`}
     >
       {/* Module header */}
       <div className="relative flex items-center">
         <button
-          onClick={onToggle}
-          className={`w-full flex items-center gap-3 py-3 px-1 rounded-lg transition-colors cursor-pointer ${
+          className={`flex w-full cursor-pointer items-center gap-3 rounded-lg px-1 py-3 transition-colors ${
             isActive ? "hover:bg-purple-200" : "hover:bg-gray-100"
           }`}
+          onClick={onToggle}
         >
           {/* Chevron */}
           {isExpanded ? (
-            <ChevronDown className="h-4 w-4 text-gray-400 shrink-0" />
+            <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
           ) : (
-            <ChevronRight className="h-4 w-4 text-gray-400 shrink-0" />
+            <ChevronRight className="h-4 w-4 shrink-0 text-gray-400" />
           )}
 
           {/* Purple stacked layers icon */}
-          <Layers className="h-5 w-5 text-purple-500 shrink-0" />
+          <Layers className="h-5 w-5 shrink-0 text-purple-500" />
 
           {/* Module title */}
-          <span className="flex-1 text-sm font-medium text-gray-900 text-left">
+          <span className="flex-1 text-left font-medium text-gray-900 text-sm">
             {module.title}
           </span>
 
           {/* Progress count */}
-          <span className="text-sm text-gray-400 shrink-0 pr-8">
+          <span className="shrink-0 pr-8 text-gray-400 text-sm">
             {completedCount}/{module.lessonCount}
           </span>
         </button>
@@ -195,9 +212,9 @@ function ModuleItem({
         <div className="space-y-0.5">
           {module.lessons.map((lesson) => (
             <LessonItem
+              isActive={lesson.id === activeLessonId}
               key={lesson.id}
               lesson={lesson}
-              isActive={lesson.id === activeLessonId}
               onClick={() => onLessonClick(lesson)}
             />
           ))}
@@ -225,34 +242,31 @@ function CourseCard({
 
   return (
     <button
-      onClick={onSelect}
-      className={`
-        w-full text-left p-4 rounded-2xl border
-        transition-all duration-200
-        ${isActive ? "bg-purple-100/70 border-purple-100" : "bg-white border-gray-100"}
+      className={`w-full rounded-2xl border p-4 text-left transition-all duration-200 ${isActive ? "border-purple-100 bg-purple-100/70" : "border-gray-100 bg-white"}
         ${isSelected ? "shadow-md" : "shadow-sm hover:shadow-md"}
       `}
+      onClick={onSelect}
     >
       <div className="flex items-center justify-between">
-        <h3 className="font-semibold text-gray-900 text-base leading-tight flex-1 min-w-0">
+        <h3 className="min-w-0 flex-1 font-semibold text-base text-gray-900 leading-tight">
           {course.title}
         </h3>
         {isSelected ? (
-          <ChevronDown className="h-5 w-5 text-gray-400 shrink-0 ml-2" />
+          <ChevronDown className="ml-2 h-5 w-5 shrink-0 text-gray-400" />
         ) : (
-          <ChevronRight className="h-5 w-5 text-gray-400 shrink-0 ml-2" />
+          <ChevronRight className="ml-2 h-5 w-5 shrink-0 text-gray-400" />
         )}
       </div>
 
       {/* Status and Duration */}
-      <div className="flex items-center gap-2 mt-2">
+      <div className="mt-2 flex items-center gap-2">
         <span className={`text-sm ${statusDisplay.colorClass}`}>
           {statusDisplay.text}
         </span>
         {duration && (
           <>
             <Clock className="h-3.5 w-3.5 text-gray-400" />
-            <span className="text-sm text-gray-400">{duration}</span>
+            <span className="text-gray-400 text-sm">{duration}</span>
           </>
         )}
       </div>
@@ -286,7 +300,9 @@ export function CourseList({
   };
 
   const handleConfirmDelete = async () => {
-    if (!moduleToDelete || !onDeleteThread) return;
+    if (!(moduleToDelete && onDeleteThread)) {
+      return;
+    }
 
     setIsDeleting(true);
     try {
@@ -306,7 +322,7 @@ export function CourseList({
         {/* MY COURSES Header */}
         <div className="flex items-center gap-2 pt-2 pb-4">
           <BookAIcon className="h-5 w-5 text-gray-500" />
-          <span className="text-sm font-medium text-gray-700 uppercase tracking-wide">
+          <span className="font-medium text-gray-700 text-sm uppercase tracking-wide">
             MY COURSES
           </span>
         </div>
@@ -330,14 +346,20 @@ export function CourseList({
                   <div className="mt-3 space-y-1">
                     {course.modules.map((module) => (
                       <ModuleItem
+                        activeLessonId={activeLessonId}
+                        isActive={module.id === activeModuleId}
+                        isExpanded={expandedModules.includes(module.id)}
                         key={module.id}
                         module={module}
-                        isExpanded={expandedModules.includes(module.id)}
-                        isActive={module.id === activeModuleId}
-                        activeLessonId={activeLessonId}
+                        onDeleteClick={
+                          onDeleteThread
+                            ? () => handleDeleteClick(module)
+                            : undefined
+                        }
+                        onLessonClick={(lesson) =>
+                          onLessonClick(course.id, module.id, lesson)
+                        }
                         onToggle={() => onToggleModule(module.id)}
-                        onLessonClick={(lesson) => onLessonClick(course.id, module.id, lesson)}
-                        onDeleteClick={onDeleteThread ? () => handleDeleteClick(module) : undefined}
                       />
                     ))}
                   </div>
@@ -349,27 +371,33 @@ export function CourseList({
       </div>
 
       {/* Footer with Profile and Logout */}
-      <div className="border-t border-gray-200 p-4">
+      <div className="border-gray-200 border-t p-4">
         <div className="flex items-center justify-between">
-          <ProfileActions className="w-full" linkClassName="text-sm" logoutVariant="text" />
+          <ProfileActions
+            className="w-full"
+            linkClassName="text-sm"
+            logoutVariant="text"
+          />
         </div>
       </div>
 
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      <AlertDialog onOpenChange={setDeleteDialogOpen} open={deleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Thread History</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete all conversation history for &quot;{moduleToDelete?.title}&quot;?
-              This will permanently delete the thread, all conversations, and messages. This action cannot be undone.
+              Are you sure you want to delete all conversation history for
+              &quot;{moduleToDelete?.title}&quot;? This will permanently delete
+              the thread, all conversations, and messages. This action cannot be
+              undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleConfirmDelete}
-              disabled={isDeleting}
               className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+              disabled={isDeleting}
+              onClick={handleConfirmDelete}
             >
               {isDeleting ? "Deleting..." : "Delete"}
             </AlertDialogAction>

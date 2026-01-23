@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import confetti from 'canvas-confetti';
+import confetti from "canvas-confetti";
 
 /**
  * Simple function to fire confetti from anywhere
@@ -12,7 +12,7 @@ export function fireConfetti() {
     gravity: 0,
     decay: 0.96,
     startVelocity: 30,
-    colors: ['#FFE400', '#FFBD00', '#E89400', '#FFCA6C', '#FDFFB8'],
+    colors: ["#FFE400", "#FFBD00", "#E89400", "#FFCA6C", "#FDFFB8"],
   };
 
   confetti({

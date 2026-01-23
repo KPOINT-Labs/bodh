@@ -1,16 +1,20 @@
 "use server";
 
-import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { prisma } from "@/lib/prisma";
 
-export async function createAttachment(courseId: string, url: string, name: string) {
+export async function createAttachment(
+  courseId: string,
+  url: string,
+  name: string
+) {
   try {
     const attachment = await prisma.attachment.create({
       data: {
         url,
         name: name || url.split("/").pop() || "Attachment",
-        courseId: courseId,
-      }
+        courseId,
+      },
     });
 
     revalidatePath(`/teacher/courses/${courseId}`);
@@ -26,8 +30,8 @@ export async function deleteAttachment(attachmentId: string, courseId: string) {
     const attachment = await prisma.attachment.delete({
       where: {
         id: attachmentId,
-        courseId: courseId, // Ensure ownership check implicitly if needed (though courseId is enough for revalidate)
-      }
+        courseId, // Ensure ownership check implicitly if needed (though courseId is enough for revalidate)
+      },
     });
 
     revalidatePath(`/teacher/courses/${courseId}`);

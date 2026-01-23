@@ -11,16 +11,16 @@ interface LoadingStateProps {
  */
 export function LoadingState({ isReturningUser = false }: LoadingStateProps) {
   return (
-    <Card className="bg-white border border-gray-200 shadow-sm p-6">
+    <Card className="border border-gray-200 bg-white p-6 shadow-sm">
       <div className="flex items-center gap-3">
         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100">
           <Loader2 className="h-5 w-5 animate-spin text-blue-500" />
         </div>
         <div className="space-y-1">
-          <p className="text-sm font-semibold text-gray-900">
+          <p className="font-semibold text-gray-900 text-sm">
             AI Learning Assistant
           </p>
-          <p className="text-sm text-gray-500">
+          <p className="text-gray-500 text-sm">
             {isReturningUser
               ? "Welcome back! Loading your conversation..."
               : "Preparing your personalized welcome message..."}

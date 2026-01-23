@@ -1,15 +1,18 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
-import { recordAttempt, getAnsweredQuestionIds } from "@/lib/actions/assessment";
-import { audioManager } from "@/lib/audio/quizAudio";
+import { useCallback, useRef, useState } from "react";
 import { fireConfetti } from "@/components/ui/confetti";
+import {
+  getAnsweredQuestionIds,
+  recordAttempt,
+} from "@/lib/actions/assessment";
+import { audioManager } from "@/lib/audio/quizAudio";
 import type {
-  LessonQuiz,
-  WarmupQuestion,
-  InLessonQuestion,
   AssessmentType,
+  InLessonQuestion,
+  LessonQuiz,
   QuizEvaluationResult,
+  WarmupQuestion,
 } from "@/types/assessment";
 
 type QuizType = "warmup" | "inlesson";
@@ -41,7 +44,9 @@ export function useAssessmentQuiz({
   const [isOpen, setIsOpen] = useState(false);
   const [quizType, setQuizType] = useState<QuizType | null>(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [questions, setQuestions] = useState<(WarmupQuestion | InLessonQuestion)[]>([]);
+  const [questions, setQuestions] = useState<
+    (WarmupQuestion | InLessonQuestion)[]
+  >([]);
   const [showFeedback, setShowFeedback] = useState(false);
   const [lastAnswer, setLastAnswer] = useState<LastAnswer | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -62,7 +67,11 @@ export function useAssessmentQuiz({
     }
 
     // Get already answered question IDs
-    const answeredIds = await getAnsweredQuestionIds(userId, lessonId, "warmup");
+    const answeredIds = await getAnsweredQuestionIds(
+      userId,
+      lessonId,
+      "warmup"
+    );
 
     // Filter out already answered questions
     const unansweredQuestions = quiz.warmup.filter(
@@ -96,20 +105,24 @@ export function useAssessmentQuiz({
         lessonId,
       });
 
-      if (!quiz?.inlesson || !lessonId) {
-        console.warn("[useAssessmentQuiz] ❌ No in-lesson questions available:", {
-          hasQuiz: !!quiz,
-          hasInlesson: !!quiz?.inlesson,
-          lessonId,
-        });
+      if (!(quiz?.inlesson && lessonId)) {
+        console.warn(
+          "[useAssessmentQuiz] ❌ No in-lesson questions available:",
+          {
+            hasQuiz: !!quiz,
+            hasInlesson: !!quiz?.inlesson,
+            lessonId,
+          }
+        );
         return;
       }
 
       // Find the specific question
       const question = quiz.inlesson.find((q) => q.id === questionId);
       if (!question) {
-        console.warn(`[useAssessmentQuiz] ❌ Question ${questionId} not found in:`,
-          quiz.inlesson.map(q => q.id)
+        console.warn(
+          `[useAssessmentQuiz] ❌ Question ${questionId} not found in:`,
+          quiz.inlesson.map((q) => q.id)
         );
         return;
       }
@@ -118,27 +131,41 @@ export function useAssessmentQuiz({
         id: question.id,
         type: question.type,
         timestamp: question.timestamp,
-        questionText: question.question?.substring(0, 50) + "...",
+        questionText: `${question.question?.substring(0, 50)}...`,
       });
 
       // Check if already answered
-      const answeredIds = await getAnsweredQuestionIds(userId, lessonId, "inlesson");
-      console.log("[useAssessmentQuiz] Already answered IDs:", Array.from(answeredIds));
+      const answeredIds = await getAnsweredQuestionIds(
+        userId,
+        lessonId,
+        "inlesson"
+      );
+      console.log(
+        "[useAssessmentQuiz] Already answered IDs:",
+        Array.from(answeredIds)
+      );
 
       if (answeredIds.has(questionId)) {
-        console.log(`[useAssessmentQuiz] ⏭️ Question ${questionId} already answered, calling onQuizComplete`);
+        console.log(
+          `[useAssessmentQuiz] ⏭️ Question ${questionId} already answered, calling onQuizComplete`
+        );
         onQuizComplete?.();
         return;
       }
 
-      console.log("[useAssessmentQuiz] 🎉 Opening quiz overlay for question:", questionId);
+      console.log(
+        "[useAssessmentQuiz] 🎉 Opening quiz overlay for question:",
+        questionId
+      );
       setQuestions([question]);
       setCurrentQuestionIndex(0);
       setQuizType("inlesson");
       setShowFeedback(false);
       setLastAnswer(null);
       setIsOpen(true);
-      console.log("[useAssessmentQuiz] ✓ Quiz state updated, isOpen should now be true");
+      console.log(
+        "[useAssessmentQuiz] ✓ Quiz state updated, isOpen should now be true"
+      );
     },
     [quiz, lessonId, userId, onQuizComplete]
   );
@@ -148,10 +175,14 @@ export function useAssessmentQuiz({
    */
   const submitAnswer = useCallback(
     async (answer: string) => {
-      if (!lessonId || questions.length === 0) return;
+      if (!lessonId || questions.length === 0) {
+        return;
+      }
 
       const currentQuestion = questions[currentQuestionIndex];
-      if (!currentQuestion) return;
+      if (!currentQuestion) {
+        return;
+      }
 
       setIsLoading(true);
 
@@ -160,7 +191,8 @@ export function useAssessmentQuiz({
           quizType === "warmup" ? "warmup" : "inlesson";
 
         // Determine question type
-        const questionType = "type" in currentQuestion ? currentQuestion.type : "mcq";
+        const questionType =
+          "type" in currentQuestion ? currentQuestion.type : "mcq";
 
         if (questionType === "mcq") {
           const correctOption =
@@ -174,8 +206,8 @@ export function useAssessmentQuiz({
             "feedback" in currentQuestion && currentQuestion.feedback
               ? currentQuestion.feedback
               : isCorrect
-              ? "Great job!"
-              : "That's not quite right. Review the material and try again.";
+                ? "Great job!"
+                : "That's not quite right. Review the material and try again.";
 
           if (isCorrect) {
             audioManager?.play("success");
@@ -240,7 +272,14 @@ export function useAssessmentQuiz({
         setIsLoading(false);
       }
     },
-    [lessonId, questions, currentQuestionIndex, quizType, userId, onTextEvaluationRequest]
+    [
+      lessonId,
+      questions,
+      currentQuestionIndex,
+      quizType,
+      userId,
+      onTextEvaluationRequest,
+    ]
   );
 
   /**
@@ -248,7 +287,9 @@ export function useAssessmentQuiz({
    */
   const handleTextEvaluationResult = useCallback(
     async (result: QuizEvaluationResult) => {
-      if (!lessonId || !pendingEvaluationRef.current) return;
+      if (!(lessonId && pendingEvaluationRef.current)) {
+        return;
+      }
 
       const { questionId, answer } = pendingEvaluationRef.current;
       pendingEvaluationRef.current = null;
@@ -293,10 +334,14 @@ export function useAssessmentQuiz({
    * Skip the current question
    */
   const skipQuestion = useCallback(async () => {
-    if (!lessonId || questions.length === 0) return;
+    if (!lessonId || questions.length === 0) {
+      return;
+    }
 
     const currentQuestion = questions[currentQuestionIndex];
-    if (!currentQuestion) return;
+    if (!currentQuestion) {
+      return;
+    }
 
     setIsLoading(true);
 
@@ -328,7 +373,15 @@ export function useAssessmentQuiz({
     } finally {
       setIsLoading(false);
     }
-  }, [lessonId, questions, currentQuestionIndex, quizType, userId, onQuizComplete]);
+  }, [
+    lessonId,
+    questions,
+    currentQuestionIndex,
+    quizType,
+    userId,
+    onQuizComplete,
+    close,
+  ]);
 
   /**
    * Continue to the next question or close the quiz

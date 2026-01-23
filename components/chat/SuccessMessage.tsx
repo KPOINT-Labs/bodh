@@ -9,7 +9,10 @@ interface SuccessMessageProps {
   message?: string;
 }
 
-export function SuccessMessage({ show, message = "Great job!" }: SuccessMessageProps) {
+export function SuccessMessage({
+  show,
+  message = "Great job!",
+}: SuccessMessageProps) {
   const [isVisible, setIsVisible] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -27,14 +30,16 @@ export function SuccessMessage({ show, message = "Great job!" }: SuccessMessageP
     }
   }, [show]);
 
-  if (!isVisible || !mounted) return null;
+  if (!(isVisible && mounted)) {
+    return null;
+  }
 
   return createPortal(
-    <div className="fixed top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[200] pointer-events-none">
-      <div className="animate-bounce-in bg-gradient-to-r from-green-500 to-emerald-500 text-white px-8 py-6 rounded-3xl shadow-2xl flex items-center gap-4 border-4 border-white">
-        <CheckCircle className="w-8 h-8 animate-spin-slow" />
-        <span className="text-2xl font-bold">{message}</span>
-        <Sparkles className="w-8 h-8 animate-pulse" />
+    <div className="pointer-events-none fixed top-1/3 left-1/2 z-[200] -translate-x-1/2 -translate-y-1/2">
+      <div className="flex animate-bounce-in items-center gap-4 rounded-3xl border-4 border-white bg-gradient-to-r from-green-500 to-emerald-500 px-8 py-6 text-white shadow-2xl">
+        <CheckCircle className="h-8 w-8 animate-spin-slow" />
+        <span className="font-bold text-2xl">{message}</span>
+        <Sparkles className="h-8 w-8 animate-pulse" />
       </div>
     </div>,
     document.body

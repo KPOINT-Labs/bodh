@@ -45,7 +45,10 @@ export function getStatusTextColor(status: LessonStatus): string {
 /**
  * Get display text and color for module status
  */
-export function getModuleStatusText(status: ModuleStatus): { text: string; color: string } {
+export function getModuleStatusText(status: ModuleStatus): {
+  text: string;
+  color: string;
+} {
   const statuses: Record<ModuleStatus, { text: string; color: string }> = {
     completed: { text: "Completed", color: "text-green-500" },
     in_progress: { text: "In Progress", color: "text-orange-500" },

@@ -1,13 +1,14 @@
 "use client";
 
-import * as z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
 import { Pencil } from "lucide-react";
-import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-
+import * as z from "zod";
+import { updateModule } from "@/actions/module";
+import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
@@ -16,8 +17,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { updateModule } from "@/actions/module";
 
 interface ModuleTitleFormProps {
   initialData: {
@@ -36,7 +35,7 @@ const formSchema = z.object({
 export const ModuleTitleForm = ({
   initialData,
   courseId,
-  moduleId
+  moduleId,
 }: ModuleTitleFormProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const router = useRouter();
@@ -59,33 +58,29 @@ export const ModuleTitleForm = ({
     } catch {
       toast.error("Something went wrong");
     }
-  }
+  };
 
   return (
-    <div className="mt-6 border bg-slate-100 rounded-md p-4">
-      <div className="font-medium flex items-center justify-between">
+    <div className="mt-6 rounded-md border bg-slate-100 p-4">
+      <div className="flex items-center justify-between font-medium">
         Module title
         <Button onClick={toggleEdit} variant="ghost">
           {isEditing ? (
             <>Cancel</>
           ) : (
             <>
-              <Pencil className="h-4 w-4 mr-2" />
+              <Pencil className="mr-2 h-4 w-4" />
               Edit title
             </>
           )}
         </Button>
       </div>
-      {!isEditing && (
-        <p className="text-sm mt-2">
-          {initialData.title}
-        </p>
-      )}
+      {!isEditing && <p className="mt-2 text-sm">{initialData.title}</p>}
       {isEditing && (
         <Form {...form}>
           <form
+            className="mt-4 space-y-4"
             onSubmit={form.handleSubmit(onSubmit)}
-            className="space-y-4 mt-4"
           >
             <FormField
               control={form.control}
@@ -104,10 +99,7 @@ export const ModuleTitleForm = ({
               )}
             />
             <div className="flex items-center gap-x-2">
-              <Button
-                disabled={!isValid || isSubmitting}
-                type="submit"
-              >
+              <Button disabled={!isValid || isSubmitting} type="submit">
                 Save
               </Button>
             </div>
@@ -115,5 +107,5 @@ export const ModuleTitleForm = ({
         </Form>
       )}
     </div>
-  )
-}
+  );
+};

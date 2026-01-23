@@ -12,7 +12,7 @@ export function VideoPlayer({
   videoId,
   courseId,
   title = "KPoint Video Player",
-  className = ""
+  className = "",
 }: VideoPlayerProps) {
   return (
     <Card className={`overflow-hidden ${className}`}>
@@ -20,14 +20,12 @@ export function VideoPlayer({
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="text-center">
             <div className="mb-2 text-4xl">🎬</div>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-muted-foreground text-sm">
               {title} will load here
             </p>
-            <p className="text-xs text-muted-foreground">
-              Video ID: {videoId}
-            </p>
+            <p className="text-muted-foreground text-xs">Video ID: {videoId}</p>
             {courseId && (
-              <p className="text-xs text-muted-foreground">
+              <p className="text-muted-foreground text-xs">
                 Course ID: {courseId}
               </p>
             )}

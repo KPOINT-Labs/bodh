@@ -1,14 +1,13 @@
 "use client";
 
 import { Trash } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
-import { useRouter } from "next/navigation";
-
-import { Button } from "@/components/ui/button";
-import { ConfirmModal } from "@/components/modals/confirm-modal";
-import { updateCourse } from "@/actions/update-course";
 import { deleteCourse } from "@/actions/delete-course"; // Need to create this
+import { updateCourse } from "@/actions/update-course";
+import { ConfirmModal } from "@/components/modals/confirm-modal";
+import { Button } from "@/components/ui/button";
 
 interface CourseActionsProps {
   disabled: boolean;
@@ -19,7 +18,7 @@ interface CourseActionsProps {
 export const CourseActions = ({
   disabled,
   courseId,
-  isPublished
+  isPublished,
 }: CourseActionsProps) => {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
@@ -42,7 +41,7 @@ export const CourseActions = ({
     } finally {
       setIsLoading(false);
     }
-  }
+  };
 
   const onDelete = async () => {
     try {
@@ -51,30 +50,30 @@ export const CourseActions = ({
       await deleteCourse(courseId);
 
       toast.success("Course deleted");
-      router.push(`/teacher/courses`);
+      router.push("/teacher/courses");
       router.refresh();
     } catch {
       toast.error("Something went wrong");
     } finally {
       setIsLoading(false);
     }
-  }
+  };
 
   return (
     <div className="flex items-center gap-x-2">
       <Button
-        onClick={onClick}
         disabled={disabled || isLoading}
-        variant="outline"
+        onClick={onClick}
         size="sm"
+        variant="outline"
       >
         {isPublished ? "Unpublish" : "Publish"}
       </Button>
       <ConfirmModal onConfirm={onDelete}>
-        <Button size="sm" disabled={isLoading}>
+        <Button disabled={isLoading} size="sm">
           <Trash className="h-4 w-4 text-red-500" />
         </Button>
       </ConfirmModal>
     </div>
   );
-}
+};

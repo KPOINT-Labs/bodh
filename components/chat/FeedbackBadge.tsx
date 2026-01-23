@@ -1,12 +1,12 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { createPortal } from 'react-dom';
-import { CheckCircle, XCircle, PartyPopper } from "lucide-react";
+import { CheckCircle, PartyPopper, XCircle } from "lucide-react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { fireConfetti } from "@/components/ui/confetti";
 
 interface FeedbackBadgeProps {
-  type: 'correct' | 'incorrect';
+  type: "correct" | "incorrect";
   message?: string;
   duration?: number; // Duration in ms before auto-hide (default: 2000)
 }
@@ -19,7 +19,11 @@ interface FeedbackBadgeProps {
  * NOTE: This component should only be rendered for NEW messages, not history.
  * The parent component is responsible for not rendering this for historical messages.
  */
-export function FeedbackBadge({ type, message, duration = 2000 }: FeedbackBadgeProps) {
+export function FeedbackBadge({
+  type,
+  message,
+  duration = 2000,
+}: FeedbackBadgeProps) {
   const [isVisible, setIsVisible] = useState(true);
   const [isFading, setIsFading] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -31,7 +35,7 @@ export function FeedbackBadge({ type, message, duration = 2000 }: FeedbackBadgeP
 
   // Fire confetti for correct answers
   useEffect(() => {
-    if (type === 'correct') {
+    if (type === "correct") {
       fireConfetti();
     }
   }, [type]);
@@ -52,28 +56,41 @@ export function FeedbackBadge({ type, message, duration = 2000 }: FeedbackBadgeP
     };
   }, [duration]);
 
-  if (!isVisible || !mounted) return null;
+  if (!(isVisible && mounted)) {
+    return null;
+  }
 
   const baseClasses = `flex items-center gap-3 px-6 py-4 rounded-2xl text-white shadow-2xl transition-all duration-500 ${
-    isFading ? 'opacity-0 scale-95 translate-y-2' : 'opacity-100 scale-100 translate-y-0 animate-in fade-in zoom-in-95'
+    isFading
+      ? "opacity-0 scale-95 translate-y-2"
+      : "opacity-100 scale-100 translate-y-0 animate-in fade-in zoom-in-95"
   }`;
 
   const toast = (
-    <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
-      {type === 'correct' ? (
-        <div className={`${baseClasses} bg-gradient-to-r from-emerald-500 to-teal-400`}>
+    <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center">
+      {type === "correct" ? (
+        <div
+          className={`${baseClasses} bg-gradient-to-r from-emerald-500 to-teal-400`}
+        >
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20">
-            <CheckCircle className="h-6 w-6 animate-spin" style={{ animationDuration: '2s' }} />
+            <CheckCircle
+              className="h-6 w-6 animate-spin"
+              style={{ animationDuration: "2s" }}
+            />
           </div>
-          <span className="font-bold text-xl">{message || 'Awesome!'}</span>
+          <span className="font-bold text-xl">{message || "Awesome!"}</span>
           <PartyPopper className="h-6 w-6 animate-pulse" />
         </div>
       ) : (
-        <div className={`${baseClasses} bg-gradient-to-r from-red-500 to-rose-400`}>
+        <div
+          className={`${baseClasses} bg-gradient-to-r from-red-500 to-rose-400`}
+        >
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20">
             <XCircle className="h-6 w-6" />
           </div>
-          <span className="font-bold text-xl">{message || 'Not quite right'}</span>
+          <span className="font-bold text-xl">
+            {message || "Not quite right"}
+          </span>
         </div>
       )}
     </div>

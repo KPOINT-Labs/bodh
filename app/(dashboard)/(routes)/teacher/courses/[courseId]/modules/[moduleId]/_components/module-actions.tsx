@@ -1,13 +1,12 @@
 "use client";
 
 import { Trash } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
-import { useRouter } from "next/navigation";
-
-import { Button } from "@/components/ui/button";
-import { ConfirmModal } from "@/components/modals/confirm-modal";
 import { deleteModule, updateModule } from "@/actions/module";
+import { ConfirmModal } from "@/components/modals/confirm-modal";
+import { Button } from "@/components/ui/button";
 
 interface ModuleActionsProps {
   disabled: boolean;
@@ -20,7 +19,7 @@ export const ModuleActions = ({
   disabled,
   courseId,
   moduleId,
-  isPublished
+  isPublished,
 }: ModuleActionsProps) => {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
@@ -43,7 +42,7 @@ export const ModuleActions = ({
     } finally {
       setIsLoading(false);
     }
-  }
+  };
 
   const onDelete = async () => {
     try {
@@ -59,23 +58,23 @@ export const ModuleActions = ({
     } finally {
       setIsLoading(false);
     }
-  }
+  };
 
   return (
     <div className="flex items-center gap-x-2">
       <Button
-        onClick={onClick}
         disabled={disabled || isLoading}
-        variant="outline"
+        onClick={onClick}
         size="sm"
+        variant="outline"
       >
         {isPublished ? "Unpublish" : "Publish"}
       </Button>
       <ConfirmModal onConfirm={onDelete}>
-        <Button size="sm" disabled={isLoading}>
+        <Button disabled={isLoading} size="sm">
           <Trash className="h-4 w-4 text-red-500" />
         </Button>
       </ConfirmModal>
     </div>
   );
-}
+};

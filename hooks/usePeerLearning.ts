@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
-import type { Course, Module } from "@/types/learning";
+import { useCallback, useEffect, useState } from "react";
 import { useCourseProgress } from "@/contexts/CourseProgressContext";
+import type { Course, Module } from "@/types/learning";
 
 interface UsePeerLearningOptions {
   userId?: string;
@@ -23,11 +23,14 @@ interface UsePeerLearningReturn {
 /**
  * Hook for managing peer learning panel data and state
  */
-export function usePeerLearning(options: UsePeerLearningOptions): UsePeerLearningReturn {
+export function usePeerLearning(
+  options: UsePeerLearningOptions
+): UsePeerLearningReturn {
   const { userId: propUserId, activeCourseId, activeModuleId } = options;
 
   // Use context for courses data
-  const { courses, isLoading, error, setCourses, setIsLoading, setError } = useCourseProgress();
+  const { courses, isLoading, error, setCourses, setIsLoading, setError } =
+    useCourseProgress();
 
   // Local state for UI concerns
   const [userId, setUserId] = useState<string | null>(propUserId || null);
@@ -60,12 +63,14 @@ export function usePeerLearning(options: UsePeerLearningOptions): UsePeerLearnin
     }
 
     fetchCurrentUser();
-  }, [propUserId]);
+  }, [propUserId, setError, setIsLoading]);
 
   // Fetch enrolled courses when userId is available
   useEffect(() => {
     async function fetchCourses() {
-      if (!userId) return;
+      if (!userId) {
+        return;
+      }
 
       try {
         setIsLoading(true);
@@ -86,8 +91,12 @@ export function usePeerLearning(options: UsePeerLearningOptions): UsePeerLearnin
 
               // Auto-expand active module or first in-progress module
               const moduleToExpand = activeModuleId
-                ? courseToSelect.modules.find((m: Module) => m.id === activeModuleId)
-                : courseToSelect.modules.find((m: Module) => m.status === "in_progress");
+                ? courseToSelect.modules.find(
+                    (m: Module) => m.id === activeModuleId
+                  )
+                : courseToSelect.modules.find(
+                    (m: Module) => m.status === "in_progress"
+                  );
 
               if (moduleToExpand) {
                 setExpandedModules([moduleToExpand.id]);
@@ -108,46 +117,61 @@ export function usePeerLearning(options: UsePeerLearningOptions): UsePeerLearnin
     if (userId) {
       fetchCourses();
     }
-  }, [userId, activeCourseId, activeModuleId, setCourses, setIsLoading, setError]);
+  }, [
+    userId,
+    activeCourseId,
+    activeModuleId,
+    setCourses,
+    setIsLoading,
+    setError,
+  ]);
 
-  const toggleModule = useCallback((moduleId: string) => {
-    // Don't collapse if this is the active module
-    if (moduleId === activeModuleId) {
-      // Just ensure it's expanded
+  const toggleModule = useCallback(
+    (moduleId: string) => {
+      // Don't collapse if this is the active module
+      if (moduleId === activeModuleId) {
+        // Just ensure it's expanded
+        setExpandedModules((prev) =>
+          prev.includes(moduleId) ? prev : [...prev, moduleId]
+        );
+        return;
+      }
+
       setExpandedModules((prev) =>
-        prev.includes(moduleId) ? prev : [...prev, moduleId]
+        prev.includes(moduleId)
+          ? prev.filter((id) => id !== moduleId)
+          : [...prev, moduleId]
       );
-      return;
-    }
-
-    setExpandedModules((prev) =>
-      prev.includes(moduleId)
-        ? prev.filter((id) => id !== moduleId)
-        : [...prev, moduleId]
-    );
-  }, [activeModuleId]);
+    },
+    [activeModuleId]
+  );
 
   const backToCourses = useCallback(() => {
     setSelectedCourse(null);
   }, []);
 
-  const selectCourse = useCallback((course: Course) => {
-    // Toggle: if clicking the same course, collapse it
-    if (selectedCourse?.id === course.id) {
-      setSelectedCourse(null);
-      setExpandedModules([]);
-      return;
-    }
+  const selectCourse = useCallback(
+    (course: Course) => {
+      // Toggle: if clicking the same course, collapse it
+      if (selectedCourse?.id === course.id) {
+        setSelectedCourse(null);
+        setExpandedModules([]);
+        return;
+      }
 
-    setSelectedCourse(course);
-    // Auto-expand first in-progress module
-    const inProgressModule = course.modules.find((m) => m.status === "in_progress");
-    if (inProgressModule) {
-      setExpandedModules([inProgressModule.id]);
-    } else {
-      setExpandedModules([]);
-    }
-  }, [selectedCourse]);
+      setSelectedCourse(course);
+      // Auto-expand first in-progress module
+      const inProgressModule = course.modules.find(
+        (m) => m.status === "in_progress"
+      );
+      if (inProgressModule) {
+        setExpandedModules([inProgressModule.id]);
+      } else {
+        setExpandedModules([]);
+      }
+    },
+    [selectedCourse]
+  );
 
   return {
     userId,

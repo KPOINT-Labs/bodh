@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { User } from "lucide-react";
+import Link from "next/link";
 import { LogoutButton } from "@/components/logout-button";
 import { cn } from "@/lib/utils";
 
@@ -28,16 +28,16 @@ export function ProfileActions({
   return (
     <div className={cn(wrapperClasses, className)}>
       <Link
-        href="/profile"
         className={cn(
-          "flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 transition-colors",
+          "flex items-center gap-2 text-gray-600 text-sm transition-colors hover:text-gray-900",
           linkClassName
         )}
+        href="/profile"
       >
-        <User className="w-4 h-4" />
+        <User className="h-4 w-4" />
         Profile
       </Link>
-      <LogoutButton variant={logoutVariant} className={logoutClassName} />
+      <LogoutButton className={logoutClassName} variant={logoutVariant} />
     </div>
   );
 }

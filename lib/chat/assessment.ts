@@ -7,7 +7,7 @@ export interface ParsedQuestion {
   questionText: string;
   options?: string[];
   isMultipleChoice: boolean;
-  answerType: 'multiple_choice' | 'short_answer' | 'numerical' | 'long_answer';
+  answerType: "multiple_choice" | "short_answer" | "numerical" | "long_answer";
   placeholder?: string;
   rawText: string;
 }
@@ -23,64 +23,95 @@ export interface ParsedAssessment {
  */
 function stripMarkdown(text: string): string {
   return text
-    .replace(/\*\*(.+?)\*\*/g, '$1')  // Bold **text**
-    .replace(/\*(.+?)\*/g, '$1')       // Italic *text*
-    .replace(/^\*\*\s*/, '')           // Leading **
-    .replace(/\s*\*\*$/, '')           // Trailing **
-    .replace(/^\*\s*/, '')             // Leading *
-    .replace(/\s*\*$/, '')             // Trailing *
-    .replace(/^#+\s*/gm, '')           // Headers ###
-    .replace(/^---+$/gm, '')           // Horizontal rules
+    .replace(/\*\*(.+?)\*\*/g, "$1") // Bold **text**
+    .replace(/\*(.+?)\*/g, "$1") // Italic *text*
+    .replace(/^\*\*\s*/, "") // Leading **
+    .replace(/\s*\*\*$/, "") // Trailing **
+    .replace(/^\*\s*/, "") // Leading *
+    .replace(/\s*\*$/, "") // Trailing *
+    .replace(/^#+\s*/gm, "") // Headers ###
+    .replace(/^---+$/gm, "") // Horizontal rules
     .trim();
 }
 
 /**
  * Detects the answer type based on question content and type indicators
  */
-function detectAnswerType(questionText: string, hasOptions: boolean): {
-  answerType: 'multiple_choice' | 'short_answer' | 'numerical' | 'long_answer';
+function detectAnswerType(
+  questionText: string,
+  hasOptions: boolean
+): {
+  answerType: "multiple_choice" | "short_answer" | "numerical" | "long_answer";
   placeholder?: string;
 } {
   const lowerText = questionText.toLowerCase();
-  
+
   // If has options, it's multiple choice
   if (hasOptions) {
-    return { answerType: 'multiple_choice' };
+    return { answerType: "multiple_choice" };
   }
-  
+
   // Check for numerical indicators
   const numericalIndicators = [
-    'calculate', 'compute', 'how many', 'how much', 'what number',
-    'percentage', 'percent', 'ratio', 'value', 'result', 'answer in numbers',
-    'numeric', 'numerical', 'digit', 'integer', 'decimal', 'formula'
+    "calculate",
+    "compute",
+    "how many",
+    "how much",
+    "what number",
+    "percentage",
+    "percent",
+    "ratio",
+    "value",
+    "result",
+    "answer in numbers",
+    "numeric",
+    "numerical",
+    "digit",
+    "integer",
+    "decimal",
+    "formula",
   ];
-  
-  if (numericalIndicators.some(indicator => lowerText.includes(indicator))) {
-    return { 
-      answerType: 'numerical',
-      placeholder: 'Enter a number...'
+
+  if (numericalIndicators.some((indicator) => lowerText.includes(indicator))) {
+    return {
+      answerType: "numerical",
+      placeholder: "Enter a number...",
     };
   }
-  
+
   // Check for long answer indicators
   const longAnswerIndicators = [
-    'explain', 'describe', 'discuss', 'elaborate', 'analyze', 'compare',
-    'contrast', 'justify', 'argue', 'why do you think', 'in your opinion',
-    'what are the reasons', 'provide an example', 'give an example',
-    'write a paragraph', 'essay', 'detailed', 'comprehensive'
+    "explain",
+    "describe",
+    "discuss",
+    "elaborate",
+    "analyze",
+    "compare",
+    "contrast",
+    "justify",
+    "argue",
+    "why do you think",
+    "in your opinion",
+    "what are the reasons",
+    "provide an example",
+    "give an example",
+    "write a paragraph",
+    "essay",
+    "detailed",
+    "comprehensive",
   ];
-  
-  if (longAnswerIndicators.some(indicator => lowerText.includes(indicator))) {
-    return { 
-      answerType: 'long_answer',
-      placeholder: 'Type your detailed answer here...'
+
+  if (longAnswerIndicators.some((indicator) => lowerText.includes(indicator))) {
+    return {
+      answerType: "long_answer",
+      placeholder: "Type your detailed answer here...",
     };
   }
-  
+
   // Default to short answer
-  return { 
-    answerType: 'short_answer',
-    placeholder: 'Type your answer here...'
+  return {
+    answerType: "short_answer",
+    placeholder: "Type your answer here...",
   };
 }
 
@@ -92,16 +123,16 @@ function normalizeContent(content: string): string {
   let normalized = content;
 
   // Add newlines before "Question N" patterns
-  normalized = normalized.replace(/\s*(Question\s+\d+)/gi, '\n$1');
+  normalized = normalized.replace(/\s*(Question\s+\d+)/gi, "\n$1");
 
   // Add newlines before option patterns like "- A)" or "A)"
-  normalized = normalized.replace(/\s*(-\s*)?([A-D])\)\s*/g, '\n$1$2) ');
+  normalized = normalized.replace(/\s*(-\s*)?([A-D])\)\s*/g, "\n$1$2) ");
 
   // Add newlines before "What's your answer" type phrases
-  normalized = normalized.replace(/\s*(What['']?s your answer\??)/gi, '\n$1');
+  normalized = normalized.replace(/\s*(What['']?s your answer\??)/gi, "\n$1");
 
   // Clean up multiple newlines
-  normalized = normalized.replace(/\n{3,}/g, '\n\n');
+  normalized = normalized.replace(/\n{3,}/g, "\n\n");
 
   return normalized.trim();
 }
@@ -113,29 +144,36 @@ function normalizeContent(content: string): string {
 export function parseAssessmentContent(content: string): ParsedAssessment {
   // First normalize the content to handle single-line AI output
   const normalizedContent = normalizeContent(content);
-  const lines = normalizedContent.split('\n');
+  const lines = normalizedContent.split("\n");
   const questions: ParsedQuestion[] = [];
   const otherContent: string[] = [];
-  let introText = '';
+  let introText = "";
   let currentQuestion: ParsedQuestion | null = null;
   let isInQuestion = false;
   let isInIntro = true;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
-    if (!line) continue;
+    if (!line) {
+      continue;
+    }
 
     // Check if this line starts a new question
     // Match patterns like "Question 1:", "Question 1 (Multiple Choice):", etc.
-    const questionMatch = line.match(/^Question\s+(\d+)\s*(?:\([^)]+\))?[:\s]*(.*)$/i);
+    const questionMatch = line.match(
+      /^Question\s+(\d+)\s*(?:\([^)]+\))?[:\s]*(.*)$/i
+    );
     if (questionMatch) {
       // Save the previous question if it exists
-      if (currentQuestion && currentQuestion.questionText) {
+      if (currentQuestion?.questionText) {
         // Finalize answer type before pushing
-        const answerTypeInfo = detectAnswerType(currentQuestion.questionText, currentQuestion.isMultipleChoice);
+        const answerTypeInfo = detectAnswerType(
+          currentQuestion.questionText,
+          currentQuestion.isMultipleChoice
+        );
         currentQuestion.answerType = answerTypeInfo.answerType;
         currentQuestion.placeholder = answerTypeInfo.placeholder;
-        
+
         questions.push(currentQuestion);
       }
 
@@ -143,7 +181,7 @@ export function parseAssessmentContent(content: string): ParsedAssessment {
       isInIntro = false;
 
       // The question text might be on the same line after the colon
-      let questionText = stripMarkdown(questionMatch[2] || '');
+      let questionText = stripMarkdown(questionMatch[2] || "");
 
       // If no text on same line, look for it in the next non-option lines
       // Accumulate all lines until we hit options or another question
@@ -157,17 +195,22 @@ export function parseAssessmentContent(content: string): ParsedAssessment {
             continue;
           }
           // Stop if we hit an option or another question
-          if (nextLine.match(/^(-\s*)?[A-D]\)\s*/) || nextLine.match(/^Question\s+\d+/i)) {
+          if (
+            nextLine.match(/^(-\s*)?[A-D]\)\s*/) ||
+            nextLine.match(/^Question\s+\d+/i)
+          ) {
             break;
           }
           // Stop if we hit "What's your answer" type prompt
-          if (nextLine.toLowerCase().includes("what's your answer") ||
-              nextLine.toLowerCase().includes("what is your answer") ||
-              nextLine.toLowerCase().includes("your answer")) {
+          if (
+            nextLine.toLowerCase().includes("what's your answer") ||
+            nextLine.toLowerCase().includes("what is your answer") ||
+            nextLine.toLowerCase().includes("your answer")
+          ) {
             break;
           }
           // Skip lines that are just markdown artifacts
-          if (nextLine.match(/^[\*#\-]+\s*$/) || nextLine === '**') {
+          if (nextLine.match(/^[*#-]+\s*$/) || nextLine === "**") {
             j++;
             continue;
           }
@@ -175,16 +218,16 @@ export function parseAssessmentContent(content: string): ParsedAssessment {
           j++;
         }
         // Join all question lines into the question text
-        questionText = questionLines.join(' ').trim();
+        questionText = questionLines.join(" ").trim();
       }
 
       currentQuestion = {
-        questionNumber: parseInt(questionMatch[1]),
-        questionText: questionText,
+        questionNumber: Number.parseInt(questionMatch[1], 10),
+        questionText,
         options: [],
         isMultipleChoice: false,
-        answerType: 'short_answer', // Will be updated later based on options
-        rawText: line
+        answerType: "short_answer", // Will be updated later based on options
+        rawText: line,
       };
 
       continue;
@@ -192,7 +235,7 @@ export function parseAssessmentContent(content: string): ParsedAssessment {
 
     // Check if this line is a multiple choice option
     // Match patterns like "A) text", "- A) text", "A. text"
-    const optionMatch = line.match(/^(-\s*)?([A-D])[\)\.]\s*(.+)$/i);
+    const optionMatch = line.match(/^(-\s*)?([A-D])[).]\s*(.+)$/i);
     if (optionMatch && currentQuestion) {
       const optionLetter = optionMatch[2].toUpperCase();
       const optionText = optionMatch[3].trim();
@@ -203,15 +246,20 @@ export function parseAssessmentContent(content: string): ParsedAssessment {
     }
 
     // Check if this is asking for an answer (ends the current question)
-    if (line.toLowerCase().includes("what's your answer") ||
-        line.toLowerCase().includes("what is your answer") ||
-        line.toLowerCase().includes("your answer")) {
-      if (currentQuestion && currentQuestion.questionText) {
+    if (
+      line.toLowerCase().includes("what's your answer") ||
+      line.toLowerCase().includes("what is your answer") ||
+      line.toLowerCase().includes("your answer")
+    ) {
+      if (currentQuestion?.questionText) {
         // Finalize answer type before pushing
-        const answerTypeInfo = detectAnswerType(currentQuestion.questionText, currentQuestion.isMultipleChoice);
+        const answerTypeInfo = detectAnswerType(
+          currentQuestion.questionText,
+          currentQuestion.isMultipleChoice
+        );
         currentQuestion.answerType = answerTypeInfo.answerType;
         currentQuestion.placeholder = answerTypeInfo.placeholder;
-        
+
         questions.push(currentQuestion);
         currentQuestion = null;
         isInQuestion = false;
@@ -220,9 +268,9 @@ export function parseAssessmentContent(content: string): ParsedAssessment {
     }
 
     // If we're in a question and this looks like question text (not an option)
-    if (isInQuestion && currentQuestion && !line.match(/^(-\s*)?[A-D][\)\.]/i)) {
+    if (isInQuestion && currentQuestion && !line.match(/^(-\s*)?[A-D][).]/i)) {
       // Skip markdown-only lines
-      if (line.match(/^[\*#\-]+\s*$/) || line === '**') {
+      if (line.match(/^[*#-]+\s*$/) || line === "**") {
         continue;
       }
       // If the question text is empty, this is it
@@ -235,12 +283,12 @@ export function parseAssessmentContent(content: string): ParsedAssessment {
     // Handle intro text
     if (isInIntro && line) {
       // Stop intro when we see "---" separator
-      if (line === '---') {
+      if (line === "---") {
         isInIntro = false;
         continue;
       }
       if (introText) {
-        introText += ' ' + line;
+        introText += ` ${line}`;
       } else {
         introText = line;
       }
@@ -248,31 +296,40 @@ export function parseAssessmentContent(content: string): ParsedAssessment {
     }
 
     // Handle other content - skip markdown artifacts
-    if (!isInQuestion && !isInIntro && line && line !== '---') {
+    if (!(isInQuestion || isInIntro) && line && line !== "---") {
       // Skip lines that are just markdown formatting
-      if (!line.match(/^[\*#\-]+\s*$/) && line !== '**' && !line.match(/^#+\s*\*+\s*$/)) {
+      if (
+        !line.match(/^[*#-]+\s*$/) &&
+        line !== "**" &&
+        !line.match(/^#+\s*\*+\s*$/)
+      ) {
         otherContent.push(stripMarkdown(line));
       }
     }
   }
 
   // Don't forget to add the last question
-  if (currentQuestion && currentQuestion.questionText) {
+  if (currentQuestion?.questionText) {
     // Finalize answer type before pushing
-    const answerTypeInfo = detectAnswerType(currentQuestion.questionText, currentQuestion.isMultipleChoice);
+    const answerTypeInfo = detectAnswerType(
+      currentQuestion.questionText,
+      currentQuestion.isMultipleChoice
+    );
     currentQuestion.answerType = answerTypeInfo.answerType;
     currentQuestion.placeholder = answerTypeInfo.placeholder;
-    
+
     questions.push(currentQuestion);
   }
 
   // Filter out empty strings from otherContent
-  const filteredOtherContent = otherContent.filter(text => text.trim().length > 0);
+  const filteredOtherContent = otherContent.filter(
+    (text) => text.trim().length > 0
+  );
 
   return {
     introText: stripMarkdown(introText.trim()),
     questions,
-    otherContent: filteredOtherContent
+    otherContent: filteredOtherContent,
   };
 }
 
@@ -282,11 +339,13 @@ export function parseAssessmentContent(content: string): ParsedAssessment {
  */
 export function isAssessmentContent(content: string): boolean {
   // Match "Question N" with optional type indicator and optional colon
-  return /Question\s+\d+/i.test(content) || content.toLowerCase().includes('quiz');
+  return (
+    /Question\s+\d+/i.test(content) || content.toLowerCase().includes("quiz")
+  );
 }
 
 export interface FeedbackResult {
-  type: 'correct' | 'incorrect' | 'partial' | null;
+  type: "correct" | "incorrect" | "partial" | null;
   feedbackText: string;
   explanation: string;
 }
@@ -299,29 +358,56 @@ export function detectAnswerFeedback(content: string): FeedbackResult {
 
   // Correct answer patterns
   const correctPatterns = [
-    'correct', 'that\'s right', 'that is right', 'exactly', 'well done',
-    'great job', 'perfect', 'excellent', 'awesome', 'you got it',
-    'absolutely right', 'spot on', 'right answer', 'yes!', 'yes,',
-    'good job', 'nice work', 'brilliant', 'you\'re correct'
+    "correct",
+    "that's right",
+    "that is right",
+    "exactly",
+    "well done",
+    "great job",
+    "perfect",
+    "excellent",
+    "awesome",
+    "you got it",
+    "absolutely right",
+    "spot on",
+    "right answer",
+    "yes!",
+    "yes,",
+    "good job",
+    "nice work",
+    "brilliant",
+    "you're correct",
   ];
 
   // Incorrect answer patterns
   const incorrectPatterns = [
-    'incorrect', 'that\'s not', 'that is not', 'not quite', 'wrong',
-    'not correct', 'actually', 'the correct answer', 'the right answer is',
-    'unfortunately', 'close but', 'not exactly', 'try again',
-    'the answer is', 'should be', 'it\'s actually'
+    "incorrect",
+    "that's not",
+    "that is not",
+    "not quite",
+    "wrong",
+    "not correct",
+    "actually",
+    "the correct answer",
+    "the right answer is",
+    "unfortunately",
+    "close but",
+    "not exactly",
+    "try again",
+    "the answer is",
+    "should be",
+    "it's actually",
   ];
 
   // Check for correct patterns
-  const isCorrect = correctPatterns.some(pattern => {
+  const isCorrect = correctPatterns.some((pattern) => {
     const index = lowerContent.indexOf(pattern);
     // Make sure it's near the beginning (within first 200 chars) to be the main feedback
     return index !== -1 && index < 200;
   });
 
   // Check for incorrect patterns
-  const isIncorrect = incorrectPatterns.some(pattern => {
+  const isIncorrect = incorrectPatterns.some((pattern) => {
     const index = lowerContent.indexOf(pattern);
     return index !== -1 && index < 200;
   });
@@ -332,48 +418,47 @@ export function detectAnswerFeedback(content: string): FeedbackResult {
     const firstCorrect = correctPatterns.reduce((min, pattern) => {
       const idx = lowerContent.indexOf(pattern);
       return idx !== -1 && idx < min ? idx : min;
-    }, Infinity);
+    }, Number.POSITIVE_INFINITY);
 
     const firstIncorrect = incorrectPatterns.reduce((min, pattern) => {
       const idx = lowerContent.indexOf(pattern);
       return idx !== -1 && idx < min ? idx : min;
-    }, Infinity);
+    }, Number.POSITIVE_INFINITY);
 
     if (firstCorrect < firstIncorrect) {
       return {
-        type: 'correct',
-        feedbackText: 'Awesome!',
-        explanation: content
-      };
-    } else {
-      return {
-        type: 'incorrect',
-        feedbackText: 'Not quite right',
-        explanation: content
+        type: "correct",
+        feedbackText: "Awesome!",
+        explanation: content,
       };
     }
+    return {
+      type: "incorrect",
+      feedbackText: "Not quite right",
+      explanation: content,
+    };
   }
 
   if (isCorrect) {
     return {
-      type: 'correct',
-      feedbackText: 'Awesome!',
-      explanation: content
+      type: "correct",
+      feedbackText: "Awesome!",
+      explanation: content,
     };
   }
 
   if (isIncorrect) {
     return {
-      type: 'incorrect',
-      feedbackText: 'Not quite right',
-      explanation: content
+      type: "incorrect",
+      feedbackText: "Not quite right",
+      explanation: content,
     };
   }
 
   return {
     type: null,
-    feedbackText: '',
-    explanation: content
+    feedbackText: "",
+    explanation: content,
   };
 }
 
@@ -391,7 +476,7 @@ export function isFeedbackContent(content: string): boolean {
 export interface MessageData {
   id: string;
   content: string;
-  role: 'user' | 'assistant' | 'system';
+  role: "user" | "assistant" | "system";
   messageType?: string;
   createdAt: string | Date;
   conversationId: string;
@@ -408,36 +493,52 @@ export interface QuestionAttempt {
 /**
  * Generate a stable hash for a question to track attempts across conversations
  */
-function generateQuestionHash(questionText: string, questionNumber: number): string {
-  const normalizedText = questionText.toLowerCase().replace(/[^\w\s]/g, '').trim();
-  return `q${questionNumber}_${normalizedText.replace(/\s+/g, '_').substring(0, 50)}`;
+function generateQuestionHash(
+  questionText: string,
+  questionNumber: number
+): string {
+  const normalizedText = questionText
+    .toLowerCase()
+    .replace(/[^\w\s]/g, "")
+    .trim();
+  return `q${questionNumber}_${normalizedText.replace(/\s+/g, "_").substring(0, 50)}`;
 }
 
 /**
  * Parse messages to find answered FA questions in a conversation
  */
-export function findAnsweredQuestions(messages: MessageData[]): Map<string, QuestionAttempt> {
+export function findAnsweredQuestions(
+  messages: MessageData[]
+): Map<string, QuestionAttempt> {
   const answeredQuestions = new Map<string, QuestionAttempt>();
-  const faMessages = messages.filter(msg => msg.messageType === 'fa');
-  
+  const faMessages = messages.filter((msg) => msg.messageType === "fa");
+
   for (let i = 0; i < faMessages.length; i++) {
     const message = faMessages[i];
-    
+
     // Process assistant messages (questions)
-    if (message.role === 'assistant' && isAssessmentContent(message.content)) {
+    if (message.role === "assistant" && isAssessmentContent(message.content)) {
       const parsed = parseAssessmentContent(message.content);
-      
+
       for (const question of parsed.questions) {
-        const questionHash = generateQuestionHash(question.questionText, question.questionNumber);
-        
+        const questionHash = generateQuestionHash(
+          question.questionText,
+          question.questionNumber
+        );
+
         // Look for the next user message with FA type as the answer
         for (let j = i + 1; j < faMessages.length; j++) {
           const potentialAnswer = faMessages[j];
-          
-          if (potentialAnswer.role === 'user' && potentialAnswer.messageType === 'fa') {
+
+          if (
+            potentialAnswer.role === "user" &&
+            potentialAnswer.messageType === "fa"
+          ) {
             // Check if this answer follows this question (basic heuristic)
-            const timeDiff = new Date(potentialAnswer.createdAt).getTime() - new Date(message.createdAt).getTime();
-            
+            const timeDiff =
+              new Date(potentialAnswer.createdAt).getTime() -
+              new Date(message.createdAt).getTime();
+
             // If the answer comes within reasonable time after the question (10 minutes max)
             if (timeDiff > 0 && timeDiff < 10 * 60 * 1000) {
               answeredQuestions.set(questionHash, {
@@ -445,7 +546,7 @@ export function findAnsweredQuestions(messages: MessageData[]): Map<string, Ques
                 questionText: question.questionText,
                 userAnswer: potentialAnswer.content,
                 isAttempted: true,
-                messageId: potentialAnswer.id
+                messageId: potentialAnswer.id,
               });
               break; // Found answer for this question
             }
@@ -454,7 +555,7 @@ export function findAnsweredQuestions(messages: MessageData[]): Map<string, Ques
       }
     }
   }
-  
+
   return answeredQuestions;
 }
 
@@ -462,8 +563,8 @@ export function findAnsweredQuestions(messages: MessageData[]): Map<string, Ques
  * Check if a specific question has been answered in the conversation
  */
 export function isQuestionAnswered(
-  questionText: string, 
-  questionNumber: number, 
+  questionText: string,
+  questionNumber: number,
   answeredQuestions: Map<string, QuestionAttempt>
 ): QuestionAttempt | null {
   const questionHash = generateQuestionHash(questionText, questionNumber);
@@ -473,19 +574,23 @@ export function isQuestionAnswered(
 /**
  * Get all answered questions for a conversation
  */
-export async function getAnsweredQuestionsForConversation(conversationId: string): Promise<Map<string, QuestionAttempt>> {
+export async function getAnsweredQuestionsForConversation(
+  conversationId: string
+): Promise<Map<string, QuestionAttempt>> {
   try {
     // This would typically fetch from an API endpoint
     // For now, return empty map - will be implemented when called from components
-    const response = await fetch(`/api/messages?conversationId=${conversationId}`);
+    const response = await fetch(
+      `/api/messages?conversationId=${conversationId}`
+    );
     if (!response.ok) {
-      throw new Error('Failed to fetch messages');
+      throw new Error("Failed to fetch messages");
     }
-    
+
     const messages: MessageData[] = await response.json();
     return findAnsweredQuestions(messages);
   } catch (error) {
-    console.error('Error fetching answered questions:', error);
+    console.error("Error fetching answered questions:", error);
     return new Map();
   }
 }

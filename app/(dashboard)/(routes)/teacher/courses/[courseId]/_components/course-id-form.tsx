@@ -1,13 +1,14 @@
 "use client";
 
-import * as z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
 import { Pencil } from "lucide-react";
-import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-
+import * as z from "zod";
+import { updateCourse } from "@/actions/update-course";
+import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
@@ -16,8 +17,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { updateCourse } from "@/actions/update-course";
 
 interface CourseIdFormProps {
   initialData: {
@@ -32,10 +31,7 @@ const formSchema = z.object({
   }),
 });
 
-export const CourseIdForm = ({
-  initialData,
-  courseId
-}: CourseIdFormProps) => {
+export const CourseIdForm = ({ initialData, courseId }: CourseIdFormProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const router = useRouter();
 
@@ -59,33 +55,33 @@ export const CourseIdForm = ({
     } catch {
       toast.error("Something went wrong. Ensure the ID is unique.");
     }
-  }
+  };
 
   return (
-    <div className="mt-6 border bg-slate-100 rounded-md p-4">
-      <div className="font-medium flex items-center justify-between">
+    <div className="mt-6 rounded-md border bg-slate-100 p-4">
+      <div className="flex items-center justify-between font-medium">
         Custom Course ID
         <Button onClick={toggleEdit} variant="ghost">
           {isEditing ? (
             <>Cancel</>
           ) : (
             <>
-              <Pencil className="h-4 w-4 mr-2" />
+              <Pencil className="mr-2 h-4 w-4" />
               Edit ID
             </>
           )}
         </Button>
       </div>
       {!isEditing && (
-        <p className="text-sm mt-2 font-mono text-slate-600">
+        <p className="mt-2 font-mono text-slate-600 text-sm">
           {initialData.course_id || "No custom ID defined"}
         </p>
       )}
       {isEditing && (
         <Form {...form}>
           <form
+            className="mt-4 space-y-4"
             onSubmit={form.handleSubmit(onSubmit)}
-            className="space-y-4 mt-4"
           >
             <FormField
               control={form.control}
@@ -104,10 +100,7 @@ export const CourseIdForm = ({
               )}
             />
             <div className="flex items-center gap-x-2">
-              <Button
-                disabled={!isValid || isSubmitting}
-                type="submit"
-              >
+              <Button disabled={!isValid || isSubmitting} type="submit">
                 Save
               </Button>
             </div>
@@ -115,5 +108,5 @@ export const CourseIdForm = ({
         </Form>
       )}
     </div>
-  )
-}
+  );
+};

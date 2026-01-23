@@ -1,11 +1,11 @@
 "use server";
 
+import { createHash } from "node:crypto";
+import { ElevenLabsClient } from "elevenlabs";
+import OpenAI from "openai";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import OpenAI from "openai";
-import { ElevenLabsClient } from "elevenlabs";
-import { createHash } from "crypto";
-import { ELEVENLABS_CONFIG, OPENAI_CONFIG, TTSResult } from "@/lib/tts";
+import { ELEVENLABS_CONFIG, OPENAI_CONFIG, type TTSResult } from "@/lib/tts";
 
 const ttsSchema = z.object({
   text: z.string().min(1).max(5000),
@@ -23,7 +23,11 @@ export async function generateTTS(
   }
 ): Promise<TTSResult> {
   try {
-    console.log("[TTS] prisma object:", typeof prisma, prisma ? "defined" : "undefined");
+    console.log(
+      "[TTS] prisma object:",
+      typeof prisma,
+      prisma ? "defined" : "undefined"
+    );
 
     // Validate input
     const validated = ttsSchema.parse({
@@ -36,7 +40,7 @@ export async function generateTTS(
     const { text: validatedText, voice, speed, model } = validated;
 
     // Determine which provider to use
-    const provider = process.env.TTS_PROVIDER || 'elevenlabs';
+    const provider = process.env.TTS_PROVIDER || "elevenlabs";
     console.log("[TTS] Using provider:", provider);
 
     // Determine actual values based on provider
@@ -44,11 +48,11 @@ export async function generateTTS(
     let actualSpeed: number;
     let actualModel: string;
 
-    if (provider === 'elevenlabs') {
+    if (provider === "elevenlabs") {
       actualVoice = voice || ELEVENLABS_CONFIG.voice;
       actualModel = model || ELEVENLABS_CONFIG.model;
       actualSpeed = speed || ELEVENLABS_CONFIG.voiceSettings.speed;
-    } else if (provider === 'openai') {
+    } else if (provider === "openai") {
       actualVoice = voice || OPENAI_CONFIG.voice;
       actualModel = model || OPENAI_CONFIG.model;
       actualSpeed = speed || OPENAI_CONFIG.speed;
@@ -61,7 +65,10 @@ export async function generateTTS(
       .update(`${validatedText}:${actualVoice}:${actualSpeed}:${actualModel}`)
       .digest("hex");
 
-    console.log("[TTS] About to query cache, prisma.tTSCache:", typeof prisma?.tTSCache);
+    console.log(
+      "[TTS] About to query cache, prisma.tTSCache:",
+      typeof prisma?.tTSCache
+    );
 
     // Check cache first
     const cached = await prisma.tTSCache.findUnique({
@@ -87,9 +94,9 @@ export async function generateTTS(
 
     let buffer: Buffer;
 
-    if (provider === 'elevenlabs') {
+    if (provider === "elevenlabs") {
       if (!process.env.ELEVENLABS_API_KEY) {
-        throw new Error('ELEVENLABS_API_KEY not configured');
+        throw new Error("ELEVENLABS_API_KEY not configured");
       }
 
       console.log("[TTS] Calling ElevenLabs API");
@@ -109,7 +116,7 @@ export async function generateTTS(
           similarity_boost: ELEVENLABS_CONFIG.voiceSettings.similarityBoost,
           speed: actualSpeed,
           use_speaker_boost: ELEVENLABS_CONFIG.voiceSettings.useSpeakerBoost,
-        }
+        },
       });
 
       // Convert Readable stream to buffer
@@ -119,10 +126,9 @@ export async function generateTTS(
       }
       buffer = Buffer.concat(chunks);
       console.log("[TTS] ElevenLabs audio generated");
-
-    } else if (provider === 'openai') {
+    } else if (provider === "openai") {
       if (!process.env.OPENAI_API_KEY) {
-        throw new Error('OPENAI_API_KEY not configured');
+        throw new Error("OPENAI_API_KEY not configured");
       }
 
       console.log("[TTS] Calling OpenAI API");
@@ -144,14 +150,17 @@ export async function generateTTS(
       // Convert to buffer
       buffer = Buffer.from(await response.arrayBuffer());
       console.log("[TTS] OpenAI audio generated");
-
     } else {
       throw new Error(`Unknown TTS_PROVIDER: ${provider}`);
     }
 
     // Convert to base64
     const audioData = buffer.toString("base64");
-    console.log("[TTS] Generated audio, size:", audioData.length, "bytes (base64)");
+    console.log(
+      "[TTS] Generated audio, size:",
+      audioData.length,
+      "bytes (base64)"
+    );
 
     // Save to cache
     await prisma.tTSCache.create({
@@ -173,7 +182,7 @@ export async function generateTTS(
       audioData,
     };
   } catch (error: any) {
-    const provider = process.env.TTS_PROVIDER || 'elevenlabs';
+    const provider = process.env.TTS_PROVIDER || "elevenlabs";
     console.error(`[TTS] ${provider} error:`, error);
 
     if (error instanceof z.ZodError) {
@@ -183,14 +192,17 @@ export async function generateTTS(
       };
     }
 
-    if (error?.message?.includes('quota_exceeded')) {
+    if (error?.message?.includes("quota_exceeded")) {
       return {
         success: false,
         error: "TTS quota exceeded. Please check API key limits.",
       };
     }
 
-    if (error?.message?.includes('invalid_api_key') || error?.message?.includes('not configured')) {
+    if (
+      error?.message?.includes("invalid_api_key") ||
+      error?.message?.includes("not configured")
+    ) {
       return {
         success: false,
         error: `Invalid API key. Please check ${provider.toUpperCase()}_API_KEY configuration.`,

@@ -1,6 +1,13 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
+import {
+  createContext,
+  type ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 
 interface LearningPanelContextType {
   isCollapsed: boolean;
@@ -11,7 +18,9 @@ interface LearningPanelContextType {
   triggerRightPanelHighlight: () => void;
 }
 
-const LearningPanelContext = createContext<LearningPanelContextType | null>(null);
+const LearningPanelContext = createContext<LearningPanelContextType | null>(
+  null
+);
 
 export function LearningPanelProvider({ children }: { children: ReactNode }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -63,7 +72,9 @@ export function LearningPanelProvider({ children }: { children: ReactNode }) {
 export function useLearningPanel() {
   const context = useContext(LearningPanelContext);
   if (!context) {
-    throw new Error("useLearningPanel must be used within a LearningPanelProvider");
+    throw new Error(
+      "useLearningPanel must be used within a LearningPanelProvider"
+    );
   }
   return context;
 }

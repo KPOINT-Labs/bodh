@@ -1,16 +1,16 @@
 "use client";
 
-import { useState, Suspense } from "react";
-import { signIn } from "next-auth/react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { BookOpen, Lock, Mail } from "lucide-react";
 import Link from "next/link";
-import { Mail, Lock, BookOpen } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { signIn } from "next-auth/react";
+import { Suspense, useState } from "react";
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/courses";
-  const errorParam = searchParams.get("error");
+  const _errorParam = searchParams.get("error");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -48,40 +48,40 @@ function LoginForm() {
   };
 
   return (
-    <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl p-8 animate-scale-in">
+    <div className="relative w-full max-w-md animate-scale-in rounded-3xl bg-white p-8 shadow-2xl">
       {/* Icon */}
-      <div className="flex justify-center mb-6">
-        <div className="w-16 h-16 bg-gradient-to-br from-violet-500 to-fuchsia-500 rounded-2xl flex items-center justify-center shadow-lg">
-          <BookOpen className="w-8 h-8 text-white" />
+      <div className="mb-6 flex justify-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-500 shadow-lg">
+          <BookOpen className="h-8 w-8 text-white" />
         </div>
       </div>
 
       {/* Heading */}
-      <h1 className="text-2xl font-semibold text-center text-gray-900 mb-2">
+      <h1 className="mb-2 text-center font-semibold text-2xl text-gray-900">
         Welcome Back
       </h1>
-      <p className="text-center text-gray-500 mb-6">
+      <p className="mb-6 text-center text-gray-500">
         Sign in to continue learning
       </p>
 
       {/* Error Message */}
       {error && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm text-center">
+        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-center text-red-600 text-sm">
           {error}
         </div>
       )}
 
       {/* Google Sign In */}
       <button
-        onClick={handleGoogleLogin}
+        className="mb-6 flex w-full items-center justify-center gap-3 rounded-xl border-2 border-gray-200 bg-white px-6 py-3 font-medium text-gray-700 transition-all hover:border-gray-300 hover:bg-gray-50 disabled:opacity-50"
         disabled={isLoading}
-        className="w-full px-6 py-3 bg-white border-2 border-gray-200 rounded-xl text-gray-700 font-medium hover:bg-gray-50 hover:border-gray-300 transition-all flex items-center justify-center gap-3 mb-6 disabled:opacity-50"
+        onClick={handleGoogleLogin}
       >
         <svg
-          width="20"
+          fill="none"
           height="20"
           viewBox="0 0 20 20"
-          fill="none"
+          width="20"
           xmlns="http://www.w3.org/2000/svg"
         >
           <path
@@ -105,47 +105,47 @@ function LoginForm() {
       </button>
 
       {/* Divider */}
-      <div className="flex items-center gap-4 mb-6">
-        <div className="flex-1 h-px bg-gray-200" />
-        <span className="text-sm text-gray-500 uppercase tracking-wide">
+      <div className="mb-6 flex items-center gap-4">
+        <div className="h-px flex-1 bg-gray-200" />
+        <span className="text-gray-500 text-sm uppercase tracking-wide">
           Or sign in with email
         </span>
-        <div className="flex-1 h-px bg-gray-200" />
+        <div className="h-px flex-1 bg-gray-200" />
       </div>
 
       {/* Email/Password Form */}
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form className="space-y-4" onSubmit={handleSubmit}>
         {/* Email Input */}
         <div className="relative">
-          <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <Mail className="absolute top-1/2 left-4 h-5 w-5 -translate-y-1/2 text-gray-400" />
           <input
-            type="email"
-            value={email}
+            className="w-full rounded-xl border-2 border-gray-200 bg-gray-50 py-3 pr-4 pl-12 text-gray-900 outline-none transition-all placeholder:text-gray-500 focus:border-violet-400 focus:bg-white"
             onChange={(e) => setEmail(e.target.value)}
             placeholder="Email address"
             required
-            className="w-full pl-12 pr-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl text-gray-900 placeholder:text-gray-500 focus:bg-white focus:border-violet-400 outline-none transition-all"
+            type="email"
+            value={email}
           />
         </div>
 
         {/* Password Input */}
         <div className="relative">
-          <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <Lock className="absolute top-1/2 left-4 h-5 w-5 -translate-y-1/2 text-gray-400" />
           <input
-            type="password"
-            value={password}
+            className="w-full rounded-xl border-2 border-gray-200 bg-gray-50 py-3 pr-4 pl-12 text-gray-900 outline-none transition-all placeholder:text-gray-500 focus:border-violet-400 focus:bg-white"
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Password"
             required
-            className="w-full pl-12 pr-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl text-gray-900 placeholder:text-gray-500 focus:bg-white focus:border-violet-400 outline-none transition-all"
+            type="password"
+            value={password}
           />
         </div>
 
         {/* Sign In Button */}
         <button
-          type="submit"
+          className="w-full rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-6 py-3 font-medium text-white shadow-lg transition-all hover:from-violet-600 hover:to-fuchsia-600 hover:shadow-xl disabled:opacity-50"
           disabled={isLoading}
-          className="w-full px-6 py-3 bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white rounded-xl font-medium hover:from-violet-600 hover:to-fuchsia-600 transition-all shadow-lg hover:shadow-xl disabled:opacity-50"
+          type="submit"
         >
           {isLoading ? "Signing in..." : "Sign In"}
         </button>
@@ -153,11 +153,11 @@ function LoginForm() {
 
       {/* Sign Up Link */}
       <div className="mt-6 text-center">
-        <p className="text-sm text-gray-500">
+        <p className="text-gray-500 text-sm">
           Don&apos;t have an account?{" "}
           <Link
+            className="font-medium text-violet-600 hover:text-violet-700"
             href="/signup"
-            className="text-violet-600 hover:text-violet-700 font-medium"
           >
             Sign up
           </Link>
@@ -169,16 +169,16 @@ function LoginForm() {
 
 function LoginFormFallback() {
   return (
-    <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl p-8 animate-scale-in">
-      <div className="flex justify-center mb-6">
-        <div className="w-16 h-16 bg-gradient-to-br from-violet-500 to-fuchsia-500 rounded-2xl flex items-center justify-center shadow-lg">
-          <BookOpen className="w-8 h-8 text-white" />
+    <div className="relative w-full max-w-md animate-scale-in rounded-3xl bg-white p-8 shadow-2xl">
+      <div className="mb-6 flex justify-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-500 shadow-lg">
+          <BookOpen className="h-8 w-8 text-white" />
         </div>
       </div>
-      <h1 className="text-2xl font-semibold text-center text-gray-900 mb-2">
+      <h1 className="mb-2 text-center font-semibold text-2xl text-gray-900">
         Welcome Back
       </h1>
-      <p className="text-center text-gray-500 mb-6">Loading...</p>
+      <p className="mb-6 text-center text-gray-500">Loading...</p>
     </div>
   );
 }

@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
-import { useTTS } from "./useTTS";
 import type { Driver, DriveStep } from "driver.js";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
+import { useTTS } from "./useTTS";
 
 interface UseTourOptions {
   onExpandSidebar?: () => void;
@@ -143,7 +143,9 @@ export function useTour(options?: UseTourOptions) {
    */
   useEffect(() => {
     // Client-only: Only initialize driver.js in browser
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined") {
+      return;
+    }
 
     // Dynamic import to avoid SSR issues
     import("driver.js").then((mod) => {
@@ -183,20 +185,21 @@ export function useTour(options?: UseTourOptions) {
         driver.destroy();
       }
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [driver, getTourSteps, handleTourComplete, speak]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /**
    * Start the tour if all elements are present
    */
   const startTour = useCallback(() => {
-    if (!driver || !isReady) {
+    if (!(driver && isReady)) {
       console.error("Tour not ready yet");
       return;
     }
 
     // Expand sidebar if collapsed
     const sidebarElement = document.querySelector(".tour-lesson-sidebar");
-    const isCollapsed = sidebarElement && !sidebarElement.classList.contains("w-80");
+    const isCollapsed =
+      sidebarElement && !sidebarElement.classList.contains("w-80");
 
     if (isCollapsed && onExpandSidebar) {
       onExpandSidebar();

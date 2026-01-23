@@ -9,14 +9,17 @@ async function seedCourse() {
   const courseId = "BSCCS1001";
 
   // Create the course using raw SQL with ON CONFLICT
-  await pool.query(`
+  await pool.query(
+    `
     INSERT INTO "Course" (id, title, description, "isPublished", "createdAt", "updatedAt")
     VALUES ($1, $2, NULL, true, NOW(), NOW())
     ON CONFLICT (id) DO UPDATE SET
       title = EXCLUDED.title,
       "isPublished" = EXCLUDED."isPublished",
       "updatedAt" = NOW()
-  `, [courseId, "Computational Thinking"]);
+  `,
+    [courseId, "Computational Thinking"]
+  );
   console.log("Created course:", courseId);
 
   // Create modules
@@ -24,11 +27,16 @@ async function seedCourse() {
     { id: "BSCCS1001-M0", title: "Introduction", orderIndex: 0 },
     { id: "BSCCS1001-M1", title: "Understanding Datasets", orderIndex: 1 },
     { id: "BSCCS1001-M2", title: "Iteration and Filtering", orderIndex: 2 },
-    { id: "BSCCS1001-M3", title: "Flowcharts and Algorithm Representation", orderIndex: 3 },
+    {
+      id: "BSCCS1001-M3",
+      title: "Flowcharts and Algorithm Representation",
+      orderIndex: 3,
+    },
   ];
 
   for (const mod of modules) {
-    await pool.query(`
+    await pool.query(
+      `
       INSERT INTO "Module" (id, "courseId", title, "orderIndex", "isPublished", "createdAt", "updatedAt")
       VALUES ($1, $2, $3, $4, true, NOW(), NOW())
       ON CONFLICT (id) DO UPDATE SET
@@ -36,7 +44,9 @@ async function seedCourse() {
         "orderIndex" = EXCLUDED."orderIndex",
         "isPublished" = EXCLUDED."isPublished",
         "updatedAt" = NOW()
-    `, [mod.id, courseId, mod.title, mod.orderIndex]);
+    `,
+      [mod.id, courseId, mod.title, mod.orderIndex]
+    );
     console.log("Created module:", mod.title);
   }
 
@@ -113,7 +123,8 @@ async function seedCourse() {
 
   // Insert all lessons
   for (const lesson of lessons) {
-    await pool.query(`
+    await pool.query(
+      `
       INSERT INTO "Lesson" (id, "moduleId", "courseId", title, type, "orderIndex", "isPublished", duration, "createdAt", "updatedAt")
       VALUES ($1, $2, $3, $4, $5, $6, true, 0, NOW(), NOW())
       ON CONFLICT (id) DO UPDATE SET
@@ -123,7 +134,16 @@ async function seedCourse() {
         "orderIndex" = EXCLUDED."orderIndex",
         "isPublished" = EXCLUDED."isPublished",
         "updatedAt" = NOW()
-    `, [lesson.id, lesson.moduleId, courseId, lesson.title, lesson.type, lesson.orderIndex]);
+    `,
+      [
+        lesson.id,
+        lesson.moduleId,
+        courseId,
+        lesson.title,
+        lesson.type,
+        lesson.orderIndex,
+      ]
+    );
     console.log("  Created lesson:", lesson.title);
   }
 
@@ -133,7 +153,9 @@ async function seedCourse() {
   console.log("- Module 0: Introduction (1 lesson)");
   console.log("- Module 1: Understanding Datasets (1 lesson)");
   console.log("- Module 2: Iteration and Filtering (4 lessons)");
-  console.log("- Module 3: Flowcharts and Algorithm Representation (3 lessons)");
+  console.log(
+    "- Module 3: Flowcharts and Algorithm Representation (3 lessons)"
+  );
 }
 
 seedCourse()

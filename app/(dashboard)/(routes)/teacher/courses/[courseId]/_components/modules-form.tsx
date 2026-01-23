@@ -1,14 +1,15 @@
 "use client";
 
-import * as z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import type { Course, Module } from "@prisma/client";
 import { Loader2, PlusCircle } from "lucide-react";
-import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { Module, Course } from "@prisma/client";
-
+import * as z from "zod";
+import { createModule, reorderModules } from "@/actions/module";
+import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
@@ -16,10 +17,8 @@ import {
   FormItem,
   FormMessage,
 } from "@/components/ui/form";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { createModule, reorderModules } from "@/actions/module";
 import { ModulesList } from "./modules-list";
 
 interface ModulesFormProps {
@@ -35,7 +34,7 @@ const formSchema = z.object({
 export const ModulesForm = ({
   initialData,
   courseId,
-  courseUrlParam
+  courseUrlParam,
 }: ModulesFormProps) => {
   const [isCreating, setIsCreating] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -63,9 +62,11 @@ export const ModulesForm = ({
     } catch {
       toast.error("Something went wrong");
     }
-  }
+  };
 
-  const onReorder = async (updateData: { id: string; orderIndex: number }[]) => {
+  const onReorder = async (
+    updateData: { id: string; orderIndex: number }[]
+  ) => {
     try {
       setIsUpdating(true);
       await reorderModules(courseId, updateData);
@@ -76,29 +77,29 @@ export const ModulesForm = ({
     } finally {
       setIsUpdating(false);
     }
-  }
+  };
 
   const onEdit = (idOrSlug: string) => {
     // Navigate to Module Edit Page
     const cParam = courseUrlParam || courseId;
     router.push(`/teacher/courses/${cParam}/modules/${idOrSlug}`);
-  }
+  };
 
   return (
-    <div className="mt-6 border bg-slate-100 rounded-md p-4 relative">
+    <div className="relative mt-6 rounded-md border bg-slate-100 p-4">
       {isUpdating && (
-        <div className="absolute h-full w-full bg-slate-500/20 top-0 right-0 rounded-m flex items-center justify-center z-10">
-          <Loader2 className="animate-spin h-6 w-6 text-sky-700" />
+        <div className="absolute top-0 right-0 z-10 flex h-full w-full items-center justify-center rounded-m bg-slate-500/20">
+          <Loader2 className="h-6 w-6 animate-spin text-sky-700" />
         </div>
       )}
-      <div className="font-medium flex items-center justify-between">
+      <div className="flex items-center justify-between font-medium">
         Course modules
         <Button onClick={toggleCreating} variant="ghost">
           {isCreating ? (
             <>Cancel</>
           ) : (
             <>
-              <PlusCircle className="h-4 w-4 mr-2" />
+              <PlusCircle className="mr-2 h-4 w-4" />
               Add a module
             </>
           )}
@@ -107,8 +108,8 @@ export const ModulesForm = ({
       {isCreating && (
         <Form {...form}>
           <form
+            className="mt-4 space-y-4"
             onSubmit={form.handleSubmit(onSubmit)}
-            className="space-y-4 mt-4"
           >
             <FormField
               control={form.control}
@@ -126,33 +127,32 @@ export const ModulesForm = ({
                 </FormItem>
               )}
             />
-            <Button
-              disabled={!isValid || isSubmitting}
-              type="submit"
-            >
+            <Button disabled={!isValid || isSubmitting} type="submit">
               Create
             </Button>
           </form>
         </Form>
       )}
       {!isCreating && (
-        <div className={cn(
-          "text-sm mt-2",
-          !initialData.modules.length && "text-slate-500 italic"
-        )}>
+        <div
+          className={cn(
+            "mt-2 text-sm",
+            !initialData.modules.length && "text-slate-500 italic"
+          )}
+        >
           {!initialData.modules.length && "No modules"}
           <ModulesList
+            items={initialData.modules || []}
             onEdit={onEdit}
             onReorder={onReorder}
-            items={initialData.modules || []}
           />
         </div>
       )}
       {!isCreating && (
-        <p className="text-xs text-muted-foreground mt-4">
+        <p className="mt-4 text-muted-foreground text-xs">
           Drag and drop to reorder the modules
         </p>
       )}
     </div>
-  )
-}
+  );
+};

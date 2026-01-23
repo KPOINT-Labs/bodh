@@ -36,7 +36,9 @@ async function main() {
         currentCourse = row.course_title;
         console.log(`\n[${row.course_id}] ${row.course_title}`);
       }
-      console.log(`  ${row.orderIndex}. ${row.module_title} (${row.lesson_count} lessons)`);
+      console.log(
+        `  ${row.orderIndex}. ${row.module_title} (${row.lesson_count} lessons)`
+      );
       console.log(`     ID: ${row.id}`);
     }
 
@@ -66,7 +68,7 @@ async function main() {
   }
 
   const module = moduleResult.rows[0];
-  console.log(`\n=== MODULE DETAILS ===`);
+  console.log("\n=== MODULE DETAILS ===");
   console.log(`Course: ${module.course_title} (${module.course_id})`);
   console.log(`Module: ${module.title}`);
   console.log(`ID: ${module.id}`);
@@ -95,7 +97,9 @@ async function main() {
     for (const l of lessonsResult.rows) {
       const hasVideo = l.kpointVideoId ? "✓" : "✗";
       const published = l.isPublished ? "" : " [UNPUBLISHED]";
-      console.log(`  ${l.orderIndex}. ${l.title} [video: ${hasVideo}]${published}`);
+      console.log(
+        `  ${l.orderIndex}. ${l.title} [video: ${hasVideo}]${published}`
+      );
       console.log(`     ID: ${l.id}`);
     }
   }

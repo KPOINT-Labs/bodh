@@ -1,10 +1,13 @@
 "use client";
 
-import { ReactNode, useMemo } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
+import { type ReactNode, useMemo } from "react";
 import { PeerLearningPanel } from "@/components/learning/PeerLearningPanel";
-import { LearningPanelProvider, useLearningPanel } from "@/contexts/LearningPanelContext";
 import { CourseProgressProvider } from "@/contexts/CourseProgressContext";
+import {
+  LearningPanelProvider,
+  useLearningPanel,
+} from "@/contexts/LearningPanelContext";
 
 function LearningLayoutContent({ children }: { children: ReactNode }) {
   const { isCollapsed, toggleCollapse } = useLearningPanel();
@@ -24,21 +27,19 @@ function LearningLayoutContent({ children }: { children: ReactNode }) {
     <div className="flex h-screen overflow-hidden">
       {/* Left Panel - Course Navigation */}
       <div
-        className={`tour-lesson-sidebar shrink-0 border-r border-gray-200 bg-white hidden lg:block overflow-hidden transition-all duration-300 ${
+        className={`tour-lesson-sidebar hidden shrink-0 overflow-hidden border-gray-200 border-r bg-white transition-all duration-300 lg:block ${
           isCollapsed ? "w-16" : "w-80"
         }`}
       >
         <PeerLearningPanel
+          activeLessonId={activeLessonId}
+          activeModuleId={activeModuleId}
           isCollapsed={isCollapsed}
           onToggleCollapse={toggleCollapse}
-          activeModuleId={activeModuleId}
-          activeLessonId={activeLessonId}
         />
       </div>
       {/* Main Content */}
-      <div className="flex flex-1 flex-col overflow-hidden">
-        {children}
-      </div>
+      <div className="flex flex-1 flex-col overflow-hidden">{children}</div>
     </div>
   );
 }

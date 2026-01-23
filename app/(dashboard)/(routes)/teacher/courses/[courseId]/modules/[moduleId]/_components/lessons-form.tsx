@@ -1,14 +1,15 @@
 "use client";
 
-import * as z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import type { Lesson, Module } from "@prisma/client";
 import { Loader2, PlusCircle } from "lucide-react";
-import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { Lesson, Module } from "@prisma/client";
-
+import * as z from "zod";
+import { createLesson, deleteLesson, reorderLessons } from "@/actions/lesson";
+import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
@@ -16,10 +17,8 @@ import {
   FormItem,
   FormMessage,
 } from "@/components/ui/form";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { createLesson, reorderLessons, deleteLesson } from "@/actions/lesson";
 import { LessonsList } from "./lessons-list";
 
 interface LessonsFormProps {
@@ -39,7 +38,7 @@ export const LessonsForm = ({
   moduleId,
   courseId,
   courseUrlParam,
-  moduleUrlParam
+  moduleUrlParam,
 }: LessonsFormProps) => {
   const [isCreating, setIsCreating] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -67,9 +66,11 @@ export const LessonsForm = ({
     } catch {
       toast.error("Something went wrong");
     }
-  }
+  };
 
-  const onReorder = async (updateData: { id: string; orderIndex: number }[]) => {
+  const onReorder = async (
+    updateData: { id: string; orderIndex: number }[]
+  ) => {
     try {
       setIsUpdating(true);
       await reorderLessons(moduleId, updateData);
@@ -80,14 +81,16 @@ export const LessonsForm = ({
     } finally {
       setIsUpdating(false);
     }
-  }
+  };
 
   const onEdit = (idOrSlug: string) => {
     // Use params if available, otherwise fallback to IDs
     const cParam = courseUrlParam || courseId;
     const mParam = moduleUrlParam || moduleId;
-    router.push(`/teacher/courses/${cParam}/modules/${mParam}/lessons/${idOrSlug}`);
-  }
+    router.push(
+      `/teacher/courses/${cParam}/modules/${mParam}/lessons/${idOrSlug}`
+    );
+  };
 
   const onDelete = async (id: string) => {
     try {
@@ -100,23 +103,23 @@ export const LessonsForm = ({
     } finally {
       setIsUpdating(false);
     }
-  }
+  };
 
   return (
-    <div className="mt-6 border bg-slate-100 rounded-md p-4 relative">
+    <div className="relative mt-6 rounded-md border bg-slate-100 p-4">
       {isUpdating && (
-        <div className="absolute h-full w-full bg-slate-500/20 top-0 right-0 rounded-m flex items-center justify-center z-10">
-          <Loader2 className="animate-spin h-6 w-6 text-sky-700" />
+        <div className="absolute top-0 right-0 z-10 flex h-full w-full items-center justify-center rounded-m bg-slate-500/20">
+          <Loader2 className="h-6 w-6 animate-spin text-sky-700" />
         </div>
       )}
-      <div className="font-medium flex items-center justify-between">
+      <div className="flex items-center justify-between font-medium">
         Module lessons
         <Button onClick={toggleCreating} variant="ghost">
           {isCreating ? (
             <>Cancel</>
           ) : (
             <>
-              <PlusCircle className="h-4 w-4 mr-2" />
+              <PlusCircle className="mr-2 h-4 w-4" />
               Add a lesson
             </>
           )}
@@ -125,8 +128,8 @@ export const LessonsForm = ({
       {isCreating && (
         <Form {...form}>
           <form
+            className="mt-4 space-y-4"
             onSubmit={form.handleSubmit(onSubmit)}
-            className="space-y-4 mt-4"
           >
             <FormField
               control={form.control}
@@ -144,34 +147,33 @@ export const LessonsForm = ({
                 </FormItem>
               )}
             />
-            <Button
-              disabled={!isValid || isSubmitting}
-              type="submit"
-            >
+            <Button disabled={!isValid || isSubmitting} type="submit">
               Create
             </Button>
           </form>
         </Form>
       )}
       {!isCreating && (
-        <div className={cn(
-          "text-sm mt-2",
-          !initialData.lessons.length && "text-slate-500 italic"
-        )}>
+        <div
+          className={cn(
+            "mt-2 text-sm",
+            !initialData.lessons.length && "text-slate-500 italic"
+          )}
+        >
           {!initialData.lessons.length && "No lessons"}
           <LessonsList
+            items={initialData.lessons || []}
+            onDelete={onDelete}
             onEdit={onEdit}
             onReorder={onReorder}
-            onDelete={onDelete}
-            items={initialData.lessons || []}
           />
         </div>
       )}
       {!isCreating && (
-        <p className="text-xs text-muted-foreground mt-4">
+        <p className="mt-4 text-muted-foreground text-xs">
           Drag and drop to reorder the lessons
         </p>
       )}
     </div>
-  )
-}
+  );
+};

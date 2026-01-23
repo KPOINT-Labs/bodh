@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 interface RouteParams {
@@ -95,7 +95,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         id: nextModule.id,
         title: nextModule.title,
         orderIndex: nextModule.orderIndex,
-        firstLesson: firstLesson,
+        firstLesson,
       },
     });
   } catch (error) {

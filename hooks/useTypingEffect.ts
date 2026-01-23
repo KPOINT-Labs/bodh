@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 interface UseTypingEffectOptions {
   /** Speed in milliseconds per character */
@@ -47,7 +47,9 @@ export function useTypingEffect(
   }, []);
 
   useEffect(() => {
-    if (!isTyping || !fullText) return;
+    if (!(isTyping && fullText)) {
+      return;
+    }
 
     let currentIndex = 0;
 

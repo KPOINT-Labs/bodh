@@ -1,9 +1,9 @@
+import bcrypt from "bcryptjs";
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
-import bcrypt from "bcryptjs";
-import { prisma } from "@/lib/prisma";
 import { autoEnrollNewUser } from "@/actions/enrollment";
+import { prisma } from "@/lib/prisma";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
@@ -18,7 +18,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
+        if (!(credentials?.email && credentials?.password)) {
           return null;
         }
 
@@ -34,7 +34,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         }
 
         if (!user.passwordHash) {
-          throw new Error("This account uses Google sign-in. Please continue with Google.");
+          throw new Error(
+            "This account uses Google sign-in. Please continue with Google."
+          );
         }
 
         const passwordMatch = await bcrypt.compare(password, user.passwordHash);
@@ -88,7 +90,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
           // Check if user has any enrollments (indicates existing user)
           const enrollmentCount = await prisma.enrollment.count({
-            where: { userId: dbUser.id }
+            where: { userId: dbUser.id },
           });
 
           // Auto-enroll only if new user (no enrollments)

@@ -12,20 +12,28 @@
  * DO NOT USE THIS ENDPOINT - use LiveKit sendTextToAgent instead.
  */
 
-import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { parseAssessmentContent, isAssessmentContent } from "@/lib/chat/assessment";
+import { type NextRequest, NextResponse } from "next/server";
+import {
+  isAssessmentContent,
+  parseAssessmentContent,
+} from "@/lib/chat/assessment";
+import { prisma } from "@/lib/prisma";
 
-const SARVAM_PROMPT_API_URL = "https://swayam.arya.sarvam.ai/api/chat/prompt/prompt";
+const SARVAM_PROMPT_API_URL =
+  "https://swayam.arya.sarvam.ai/api/chat/prompt/prompt";
 const SARVAM_SESSION_API_URL = "https://swayam.arya.sarvam.ai/api/chat/session";
 
 // TODO: Move to environment variable
-const SARVAM_AUTH_COOKIE = `arya-auth-internal.session_token=HGdkdTwRlmMlRVYrPmh8cRXvDVsHjYlF.A8xpYB9jcQOZ2Gr39dWHEqyR%2Bd3TngkjSjbEOLZFbVA%3D; arya-auth=eyJhbGciOiJFZERTQSIsImtpZCI6IndvbDZIVmFNczFvc1BrczlGR3J2d0c3WWdja1pwYlk3In0.eyJpYXQiOjE3NjY0ODYxMDIsInVpZCI6IjlsbWU0c29pampnUVFnbEJ0NkpIeTBYNmFKbjlUQUtGIiwic3ViIjoiOWxtZTRzb2lqamdRUWdsQnQ2Skh5MFg2YUpuOVRBS0YiLCJ1c2VyX2lkIjoiOWxtZTRzb2lqamdRUWdsQnQ2Skh5MFg2YUpuOVRBS0YiLCJvcmdfaWQiOm51bGwsImV4cCI6MTc2NjQ4NzAwMiwiaXNzIjoiIiwiYXVkIjoiIn0.OynAGSo6bI5GMbrv5Rj9QhcOE94vCbRzPZf_CoQ2zKZRdN_768pj041JFcEJFi8AMjMPmt9hZ2YcOfl0qrmvDA`;
+const SARVAM_AUTH_COOKIE =
+  "arya-auth-internal.session_token=HGdkdTwRlmMlRVYrPmh8cRXvDVsHjYlF.A8xpYB9jcQOZ2Gr39dWHEqyR%2Bd3TngkjSjbEOLZFbVA%3D; arya-auth=eyJhbGciOiJFZERTQSIsImtpZCI6IndvbDZIVmFNczFvc1BrczlGR3J2d0c3WWdja1pwYlk3In0.eyJpYXQiOjE3NjY0ODYxMDIsInVpZCI6IjlsbWU0c29pampnUVFnbEJ0NkpIeTBYNmFKbjlUQUtGIiwic3ViIjoiOWxtZTRzb2lqamdRUWdsQnQ2Skh5MFg2YUpuOVRBS0YiLCJ1c2VyX2lkIjoiOWxtZTRzb2lqamdRUWdsQnQ2Skh5MFg2YUpuOVRBS0YiLCJvcmdfaWQiOm51bGwsImV4cCI6MTc2NjQ4NzAwMiwiaXNzIjoiIiwiYXVkIjoiIn0.OynAGSo6bI5GMbrv5Rj9QhcOE94vCbRzPZf_CoQ2zKZRdN_768pj041JFcEJFi8AMjMPmt9hZ2YcOfl0qrmvDA";
 
 // In-memory cache for sessions to avoid repeated DB queries
 // Key format: `${conversationId}:${taskGraphType}`
-const sessionCache = new Map<string, { sessionId: string; taskGraphId: string }>();
+const sessionCache = new Map<
+  string,
+  { sessionId: string; taskGraphId: string }
+>();
 
 // Cache for task graphs by courseId:type
 const taskGraphCache = new Map<string, { id: string; graphId: string }>();
@@ -53,9 +61,9 @@ interface SarvamStep {
 
 // Sarvam step types
 const SARVAM_STEP_TYPE = {
-  TOOL_RESULT: 15,    // Tool execution result (raw JSON)
-  TOOL_CALL: 17,      // Tool invocation (has name, arg)
-  ASSISTANT: 20,      // Assistant's response (has content)
+  TOOL_RESULT: 15, // Tool execution result (raw JSON)
+  TOOL_CALL: 17, // Tool invocation (has name, arg)
+  ASSISTANT: 20, // Assistant's response (has content)
 } as const;
 
 interface SarvamPromptResponse {
@@ -112,11 +120,23 @@ async function classifyMessageType(message: string): Promise<"QnA" | "FA"> {
 
   // === FAST PATH: Obvious FA patterns (no LLM needed) ===
   const obviousFaPatterns = [
-    "quiz me", "test me", "assess me", "question me", "challenge me",
-    "ask me question", "ask me a question", "give me a quiz",
-    "check my understanding", "check my knowledge", "test my knowledge",
-    "mcq", "multiple choice", "true or false", "pop quiz",
-    "drill me", "grill me"
+    "quiz me",
+    "test me",
+    "assess me",
+    "question me",
+    "challenge me",
+    "ask me question",
+    "ask me a question",
+    "give me a quiz",
+    "check my understanding",
+    "check my knowledge",
+    "test my knowledge",
+    "mcq",
+    "multiple choice",
+    "true or false",
+    "pop quiz",
+    "drill me",
+    "grill me",
   ];
 
   for (const pattern of obviousFaPatterns) {
@@ -128,10 +148,24 @@ async function classifyMessageType(message: string): Promise<"QnA" | "FA"> {
 
   // === FAST PATH: Obvious QnA patterns (no LLM needed) ===
   const obviousQnaPatterns = [
-    "what is", "what's", "what are", "explain", "how does", "how do",
-    "tell me about", "describe", "why is", "why does", "why do",
-    "can you explain", "help me understand", "i don't understand",
-    "what does", "define", "definition", "meaning of"
+    "what is",
+    "what's",
+    "what are",
+    "explain",
+    "how does",
+    "how do",
+    "tell me about",
+    "describe",
+    "why is",
+    "why does",
+    "why do",
+    "can you explain",
+    "help me understand",
+    "i don't understand",
+    "what does",
+    "define",
+    "definition",
+    "meaning of",
   ];
 
   for (const pattern of obviousQnaPatterns) {
@@ -202,7 +236,7 @@ function extractAssistantContent(response: SarvamPromptResponse): string {
 async function getOrCreateSarvamSession(
   conversationId: string,
   courseId: string,
-  taskGraphType: string = "QnA"
+  taskGraphType = "QnA"
 ) {
   const sessionCacheKey = `${conversationId}:${taskGraphType}`;
   const taskGraphCacheKey = `${courseId}:${taskGraphType}`;
@@ -211,14 +245,19 @@ async function getOrCreateSarvamSession(
   const cachedSession = sessionCache.get(sessionCacheKey);
   if (cachedSession) {
     console.log("Session cache HIT:", sessionCacheKey);
-    return { sessionId: cachedSession.sessionId, taskGraphId: cachedSession.taskGraphId };
+    return {
+      sessionId: cachedSession.sessionId,
+      taskGraphId: cachedSession.taskGraphId,
+    };
   }
 
   console.log("Session cache MISS:", sessionCacheKey);
 
   // Get task graph - check cache first
   let taskGraph = taskGraphCache.get(taskGraphCacheKey);
-  if (!taskGraph) {
+  if (taskGraph) {
+    console.log("TaskGraph cache HIT:", taskGraphCacheKey);
+  } else {
     console.log("TaskGraph cache MISS:", taskGraphCacheKey);
     const dbTaskGraph = await prisma.taskGraph.findFirst({
       where: {
@@ -234,8 +273,6 @@ async function getOrCreateSarvamSession(
 
     taskGraph = { id: dbTaskGraph.id, graphId: dbTaskGraph.graphId };
     taskGraphCache.set(taskGraphCacheKey, taskGraph);
-  } else {
-    console.log("TaskGraph cache HIT:", taskGraphCacheKey);
   }
 
   // Check if a session already exists in DB
@@ -321,7 +358,7 @@ export async function POST(request: NextRequest) {
       taskGraphType: providedType,
       videoIds = [],
       startTimestamp = 0,
-      isAnswer: isAnswerFlag = false
+      isAnswer: isAnswerFlag = false,
     } = body;
 
     console.log("=== CHAT API REQUEST ===");
@@ -332,7 +369,7 @@ export async function POST(request: NextRequest) {
     console.log("Video IDs:", videoIds);
     console.log("Start Timestamp:", startTimestamp);
 
-    if (!message || !conversationId || !courseId) {
+    if (!(message && conversationId && courseId)) {
       return NextResponse.json(
         { error: "message, conversationId, and courseId are required" },
         { status: 400 }
@@ -340,7 +377,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Classify message type if not provided
-    const taskGraphType = providedType || await classifyMessageType(message);
+    const taskGraphType = providedType || (await classifyMessageType(message));
     console.log("Classified Task Graph Type:", taskGraphType);
 
     // Store user message first
@@ -424,7 +461,8 @@ export async function POST(request: NextRequest) {
         data: {
           conversationId,
           role: "assistant",
-          content: "I'm sorry, I couldn't process your request. Please try again.",
+          content:
+            "I'm sorry, I couldn't process your request. Please try again.",
           messageType: taskGraphType.toLowerCase(),
         },
       });
@@ -446,7 +484,10 @@ export async function POST(request: NextRequest) {
 
     // Extract the assistant's response from the last step
     const assistantContent = extractAssistantContent(responseData);
-    console.log("Extracted Content (first 200 chars):", assistantContent.substring(0, 200));
+    console.log(
+      "Extracted Content (first 200 chars):",
+      assistantContent.substring(0, 200)
+    );
     console.log("=== END PROMPT API (SUCCESS) ===");
 
     // Store assistant message
@@ -476,9 +517,9 @@ export async function POST(request: NextRequest) {
           where: { id: conversationId },
           include: {
             thread: {
-              select: { userId: true }
-            }
-          }
+              select: { userId: true },
+            },
+          },
         });
 
         if (conversation?.thread?.userId) {
@@ -489,30 +530,33 @@ export async function POST(request: NextRequest) {
               role: "assistant",
               messageType: "fa",
               createdAt: {
-                lt: userMessage.createdAt
-              }
+                lt: userMessage.createdAt,
+              },
             },
             orderBy: {
-              createdAt: "desc"
-            }
+              createdAt: "desc",
+            },
           });
 
           // Check if the assistant message contains FA questions
-          if (recentFAQuestion && isAssessmentContent(recentFAQuestion.content)) {
+          if (
+            recentFAQuestion &&
+            isAssessmentContent(recentFAQuestion.content)
+          ) {
             const parsed = parseAssessmentContent(recentFAQuestion.content);
-            
+
             // If there are questions and user provided a short answer (likely answering a question)
             if (parsed.questions.length > 0 && message.trim().length <= 500) {
               // Get the most recent question (usually the last one asked)
-              const lastQuestion = parsed.questions[parsed.questions.length - 1];
-              
+              const lastQuestion = parsed.questions.at(-1);
+
               // Create or update FAAttempt record
               await prisma.fAAttempt.upsert({
                 where: {
                   userId_messageId: {
                     userId: conversation.thread.userId,
-                    messageId: recentFAQuestion.id
-                  }
+                    messageId: recentFAQuestion.id,
+                  },
                 },
                 create: {
                   userId: conversation.thread.userId,
@@ -527,11 +571,14 @@ export async function POST(request: NextRequest) {
                   answer: message,
                   isAttempted: true,
                   questionType: lastQuestion.answerType,
-                  updatedAt: new Date()
-                }
+                  updatedAt: new Date(),
+                },
               });
 
-              console.log("FAAttempt created for question:", lastQuestion.questionText);
+              console.log(
+                "FAAttempt created for question:",
+                lastQuestion.questionText
+              );
             }
           }
         }

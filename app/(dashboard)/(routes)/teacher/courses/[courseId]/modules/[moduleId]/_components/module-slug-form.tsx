@@ -1,13 +1,14 @@
 "use client";
 
-import * as z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
 import { Pencil } from "lucide-react";
-import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-
+import * as z from "zod";
+import { updateModule } from "@/actions/module";
+import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
@@ -16,8 +17,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { updateModule } from "@/actions/module";
 
 interface ModuleSlugFormProps {
   initialData: {
@@ -28,17 +27,20 @@ interface ModuleSlugFormProps {
 }
 
 const formSchema = z.object({
-  slug: z.string().min(1, {
-    message: "Slug is required",
-  }).regex(/^[a-z0-9-]+$/, {
-    message: "Slug must only contain lowercase letters, numbers, and hyphens",
-  }),
+  slug: z
+    .string()
+    .min(1, {
+      message: "Slug is required",
+    })
+    .regex(/^[a-z0-9-]+$/, {
+      message: "Slug must only contain lowercase letters, numbers, and hyphens",
+    }),
 });
 
 export const ModuleSlugForm = ({
   initialData,
   courseId,
-  moduleId
+  moduleId,
 }: ModuleSlugFormProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const router = useRouter();
@@ -63,33 +65,33 @@ export const ModuleSlugForm = ({
     } catch {
       toast.error("Something went wrong");
     }
-  }
+  };
 
   return (
-    <div className="mt-6 border bg-slate-100 rounded-md p-4">
-      <div className="font-medium flex items-center justify-between">
+    <div className="mt-6 rounded-md border bg-slate-100 p-4">
+      <div className="flex items-center justify-between font-medium">
         Module URL Slug
         <Button onClick={toggleEdit} variant="ghost">
           {isEditing ? (
             <>Cancel</>
           ) : (
             <>
-              <Pencil className="h-4 w-4 mr-2" />
+              <Pencil className="mr-2 h-4 w-4" />
               Edit slug
             </>
           )}
         </Button>
       </div>
       {!isEditing && (
-        <p className="text-sm mt-2 font-mono text-slate-600">
+        <p className="mt-2 font-mono text-slate-600 text-sm">
           {initialData.slug || "No slug defined"}
         </p>
       )}
       {isEditing && (
         <Form {...form}>
           <form
+            className="mt-4 space-y-4"
             onSubmit={form.handleSubmit(onSubmit)}
-            className="space-y-4 mt-4"
           >
             <FormField
               control={form.control}
@@ -108,10 +110,7 @@ export const ModuleSlugForm = ({
               )}
             />
             <div className="flex items-center gap-x-2">
-              <Button
-                disabled={!isValid || isSubmitting}
-                type="submit"
-              >
+              <Button disabled={!isValid || isSubmitting} type="submit">
                 Save
               </Button>
             </div>
@@ -119,5 +118,5 @@ export const ModuleSlugForm = ({
         </Form>
       )}
     </div>
-  )
-}
+  );
+};

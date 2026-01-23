@@ -10,16 +10,16 @@ async function verifyEnrollments() {
   // Get users with enrollments
   const usersWithEnrollments = await prisma.user.count({
     where: {
-      enrollments: { some: {} }
-    }
+      enrollments: { some: {} },
+    },
   });
   console.log(`Users with enrollments: ${usersWithEnrollments}`);
 
   // Get users without enrollments
   const usersWithoutEnrollments = await prisma.user.count({
     where: {
-      enrollments: { none: {} }
-    }
+      enrollments: { none: {} },
+    },
   });
   console.log(`Users without enrollments: ${usersWithoutEnrollments}`);
 
@@ -29,14 +29,16 @@ async function verifyEnrollments() {
 
   // Get published course count
   const publishedCourses = await prisma.course.count({
-    where: { isPublished: true }
+    where: { isPublished: true },
   });
   console.log(`Published courses: ${publishedCourses}`);
 
   console.log("\n✅ Verification complete!");
 
   if (usersWithoutEnrollments > 0) {
-    console.log(`\n⚠️  Warning: ${usersWithoutEnrollments} users still have no enrollments`);
+    console.log(
+      `\n⚠️  Warning: ${usersWithoutEnrollments} users still have no enrollments`
+    );
   } else {
     console.log("\n✨ All users have enrollments!");
   }

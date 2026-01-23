@@ -1,4 +1,4 @@
-import { useRef, useCallback, useState, useEffect } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 interface UseAutoScrollOptions {
   /** Scroll behavior: smooth or instant */
@@ -24,8 +24,12 @@ interface UseAutoScrollReturn {
  * Find the closest scrollable ancestor of an element
  * Searches up the DOM tree for an element with overflow: auto/scroll
  */
-function findScrollableAncestor(element: HTMLElement | null): HTMLElement | null {
-  if (!element) return null;
+function findScrollableAncestor(
+  element: HTMLElement | null
+): HTMLElement | null {
+  if (!element) {
+    return null;
+  }
 
   let current: HTMLElement | null = element.parentElement;
   while (current) {
@@ -84,9 +88,12 @@ export function useAutoScroll(
     if (!container) {
       // Try to find scrollable ancestor if not cached yet
       if (scrollRef.current) {
-        scrollableAncestorRef.current = findScrollableAncestor(scrollRef.current);
+        scrollableAncestorRef.current = findScrollableAncestor(
+          scrollRef.current
+        );
         if (scrollableAncestorRef.current) {
-          const { scrollTop, scrollHeight, clientHeight } = scrollableAncestorRef.current;
+          const { scrollTop, scrollHeight, clientHeight } =
+            scrollableAncestorRef.current;
           const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
           return distanceFromBottom <= threshold;
         }
@@ -107,12 +114,16 @@ export function useAutoScroll(
       container = findScrollableAncestor(scrollRef.current);
       scrollableAncestorRef.current = container;
     }
-    if (!container) return;
+    if (!container) {
+      return;
+    }
 
     let lastScrollTop = container.scrollTop;
 
     const handleScroll = () => {
-      if (!container) return;
+      if (!container) {
+        return;
+      }
 
       const currentScrollTop = container.scrollTop;
       const atBottom = checkIfAtBottom();
@@ -154,5 +165,11 @@ export function useAutoScroll(
     userScrolledAwayRef.current = false; // Reset the flag
   }, [behavior]);
 
-  return { scrollRef, containerRef, scrollToBottom, isAtBottom, forceScrollToBottom };
+  return {
+    scrollRef,
+    containerRef,
+    scrollToBottom,
+    isAtBottom,
+    forceScrollToBottom,
+  };
 }

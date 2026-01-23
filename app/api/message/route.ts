@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
+import { type NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { Prisma } from "@prisma/client";
 
 export interface MessageRequest {
   conversationId: string;
@@ -23,8 +23,8 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const conversationId = searchParams.get("conversationId");
-    const limit = parseInt(searchParams.get("limit") || "100");
-    const offset = parseInt(searchParams.get("offset") || "0");
+    const limit = Number.parseInt(searchParams.get("limit") || "100", 10);
+    const offset = Number.parseInt(searchParams.get("offset") || "0", 10);
 
     if (!conversationId) {
       return NextResponse.json(
@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
       references,
     } = body;
 
-    if (!conversationId || !role || !content) {
+    if (!(conversationId && role && content)) {
       return NextResponse.json(
         { error: "conversationId, role, and content are required" },
         { status: 400 }
@@ -121,7 +121,10 @@ export async function POST(request: NextRequest) {
       // 1. It's a welcome conversation
       // 2. No user messages exist yet (this is the initial welcome, not a response to user)
       // 3. Check if an assistant message with similar content already exists
-      if (conversation?.contextType === "welcome" && conversation.messages.length === 0) {
+      if (
+        conversation?.contextType === "welcome" &&
+        conversation.messages.length === 0
+      ) {
         const existingWelcome = await prisma.message.findFirst({
           where: {
             conversationId,
@@ -132,7 +135,9 @@ export async function POST(request: NextRequest) {
 
         if (existingWelcome) {
           // Return existing welcome message instead of creating duplicate
-          console.log("[Message API] Returning existing welcome message, not creating duplicate");
+          console.log(
+            "[Message API] Returning existing welcome message, not creating duplicate"
+          );
           return NextResponse.json({
             success: true,
             message: existingWelcome,

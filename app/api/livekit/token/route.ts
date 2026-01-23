@@ -6,11 +6,15 @@
  * Replicates functionality from prism/app/api/endpoints/adi2.py
  */
 
-import { NextRequest, NextResponse } from "next/server";
-import { AccessToken } from "livekit-server-sdk";
 import type { VideoGrant } from "livekit-server-sdk";
-import { roomService, getLiveKitCredentials } from "@/lib/livekit";
-import type { TokenRequest, TokenResponse, RoomMetadata } from "@/types/livekit";
+import { AccessToken } from "livekit-server-sdk";
+import { type NextRequest, NextResponse } from "next/server";
+import { getLiveKitCredentials, roomService } from "@/lib/livekit";
+import type {
+  RoomMetadata,
+  TokenRequest,
+  TokenResponse,
+} from "@/types/livekit";
 
 export async function POST(request: NextRequest) {
   try {
@@ -68,11 +72,20 @@ export async function POST(request: NextRequest) {
     );
 
     // Log incoming metadata for debugging
-    console.log(`[API_TOKEN] Received body.metadata:`, JSON.stringify(body.metadata, null, 2));
+    console.log(
+      "[API_TOKEN] Received body.metadata:",
+      JSON.stringify(body.metadata, null, 2)
+    );
     if (body.metadata) {
-      console.log(`[API_TOKEN] learning_objectives from metadata: ${body.metadata.learning_objectives}`);
-      console.log(`[API_TOKEN] course_title from metadata: ${body.metadata.course_title}`);
-      console.log(`[API_TOKEN] session_type from metadata: ${body.metadata.session_type}`);
+      console.log(
+        `[API_TOKEN] learning_objectives from metadata: ${body.metadata.learning_objectives}`
+      );
+      console.log(
+        `[API_TOKEN] course_title from metadata: ${body.metadata.course_title}`
+      );
+      console.log(
+        `[API_TOKEN] session_type from metadata: ${body.metadata.session_type}`
+      );
     }
 
     // Prepare room metadata with filtering parameters
@@ -126,7 +139,7 @@ export async function POST(request: NextRequest) {
     } catch (roomError) {
       // Room might already exist - update its metadata instead
       console.warn(
-        `[API_TOKEN] Room creation failed (may already exist):`,
+        "[API_TOKEN] Room creation failed (may already exist):",
         roomError
       );
       console.log(
@@ -143,7 +156,7 @@ export async function POST(request: NextRequest) {
         );
       } catch (updateError) {
         console.error(
-          `[API_TOKEN] Failed to update room metadata:`,
+          "[API_TOKEN] Failed to update room metadata:",
           updateError
         );
         // Continue anyway - room might be newly created by someone else
@@ -178,7 +191,7 @@ export async function POST(request: NextRequest) {
 
     const response: TokenResponse = {
       token: jwt,
-      url: url,
+      url,
       room_name: body.room_name,
       participant_name: body.participant_name,
     };

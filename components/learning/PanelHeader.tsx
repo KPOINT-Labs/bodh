@@ -1,4 +1,4 @@
-import { Plus, PanelLeftClose } from "lucide-react";
+import { PanelLeftClose, Plus } from "lucide-react";
 import Link from "next/link";
 
 interface PanelHeaderProps {
@@ -10,11 +10,11 @@ interface PanelHeaderProps {
  */
 export function PanelHeader({ onToggleCollapse }: PanelHeaderProps) {
   return (
-    <div className="p-4 flex items-center justify-between gap-4">
+    <div className="flex items-center justify-between gap-4 p-4">
       {/* Browse All Courses Button */}
       <Link
+        className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-5 py-2.5 font-medium text-gray-800 text-sm transition-colors hover:bg-gray-50"
         href="/courses"
-        className="flex items-center gap-2 px-5 py-2.5 border border-gray-200 bg-white text-gray-800 hover:bg-gray-50 rounded-xl text-sm font-medium transition-colors"
       >
         <Plus className="h-4 w-4" strokeWidth={2} />
         Browse All Courses
@@ -22,8 +22,8 @@ export function PanelHeader({ onToggleCollapse }: PanelHeaderProps) {
 
       {/* Panel Toggle */}
       <button
+        className="rounded-xl border border-gray-200 p-2.5 transition-colors hover:bg-gray-50"
         onClick={onToggleCollapse}
-        className="p-2.5 border border-gray-200 hover:bg-gray-50 rounded-xl transition-colors"
         title="Collapse panel"
       >
         <PanelLeftClose className="h-5 w-5 text-gray-400" />

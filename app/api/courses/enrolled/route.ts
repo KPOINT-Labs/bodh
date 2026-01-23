@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(request: NextRequest) {
@@ -58,9 +58,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Create a map for quick lookup
-    const progressMap = new Map(
-      lessonProgress.map((p) => [p.lessonId, p])
-    );
+    const progressMap = new Map(lessonProgress.map((p) => [p.lessonId, p]));
 
     // Transform data into the format expected by PeerLearningPanel
     const courses = enrollments.map((enrollment) => {
@@ -70,7 +68,12 @@ export async function GET(request: NextRequest) {
       const modules = course.modules.map((module) => {
         const lessons = module.lessons.map((lesson) => {
           const progress = progressMap.get(lesson.id);
-          let status: "completed" | "seen" | "attempted" | "in_progress" | "not_started" = "not_started";
+          let status:
+            | "completed"
+            | "seen"
+            | "attempted"
+            | "in_progress"
+            | "not_started" = "not_started";
 
           if (progress) {
             // Map database status to UI status
@@ -101,12 +104,18 @@ export async function GET(request: NextRequest) {
         });
 
         // Determine module status based on lesson statuses
-        const completedCount = lessons.filter((l) => l.status === "completed").length;
+        const completedCount = lessons.filter(
+          (l) => l.status === "completed"
+        ).length;
         const inProgressCount = lessons.filter(
-          (l) => l.status === "in_progress" || l.status === "seen" || l.status === "attempted"
+          (l) =>
+            l.status === "in_progress" ||
+            l.status === "seen" ||
+            l.status === "attempted"
         ).length;
 
-        let moduleStatus: "completed" | "in_progress" | "yet_to_start" = "yet_to_start";
+        let moduleStatus: "completed" | "in_progress" | "yet_to_start" =
+          "yet_to_start";
         if (completedCount === lessons.length && lessons.length > 0) {
           moduleStatus = "completed";
         } else if (completedCount > 0 || inProgressCount > 0) {
@@ -125,20 +134,27 @@ export async function GET(request: NextRequest) {
       // Calculate overall course progress
       const totalLessons = modules.reduce((sum, m) => sum + m.lessonCount, 0);
       const completedLessons = modules.reduce(
-        (sum, m) => sum + m.lessons.filter((l) => l.status === "completed").length,
+        (sum, m) =>
+          sum + m.lessons.filter((l) => l.status === "completed").length,
         0
       );
-      const progress = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
+      const progress =
+        totalLessons > 0
+          ? Math.round((completedLessons / totalLessons) * 100)
+          : 0;
 
       // Calculate total duration in minutes (duration is stored in seconds)
       const totalDurationSeconds = course.modules.reduce(
-        (sum, m) => sum + m.lessons.reduce((lessonSum, l) => lessonSum + (l.duration || 0), 0),
+        (sum, m) =>
+          sum +
+          m.lessons.reduce((lessonSum, l) => lessonSum + (l.duration || 0), 0),
         0
       );
       const totalDuration = Math.round(totalDurationSeconds / 60);
 
       // Determine course status based on progress and lesson activity
-      let courseStatus: "completed" | "in_progress" | "yet_to_start" = "yet_to_start";
+      let courseStatus: "completed" | "in_progress" | "yet_to_start" =
+        "yet_to_start";
       if (progress === 100) {
         courseStatus = "completed";
       } else if (progress > 0) {
@@ -147,8 +163,11 @@ export async function GET(request: NextRequest) {
       } else {
         // Check if any lesson has been started (in_progress, seen, or attempted)
         const hasStartedLessons = modules.some((m) =>
-          m.lessons.some((l) =>
-            l.status === "in_progress" || l.status === "seen" || l.status === "attempted"
+          m.lessons.some(
+            (l) =>
+              l.status === "in_progress" ||
+              l.status === "seen" ||
+              l.status === "attempted"
           )
         );
         if (hasStartedLessons) {

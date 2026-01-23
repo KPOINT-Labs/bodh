@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, BookOpen, User } from "lucide-react";
+import { BookOpen, Plus, User } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -16,9 +16,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarSeparator,
 } from "@/components/ui/sidebar";
-import { cn } from "@/lib/utils";
 
 // Mock data for courses
 const courses = [
@@ -45,8 +43,8 @@ export function CourseSidebar() {
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" asChild>
-              <Button variant="outline" className="w-full justify-start gap-2">
+            <SidebarMenuButton asChild size="lg">
+              <Button className="w-full justify-start gap-2" variant="outline">
                 <Plus className="h-4 w-4" />
                 New Course
               </Button>
@@ -67,27 +65,32 @@ export function CourseSidebar() {
                 <SidebarMenuItem key={course.id}>
                   <SidebarMenuButton
                     asChild
+                    className="h-auto flex-col items-start py-3"
                     isActive={course.isActive}
-                    className="flex-col items-start h-auto py-3"
                   >
                     <div className="w-full space-y-2">
-                      <div className="flex items-center gap-2 w-full">
+                      <div className="flex w-full items-center gap-2">
                         <BookOpen className="h-4 w-4 shrink-0" />
-                        <span className="font-medium text-sm truncate">
+                        <span className="truncate font-medium text-sm">
                           {course.title}
                         </span>
                       </div>
 
                       <div className="w-full space-y-1">
-                        <div className="flex items-center gap-2 w-full">
-                          <Progress value={course.progress} className="h-1.5 flex-1" />
-                          <span className="text-xs text-muted-foreground">
+                        <div className="flex w-full items-center gap-2">
+                          <Progress
+                            className="h-1.5 flex-1"
+                            value={course.progress}
+                          />
+                          <span className="text-muted-foreground text-xs">
                             {course.progress}%
                           </span>
                         </div>
 
-                        <p className="text-xs text-muted-foreground">
-                          {course.status ? course.status : `In Progress • ${course.duration}`}
+                        <p className="text-muted-foreground text-xs">
+                          {course.status
+                            ? course.status
+                            : `In Progress • ${course.duration}`}
                         </p>
                       </div>
                     </div>
@@ -102,7 +105,7 @@ export function CourseSidebar() {
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" className="justify-start">
+            <SidebarMenuButton className="justify-start" size="lg">
               <Avatar className="h-6 w-6">
                 <AvatarImage src="" />
                 <AvatarFallback>
@@ -110,8 +113,8 @@ export function CourseSidebar() {
                 </AvatarFallback>
               </Avatar>
               <div className="flex flex-col items-start text-left">
-                <span className="text-sm font-medium">User</span>
-                <span className="text-xs text-muted-foreground">Student</span>
+                <span className="font-medium text-sm">User</span>
+                <span className="text-muted-foreground text-xs">Student</span>
               </div>
             </SidebarMenuButton>
           </SidebarMenuItem>

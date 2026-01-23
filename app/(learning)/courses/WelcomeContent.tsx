@@ -1,17 +1,17 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
-import { ResizableContent } from "@/components/layout/resizable-content";
-import { AnimatedBackground } from "@/components/ui/animated-background";
-import { OnboardingModal } from "@/components/onboarding/OnboardingModal";
-import { MessageBubble } from "@/components/ui/message-bubble";
-import { CourseBrowser } from "@/components/course/course-browser";
-import { ChoiceButtons } from "@/components/ui/choice-buttons";
-import { useTTS } from "@/hooks/useTTS";
-import { Button } from "@/components/ui/button";
 import { HelpCircle } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { CourseBrowser } from "@/components/course/course-browser";
 import { LessonHeader } from "@/components/course/LessonHeader";
+import { ResizableContent } from "@/components/layout/resizable-content";
+import { OnboardingModal } from "@/components/onboarding/OnboardingModal";
+import { AnimatedBackground } from "@/components/ui/animated-background";
+import { Button } from "@/components/ui/button";
+import { ChoiceButtons } from "@/components/ui/choice-buttons";
+import { MessageBubble } from "@/components/ui/message-bubble";
+import { useTTS } from "@/hooks/useTTS";
 
 interface WelcomeContentProps {
   firstCourse: {
@@ -39,15 +39,19 @@ interface WelcomeContentProps {
   }>;
 }
 
-type Message = {
+interface Message {
   id: string;
-  type: 'ai' | 'user' | 'course-browser';
+  type: "ai" | "user" | "course-browser";
   content?: string;
   enableAnimation?: boolean;
   onAnimationComplete?: () => void;
-};
+}
 
-export function WelcomeContent({ firstCourse, lastCourse, allCourses }: WelcomeContentProps) {
+export function WelcomeContent({
+  firstCourse,
+  lastCourse,
+  allCourses,
+}: WelcomeContentProps) {
   const router = useRouter();
   const { speak } = useTTS();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -60,8 +64,8 @@ export function WelcomeContent({ firstCourse, lastCourse, allCourses }: WelcomeC
     // Small delay to ensure localStorage is accessible
     const checkOnboarding = () => {
       const urlParams = new URLSearchParams(window.location.search);
-      const forceTour = urlParams.get('tour') === 'true';
-      const hasCompletedOnboarding = localStorage.getItem('bodh-onboarding-v1');
+      const forceTour = urlParams.get("tour") === "true";
+      const hasCompletedOnboarding = localStorage.getItem("bodh-onboarding-v1");
 
       // If tour is forced or user hasn't completed onboarding, wait for it
       if (forceTour || !hasCompletedOnboarding) {
@@ -89,7 +93,8 @@ export function WelcomeContent({ firstCourse, lastCourse, allCourses }: WelcomeC
       const welcomeMessage: Message = {
         id: Date.now().toString() + Math.random(),
         type: "ai",
-        content: "नमस्ते! I'm your personal AI learning companion. I'm here whenever you need help—clarifying a concept, checking your understanding, or even just exploring new ideas. Let's learn together.",
+        content:
+          "नमस्ते! I'm your personal AI learning companion. I'm here whenever you need help—clarifying a concept, checking your understanding, or even just exploring new ideas. Let's learn together.",
         enableAnimation: false, // No animation when returning from tour
       };
       setMessages([welcomeMessage]);
@@ -121,7 +126,10 @@ export function WelcomeContent({ firstCourse, lastCourse, allCourses }: WelcomeC
         );
       }, 500);
     }
-  }, [onboardingComplete]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [
+    onboardingComplete, // Add first AI message using addAIMessage helper
+    addAIMessage,
+  ]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleOnboardingComplete = () => {
     setOnboardingComplete(true);
@@ -131,16 +139,16 @@ export function WelcomeContent({ firstCourse, lastCourse, allCourses }: WelcomeC
     console.log("[WelcomeContent] addAIMessage called with:", content);
     const newMessage: Message = {
       id: Date.now().toString() + Math.random(),
-      type: 'ai',
+      type: "ai",
       content,
       enableAnimation: true,
       onAnimationComplete: () => {
         if (onComplete) {
           onComplete();
         }
-      }
+      },
     };
-    setMessages(prev => [...prev, newMessage]);
+    setMessages((prev) => [...prev, newMessage]);
 
     // Trigger TTS immediately with interrupt enabled
     if (content) {
@@ -154,24 +162,24 @@ export function WelcomeContent({ firstCourse, lastCourse, allCourses }: WelcomeC
   const addUserMessage = (content: string, onComplete?: () => void) => {
     const newMessage: Message = {
       id: Date.now().toString() + Math.random(),
-      type: 'user',
+      type: "user",
       content,
       enableAnimation: true,
       onAnimationComplete: () => {
         if (onComplete) {
           onComplete();
         }
-      }
+      },
     };
-    setMessages(prev => [...prev, newMessage]);
+    setMessages((prev) => [...prev, newMessage]);
   };
 
   const addCourseBrowser = () => {
     const newMessage: Message = {
       id: Date.now().toString() + Math.random(),
-      type: 'course-browser',
+      type: "course-browser",
     };
-    setMessages(prev => [...prev, newMessage]);
+    setMessages((prev) => [...prev, newMessage]);
   };
 
   const handleStartNewCourse = () => {
@@ -181,23 +189,30 @@ export function WelcomeContent({ firstCourse, lastCourse, allCourses }: WelcomeC
     addUserMessage("Browse All Courses", () => {
       // After user message completes, add AI response
       setTimeout(() => {
-        addAIMessage("Great! Here are all the available courses you can explore and start learning:", () => {
-          // After AI message completes, show course browser
-          setTimeout(() => {
-            addCourseBrowser();
-          }, 500);
-        });
+        addAIMessage(
+          "Great! Here are all the available courses you can explore and start learning:",
+          () => {
+            // After AI message completes, show course browser
+            setTimeout(() => {
+              addCourseBrowser();
+            }, 500);
+          }
+        );
       }, 500);
     });
   };
 
   const handleContinueCourse = () => {
-    if (!lastCourse) return;
+    if (!lastCourse) {
+      return;
+    }
 
     setShowButtons(false);
     addUserMessage(`Continue ${lastCourse.courseTitle}`, () => {
       setTimeout(() => {
-        router.push(`/course/${lastCourse.courseId}/module/${lastCourse.moduleId}`);
+        router.push(
+          `/course/${lastCourse.courseId}/module/${lastCourse.moduleId}`
+        );
       }, 500);
     });
   };
@@ -209,45 +224,40 @@ export function WelcomeContent({ firstCourse, lastCourse, allCourses }: WelcomeC
 
   const header = (
     <LessonHeader
-      courseTitle="Welcome"
-      moduleTitle="Getting Started"
       additionalActions={
         <Button
-          variant="outline"
-          size="sm"
-          onClick={handleTakeTour}
           className="gap-2"
+          onClick={handleTakeTour}
+          size="sm"
+          variant="outline"
         >
           <HelpCircle className="h-4 w-4" />
           Take a Tour
         </Button>
       }
+      courseTitle="Welcome"
+      moduleTitle="Getting Started"
     />
   );
 
   const content = (
     <div className="px-2 py-3">
       {/* Center-aligned chat container matching demo project */}
-      <div className="max-w-4xl mx-auto space-y-6">
+      <div className="mx-auto max-w-4xl space-y-6">
         {/* All messages rendered from state array */}
         {messages.map((message, index) => {
-          if (message.type === 'course-browser') {
-            return (
-              <CourseBrowser
-                key={message.id}
-                courses={allCourses}
-              />
-            );
+          if (message.type === "course-browser") {
+            return <CourseBrowser courses={allCourses} key={message.id} />;
           }
 
           return (
             <MessageBubble
-              key={message.id}
-              type={message.type}
-              content={message.content || ''}
+              content={message.content || ""}
               enableAnimation={message.enableAnimation}
+              isFirstMessage={index === 0}
+              key={message.id}
               onAnimationComplete={message.onAnimationComplete}
-              isFirstMessage={index === 0} // First message gets special styling
+              type={message.type} // First message gets special styling
             />
           );
         })}
@@ -258,17 +268,26 @@ export function WelcomeContent({ firstCourse, lastCourse, allCourses }: WelcomeC
   const footer = showButtons ? (
     <div className="px-2 py-3">
       {/* Center-aligned footer matching chat area */}
-      <div className="max-w-4xl mx-auto">
-        <div className="backdrop-blur-xl bg-white/60 border border-blue-200 rounded-xl px-4 py-3 shadow-lg shadow-blue-200/30">
+      <div className="mx-auto max-w-4xl">
+        <div className="rounded-xl border border-blue-200 bg-white/60 px-4 py-3 shadow-blue-200/30 shadow-lg backdrop-blur-xl">
           <ChoiceButtons
             buttons={[
-              ...(firstCourse ? [{ label: 'Browse All Courses', action: 'start-new' }] : []),
-              ...(lastCourse ? [{ label: `Continue ${lastCourse.courseTitle}`, action: 'continue' }] : []),
+              ...(firstCourse
+                ? [{ label: "Browse All Courses", action: "start-new" }]
+                : []),
+              ...(lastCourse
+                ? [
+                    {
+                      label: `Continue ${lastCourse.courseTitle}`,
+                      action: "continue",
+                    },
+                  ]
+                : []),
             ]}
             onSelect={(action) => {
-              if (action === 'start-new') {
+              if (action === "start-new") {
                 handleStartNewCourse();
-              } else if (action === 'continue') {
+              } else if (action === "continue") {
                 handleContinueCourse();
               }
             }}
@@ -280,12 +299,12 @@ export function WelcomeContent({ firstCourse, lastCourse, allCourses }: WelcomeC
 
   return (
     <>
-      <AnimatedBackground variant="full" intensity="medium" theme="learning" />
+      <AnimatedBackground intensity="medium" theme="learning" variant="full" />
       <OnboardingModal onComplete={handleOnboardingComplete} />
       <ResizableContent
-        header={header}
         content={content}
         footer={footer}
+        header={header}
         rightPanel={null}
       />
     </>
