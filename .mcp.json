@@ -18,6 +18,10 @@
     "next-devtools": {
       "command": "npx",
       "args": ["-y", "next-devtools-mcp@latest"]
+    },
+    "command-executor": {
+      "url": "http://localhost:8000/mcp",
+      "type": "http"
     }
   }
 }
