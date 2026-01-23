@@ -15,8 +15,7 @@
       "performance": {
         "noNamespaceImport": "off",
         "useTopLevelRegex": "off",
-        "noBarrelFile": "off",
-        "noImgElement": "off"
+        "noBarrelFile": "off"
       },
       "complexity": {
         "noExcessiveCognitiveComplexity": "off",

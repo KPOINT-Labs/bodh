@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ImageIcon, Pencil, PlusCircle } from "lucide-react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -80,11 +81,12 @@ export const ImageForm = ({ initialData, courseId }: ImageFormProps) => {
       {!isEditing &&
         (initialData.thumbnail ? (
           <div className="relative mt-2 aspect-video">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              alt="Upload"
-              className="h-full w-full rounded-md object-cover"
+            <Image
+              alt="Course thumbnail"
+              className="rounded-md object-cover"
+              fill
               src={initialData.thumbnail}
+              unoptimized
             />
           </div>
         ) : (
