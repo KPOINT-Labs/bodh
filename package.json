@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "ultracite check",
     "lint:fix": "ultracite fix",
+    "typecheck": "tsgo --noEmit",
     "test": "vitest",
     "postinstall": "prisma generate",
     "prepare": "lefthook install"
@@ -69,6 +70,7 @@
     "@types/pg": "^8.15.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@typescript/native-preview": "^7.0.0-dev.20260122.4",
     "@vitejs/plugin-react": "^5.1.2",
     "jsdom": "^27.3.0",
     "lefthook": "^2.0.15",

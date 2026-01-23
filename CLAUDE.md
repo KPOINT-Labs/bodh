@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a Next.js 16.0.7 application using the App Router, React 19, TypeScript, and Bun as the package manager. The project integrates Prisma ORM with PostgreSQL and uses shadcn/ui for component library.
+This is a Next.js 16.0.7 application using the App Router, React 19, TypeScript 7 (tsgo), and Bun as the package manager. The project integrates Prisma ORM with PostgreSQL and uses shadcn/ui for component library.
 
 ## Commands
 
@@ -15,6 +15,7 @@ bun run build        # Build for production
 bun run start        # Start production server
 bun run lint         # Check for linting/formatting issues (Biome via Ultracite)
 bun run lint:fix     # Auto-fix linting/formatting issues
+bun run typecheck    # Type check with tsgo (TypeScript 7 native)
 ```
 
 ### Package Management
@@ -61,6 +62,7 @@ import { prisma } from "@/lib/prisma";
 - **Dark mode**: Custom variant configured with `@custom-variant dark`
 
 ### TypeScript Configuration
+- **Compiler**: tsgo (TypeScript 7 native) - 10x faster than tsc
 - **Path alias**: `@/*` maps to root directory (use `@/` for all imports)
 - **Strict mode**: Enabled
 - **Target**: ES2017
