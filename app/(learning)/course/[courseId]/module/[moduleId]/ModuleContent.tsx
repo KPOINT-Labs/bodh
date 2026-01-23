@@ -323,10 +323,11 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
   const lastUserMessageTypeRef = useRef<string>("general");
   // Track if welcome message has been stored (for first-time users only)
   const welcomeStoredRef = useRef<boolean>(false);
+  const welcomeMessageIdRef = useRef<string | undefined>(undefined);
   // Ref for isReturningUser to use in callback
   const isReturningUserRef = useRef<boolean>(isReturningUser);
   // Ref for addAssistantMessage to use in callback (set after useChatSession)
-  const addAssistantMessageRef = useRef<((message: string, messageType?: string) => Promise<void>) | null>(null);
+  const addAssistantMessageRef = useRef<((message: string, messageType?: string) => Promise<string | undefined>) | null>(null);
   // Ref for clearAgentTranscript to use in callback (set after useLiveKit)
   const clearAgentTranscriptRef = useRef<(() => void) | null>(null);
   // Ref for handleAddUserMessage to use in onUserMessage callback (set after useChatSession)
@@ -410,7 +411,7 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
   // Welcome message: Store for first-time users, skip for returning users
   // Other agent responses: Store after user sends a message
   const handleTranscriptCallback = useCallback(
-    (segment: TranscriptSegment) => {
+    async (segment: TranscriptSegment) => {
       // Debug logging
       console.log("[ModuleContent] Transcript callback:", {
         isFinal: segment.isFinal,
@@ -436,22 +437,24 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
             const topic = match[1];
             console.log("[ModuleContent] FA intro transcript detected, showing buttons for topic:", topic);
 
-            if (addAssistantMessageRef.current) {
-              addAssistantMessageRef.current(text, "fa");
-            }
+          let faMessageId: string | undefined;
+          if (addAssistantMessageRef.current) {
+            faMessageId = await addAssistantMessageRef.current(text, "fa");
+          }
 
-            if (showActionRef.current) {
-              showActionRef.current(
-                "fa_intro",
-                { topic, introMessage: text },
-                addAssistantMessageRef.current ? undefined : `fa-intro-${segment.id}`
-              );
-            }
-
-
-            if (showActionRef.current) {
-              showActionRef.current("fa_intro", { topic, introMessage: text }, `fa-intro-${segment.id}`);
-            }
+          if (showActionRef.current) {
+            const lastAssistantId = getLastAssistantMessageId?.();
+            const anchorMessageId = faMessageId ?? lastAssistantId ?? `fa-intro-${segment.id}`;
+            console.log("[ModuleContent] FA intro showAction", {
+              topic,
+              hasAddAssistant: !!addAssistantMessageRef.current,
+              lastAssistantId,
+              faMessageId,
+              anchorMessageId,
+              segmentId: segment.id,
+            });
+            showActionRef.current("fa_intro", { topic, introMessage: text }, anchorMessageId);
+          }
 
             // Clear the transcript so it doesn't appear twice (already saved to DB above)
             setTimeout(() => {
@@ -479,7 +482,8 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
               storedSegmentsRef.current.add(segmentKey);
               welcomeStoredRef.current = true;
               console.log("[ModuleContent] Storing welcome message for first-time user:", segment.text.substring(0, 50) + "...");
-              addAssistantMessageRef.current(segment.text, "general");
+              const savedMessageId = await addAssistantMessageRef.current(segment.text, "general");
+              welcomeMessageIdRef.current = savedMessageId;
               // Clear after a delay to allow ChatAgent to capture and state to update
               setTimeout(() => {
                 if (clearAgentTranscriptRef.current) {
@@ -529,16 +533,19 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
   );
 
   // Handle FA intro complete - agent spoke intro, now show buttons
-  const handleFAIntroComplete = useCallback((data: { topic: string; introMessage: string }) => {
+  const handleFAIntroComplete = useCallback(async (data: { topic: string; introMessage: string }) => {
     console.log("[ModuleContent] FA intro complete, showing buttons for topic:", data.topic);
 
     // Save the FA intro message to DB and show in chat
+    let faMessageId: string | undefined;
     if (data.introMessage && addAssistantMessageRef.current) {
-      addAssistantMessageRef.current(data.introMessage, "fa");
+      faMessageId = await addAssistantMessageRef.current(data.introMessage, "fa");
     }
 
     if (showActionRef.current) {
-      showActionRef.current("fa_intro", { topic: data.topic, introMessage: data.introMessage });
+      const lastAssistantId = getLastAssistantMessageId?.();
+      const anchorMessageId = faMessageId ?? lastAssistantId;
+      showActionRef.current("fa_intro", { topic: data.topic, introMessage: data.introMessage }, anchorMessageId);
     }
   }, []);
 
@@ -853,6 +860,7 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
     markInlessonAnswered,
     markInlessonSkipped,
     addInlessonFeedback,
+    getLastAssistantMessageId,
   } = useChatSession({
     courseId: course.id,
     conversationId,
@@ -1046,6 +1054,7 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
     addUserMessage: handleAddUserMessage,
     startTour,
     startWarmup: assessmentQuiz.startWarmup,
+    getLastAssistantMessageId,
   };
 
   const { pendingAction, showAction, dismissAction, handleButtonClick, isActioned, resetHandledActions } = useActionButtons(actionDeps);
@@ -1093,6 +1102,11 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
       const actionType = sessionTypeToAction[sessionType];
       console.log("[ModuleContent] Showing action buttons for:", actionType);
       if (actionType) {
+        const anchorMessageId = isReturningUserRef.current
+          ? "welcome"
+          : (welcomeMessageIdRef.current && !welcomeMessageIdRef.current.startsWith("assistant-")
+            ? welcomeMessageIdRef.current
+            : undefined);
         showAction(
           actionType,
           {
@@ -1102,7 +1116,7 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
             lastPosition: sessionLessonProgress?.lastPosition || 0,
             prevLessonTitle,
           },
-          "welcome"
+          anchorMessageId
         );
       }
     }

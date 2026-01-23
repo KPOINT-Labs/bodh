@@ -49,6 +49,7 @@ export function useChatSession({
 }: UseChatSessionOptions) {
   const [chatMessages, setChatMessages] = useState<ExtendedMessageData[]>([]);
   const [isSending, setIsSending] = useState(false);
+  const lastAssistantMessageIdRef = useRef<string | undefined>(undefined);
 
   // Use refs for values that change but shouldn't recreate sendMessage
   const conversationIdRef = useRef(conversationId);
@@ -226,6 +227,11 @@ export function useChatSession({
 
       setChatMessages((prev) => [...prev, userMessage]);
 
+      console.log("[ChatSession] addUserMessage", {
+        tempId,
+        messageType,
+      });
+
       // Store in database
       try {
         const savedMessage = await storeMessage(convId, "user", message, {
@@ -251,11 +257,12 @@ export function useChatSession({
       const convId = conversationIdRef.current;
       if (!convId) {
         console.error("Conversation not ready");
-        return;
+        return undefined;
       }
 
       // Optimistically add to UI with temp ID (use counter to ensure uniqueness)
       const tempId = `assistant-${Date.now()}-${++tempIdCounter}`;
+      lastAssistantMessageIdRef.current = tempId;
       const assistantMessage: ExtendedMessageData = {
         id: tempId,
         conversationId: convId,
@@ -268,6 +275,11 @@ export function useChatSession({
 
       setChatMessages((prev) => [...prev, assistantMessage]);
 
+      console.log("[ChatSession] addAssistantMessage", {
+        tempId,
+        messageType,
+      });
+
       // Store in database
       try {
         const savedMessage = await storeMessage(convId, "assistant", message, {
@@ -275,17 +287,22 @@ export function useChatSession({
           messageType,
         });
         console.log("[ChatSession] Assistant message stored in DB:", savedMessage.id);
+        lastAssistantMessageIdRef.current = savedMessage.id;
 
         // Update the temp ID with the real ID
         setChatMessages((prev) =>
           prev.map((msg) => (msg.id === tempId ? { ...msg, id: savedMessage.id } : msg))
         );
+        return savedMessage.id;
       } catch (error) {
         console.error("[ChatSession] Failed to store assistant message:", error);
       }
+      return tempId;
     },
     []
   );
+
+  const getLastAssistantMessageId = useCallback(() => lastAssistantMessageIdRef.current, []);
 
   // Add in-lesson question to chat (local only - not stored in DB initially)
   // The question will be stored as an attempt when answered
@@ -393,5 +410,6 @@ export function useChatSession({
     markInlessonAnswered,
     markInlessonSkipped,
     addInlessonFeedback,
+    getLastAssistantMessageId,
   };
 }

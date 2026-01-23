@@ -11,6 +11,26 @@ import { AssessmentQuestion } from "./AssessmentQuestion";
 import { FeedbackBadge } from "./FeedbackBadge";
 import { InLessonQuestion } from "./InLessonQuestion";
 import type { QuizOption } from "@/types/assessment";
+import {
+  Heart,
+  Award,
+  ThumbsUp,
+  Star,
+  Zap,
+  Smile,
+  HelpCircle,
+  Brain,
+  BookOpen,
+  Lightbulb,
+  AlertCircle,
+  MessageCircle,
+  Sparkles,
+  CheckCircle,
+  Clock,
+  Target,
+  Coffee,
+  Play
+} from "lucide-react";
 
 interface MessageContentProps {
   content: string;
@@ -32,6 +52,65 @@ interface MessageContentProps {
   onInlessonAnswer?: (questionId: string, answer: string) => void;
   onInlessonSkip?: (questionId: string) => void;
 }
+
+const getIconForLine = (line: string) => {
+  const lowerLine = line.toLowerCase();
+  
+  if (lowerLine.includes('great') || lowerLine.includes('awesome') || lowerLine.includes('love') || 
+      lowerLine.includes('support') || lowerLine.includes('together') || lowerLine.includes('help you')) return Heart;
+  
+  if (lowerLine.includes('congrats') || lowerLine.includes('celebrate') || lowerLine.includes('achievement') ||
+      lowerLine.includes('success') || lowerLine.includes('win') || lowerLine.includes('mastered')) return Award;
+  
+  if (lowerLine.includes('exactly') || lowerLine.includes('perfect') || lowerLine.includes('right') ||
+      lowerLine.includes('correct') || lowerLine.includes('nice') || lowerLine.includes('good job')) return ThumbsUp;
+  
+  if (lowerLine.includes('exciting') || lowerLine.includes('amazing') || lowerLine.includes('wow') ||
+      lowerLine.includes('let\'s go') || lowerLine.includes('ready')) return Star;
+  
+  if (lowerLine.includes('let\'s') || lowerLine.includes('try') || lowerLine.includes('do') ||
+      lowerLine.includes('start') || lowerLine.includes('go ahead') || lowerLine.includes('jump in')) return Zap;
+  
+  if (lowerLine.includes('hey') || lowerLine.includes('hi') || lowerLine.includes('welcome') ||
+      lowerLine.includes('glad') || lowerLine.includes('nice to') || lowerLine.includes('relax')) return Smile;
+  
+  if (lowerLine.includes('?') || lowerLine.includes('wonder') || lowerLine.includes('curious') ||
+      lowerLine.includes('explore') || lowerLine.includes('find out')) return HelpCircle;
+  
+  if (lowerLine.includes('think') || lowerLine.includes('reflect') || lowerLine.includes('consider') ||
+      lowerLine.includes('understand') || lowerLine.includes('pause') || lowerLine.includes('moment')) return Brain;
+  
+  if (lowerLine.includes('learn') || lowerLine.includes('know') || lowerLine.includes('discover') ||
+      lowerLine.includes('understand') || lowerLine.includes('concept')) return BookOpen;
+  
+  if (lowerLine.includes('insight') || lowerLine.includes('realize') || lowerLine.includes('see') ||
+      lowerLine.includes('notice') || lowerLine.includes('aha')) return Lightbulb;
+  
+  if (lowerLine.includes('careful') || lowerLine.includes('watch out') || lowerLine.includes('important') ||
+      lowerLine.includes('remember') || lowerLine.includes('note')) return AlertCircle;
+  
+  if (lowerLine.includes('chat') || lowerLine.includes('talk') || lowerLine.includes('discuss') ||
+      lowerLine.includes('share') || lowerLine.includes('tell me')) return MessageCircle;
+  
+  if (lowerLine.includes('fun') || lowerLine.includes('play') || lowerLine.includes('game') ||
+      lowerLine.includes('challenge')) return Sparkles;
+  
+  if (lowerLine.includes('done') || lowerLine.includes('complete') || lowerLine.includes('finish') ||
+      lowerLine.includes('accomplish')) return CheckCircle;
+  
+  if (lowerLine.includes('time') || lowerLine.includes('pace') || lowerLine.includes('when') ||
+      lowerLine.includes('schedule')) return Clock;
+  
+  if (lowerLine.includes('goal') || lowerLine.includes('aim') || lowerLine.includes('target') ||
+      lowerLine.includes('objective')) return Target;
+  
+  if (lowerLine.includes('easy') || lowerLine.includes('comfortable') || lowerLine.includes('chill') ||
+      lowerLine.includes('break')) return Coffee;
+  
+  if (lowerLine.includes('watch') || lowerLine.includes('video') || lowerLine.includes('view')) return Play;
+  
+  return Sparkles; 
+};
 
 /**
  * Renders message content with markdown formatting
@@ -55,7 +134,7 @@ export function MessageContent({
 }: MessageContentProps) {
   // Handle in-lesson question messages
   if (messageType === "inlesson" && role === "assistant" && inlessonMetadata) {
-    const { questionId, questionType, options, isAnswered, isSkipped } = inlessonMetadata;
+    const { questionId, questionType, options, isAnswered, isSkipped, correctOption } = inlessonMetadata;
 
     if (questionType === "mcq" && options && questionId) {
       return (
@@ -65,6 +144,7 @@ export function MessageContent({
             options={options}
             isAnswered={isAnswered}
             isSkipped={isSkipped}
+            correctOption={correctOption}
             onAnswer={(optionId: string) => onInlessonAnswer?.(questionId, optionId)}
             onSkip={() => onInlessonSkip?.(questionId)}
           />
@@ -260,10 +340,12 @@ export function MessageContent({
                 </div>
               );
             }
-            // Regular bullet point - indent if it has leading whitespace
+            
+            const Icon = role === 'assistant' ? getIconForLine(listItem.content) : Sparkles;
+            
             return (
               <div key={index} className={`flex items-start gap-2 my-1 ${listItem.isIndented ? "ml-6" : "ml-2"}`}>
-                <span className="text-gray-600 shrink-0">•</span>
+                <Icon className={`w-4 h-4 mt-0.5 shrink-0 ${role === 'assistant' ? 'text-blue-500' : 'text-gray-400'}`} />
                 <span>{parseInlineMarkdownWithTimestamps(listItem.content, onTimestampClick)}</span>
               </div>
             );
@@ -287,3 +369,4 @@ export function MessageContent({
     </div>
   );
 }
+

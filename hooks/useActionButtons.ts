@@ -43,13 +43,24 @@ export function useActionButtons(deps: ActionDependencies): UseActionButtonsRetu
     if (handledActionsRef.current.has(type)) {
       return;
     }
-    setPendingAction({ type, metadata, anchorMessageId });
+    const resolvedAnchor = anchorMessageId ?? deps.getLastAssistantMessageId?.();
+    console.log("[useActionButtons] showAction", {
+      type,
+      anchorMessageId,
+      resolvedAnchor,
+      hasLastAssistant: !!deps.getLastAssistantMessageId,
+    });
+    setPendingAction({ type, metadata, anchorMessageId: resolvedAnchor });
     setIsActioned(false);
-  }, []);
+  }, [deps]);
 
   const dismissAction = useCallback(() => {
     // Mark the current action as handled so it won't be re-shown
     if (pendingAction) {
+      console.log("[useActionButtons] dismissAction", {
+        type: pendingAction.type,
+        anchorMessageId: pendingAction.anchorMessageId,
+      });
       handledActionsRef.current.add(pendingAction.type);
     }
     setPendingAction(null);
@@ -61,6 +72,12 @@ export function useActionButtons(deps: ActionDependencies): UseActionButtonsRetu
       if (!pendingAction || isActioned) return;
 
       setIsActioned(true); // Disable buttons immediately
+
+      console.log("[useActionButtons] handleButtonClick", {
+        type: pendingAction.type,
+        buttonId,
+        anchorMessageId: pendingAction.anchorMessageId,
+      });
 
       // Execute the handler
       const handler = ACTION_HANDLERS[pendingAction.type];

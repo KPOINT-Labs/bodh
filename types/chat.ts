@@ -50,6 +50,7 @@ export interface MessageData {
     questionType?: "mcq" | "text";
     options?: QuizOption[];
     correctOption?: string;
+    userAnswer?: string;
     isAnswered?: boolean;
     isSkipped?: boolean;
   };

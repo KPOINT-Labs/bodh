@@ -343,6 +343,12 @@ export function ChatAgent({
     return filtered;
   }, [chatMessages, historyMessageIds]);
 
+  const hasAnchorMatch = useMemo(() => {
+    const anchor = pendingAction?.anchorMessageId;
+    if (!anchor) return true;
+    return filteredChatMessages.some((message) => message.id === anchor);
+  }, [pendingAction?.anchorMessageId, filteredChatMessages]);
+
   // Get the last user message type to determine how to render the live agent transcript
   // This ensures FA responses are rendered with assessment UI during live streaming
   const lastUserMessageType = useMemo(() => {
@@ -498,12 +504,12 @@ export function ChatAgent({
                  </div>
                </div>
              </div>
-             {!isAgentSpeaking &&
-               !filteredChatMessages.length &&
-               pendingAction &&
-               isLiveKitConnected &&
-               pendingAction.anchorMessageId === "welcome" &&
-               onActionButtonClick && (
+              {!isAgentSpeaking &&
+                !filteredChatMessages.length &&
+                pendingAction &&
+                isLiveKitConnected &&
+                pendingAction.anchorMessageId === "welcome" &&
+                onActionButtonClick && (
                  <ActionButtons
                    pendingAction={pendingAction}
                    onButtonClick={onActionButtonClick}
@@ -520,15 +526,16 @@ export function ChatAgent({
            <div className="space-y-4">
              {expandMessagesWithSeparator(filteredChatMessages).map((msg, index, all) => {
                const isLast = index === all.length - 1;
-               const anchor = pendingAction?.anchorMessageId;
-               const matchesAnchor = anchor ? anchor === msg.id : isLast;
-               const shouldShowActionButtons =
-                 matchesAnchor &&
-                 !isAgentSpeaking &&
-                 pendingAction &&
-                 isLiveKitConnected &&
-                 (welcomeMessage || agentTranscript || Boolean(pendingAction.metadata?.introMessage)) &&
-                 onActionButtonClick;
+                const anchor = pendingAction?.anchorMessageId;
+                const matchesAnchor = anchor
+                  ? anchor === msg.id || (!hasAnchorMatch && isLast)
+                  : isLast;
+                const shouldShowActionButtons =
+                  matchesAnchor &&
+                  !isAgentSpeaking &&
+                  pendingAction &&
+                  isLiveKitConnected &&
+                  onActionButtonClick;
 
                return (
                  <div key={msg.id}>

@@ -18,6 +18,7 @@ export interface ActionDependencies {
   addUserMessage: (message: string, messageType?: string, inputType?: string) => Promise<void>;
   startTour: () => void;
   startWarmup?: () => Promise<void>; // Start DB-driven warmup quiz
+  getLastAssistantMessageId?: () => string | undefined;
 }
 
 type ActionHandler = (
