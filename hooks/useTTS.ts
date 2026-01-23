@@ -18,12 +18,22 @@ export function useTTS() {
     setMuted,
   } = useAudioContext();
 
+  const stop = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      audioRef.current = null;
+    }
+    setIsPlaying(false);
+    setGlobalPlaying(false);
+  };
+
   // Auto-stop when muted
   useEffect(() => {
     if (isMuted && isPlaying) {
       stop();
     }
-  }, [isMuted, isPlaying, stop]);
+  }, [isMuted, isPlaying]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -33,7 +43,7 @@ export function useTTS() {
         clearTimeout(retryTimeoutRef.current);
       }
     };
-  }, [stop]);
+  }, []);
 
   // Set up user interaction listener for retry
   useEffect(() => {
@@ -73,16 +83,6 @@ export function useTTS() {
       document.removeEventListener("keydown", handleUserInteraction);
     };
   }, [setMuted]);
-
-  const stop = () => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-      audioRef.current = null;
-    }
-    setIsPlaying(false);
-    setGlobalPlaying(false);
-  };
 
   const speak = async (text: string, options?: TTSOptions) => {
     console.log(
