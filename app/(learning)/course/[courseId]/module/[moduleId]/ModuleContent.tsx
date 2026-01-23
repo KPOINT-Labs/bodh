@@ -33,8 +33,8 @@ import { getLessonProgress } from "@/lib/actions/lesson-progress";
 import { useActionButtons } from "@/hooks/useActionButtons";
 import type { ActionType } from "@/lib/actions/actionRegistry";
 import type { ActionDependencies } from "@/lib/actions/actionHandlers";
-import type { LessonQuiz } from "@/types/assessment";
-import { recordAttempt } from "@/lib/actions/assessment";
+import type { LessonQuiz, WarmupQuestion } from "@/types/assessment";
+import { recordAttempt, getAnsweredQuestionIds } from "@/lib/actions/assessment";
 
 interface Lesson {
   id: string;
@@ -355,6 +355,28 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
     type: "mcq" | "text";
     correctOption?: string;
   } | null) => void) | null>(null);
+
+  // Refs for warmup question functions (set after useChatSession)
+  const addWarmupQuestionRef = useRef<((question: {
+    id: string;
+    question: string;
+    options?: { id: string; text: string }[];
+    correctOption?: string;
+  }) => string | null) | null>(null);
+  const markWarmupAnsweredRef = useRef<((messageId: string, userAnswer?: string) => void) | null>(null);
+  const markWarmupSkippedRef = useRef<((messageId: string) => void) | null>(null);
+  const addWarmupFeedbackRef = useRef<((isCorrect: boolean, feedback: string) => string | undefined) | null>(null);
+
+  // State for tracking active warmup flow
+  const [warmupState, setWarmupState] = useState<{
+    isActive: boolean;
+    questions: WarmupQuestion[];
+    currentIndex: number;
+    messageIds: Map<string, string>; // questionId -> messageId
+    correctCount: number;
+    incorrectCount: number;
+    skippedCount: number;
+  }>({ isActive: false, questions: [], currentIndex: 0, messageIds: new Map(), correctCount: 0, incorrectCount: 0, skippedCount: 0 });
 
   // Keep isReturningUserRef updated
   useEffect(() => {
@@ -861,6 +883,11 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
     markInlessonSkipped,
     addInlessonFeedback,
     getLastAssistantMessageId,
+    // Warmup support
+    addWarmupQuestion,
+    markWarmupAnswered,
+    markWarmupSkipped,
+    addWarmupFeedback,
   } = useChatSession({
     courseId: course.id,
     conversationId,
@@ -882,6 +909,281 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
     addInlessonFeedbackRef.current = addInlessonFeedback;
     setActiveInlessonQuestionRef.current = setActiveInlessonQuestion;
   }, [addInlessonQuestion, markInlessonAnswered, markInlessonSkipped, addInlessonFeedback, setActiveInlessonQuestion]);
+
+  // Keep warmup refs updated
+  useEffect(() => {
+    addWarmupQuestionRef.current = addWarmupQuestion;
+    markWarmupAnsweredRef.current = markWarmupAnswered;
+    markWarmupSkippedRef.current = markWarmupSkipped;
+    addWarmupFeedbackRef.current = addWarmupFeedback;
+  }, [addWarmupQuestion, markWarmupAnswered, markWarmupSkipped, addWarmupFeedback]);
+
+  // Inline warmup handler - replaces popup-based assessmentQuiz.startWarmup
+  const handleInlineWarmup = useCallback(async () => {
+    const quizData = activeLesson?.quiz as LessonQuiz | null;
+    if (!quizData?.warmup || quizData.warmup.length === 0 || !activeLesson?.id) {
+      console.warn("[ModuleContent] No warmup questions available");
+      return;
+    }
+
+    // Get already answered question IDs
+    const answeredIds = await getAnsweredQuestionIds(userId, activeLesson.id, "warmup");
+
+    // Filter out already answered questions
+    const unansweredQuestions = quizData.warmup.filter(
+      (q: WarmupQuestion) => !answeredIds.has(q.id)
+    );
+
+    if (unansweredQuestions.length === 0) {
+      console.log("[ModuleContent] All warmup questions already answered");
+      // Show completion message and continue
+      if (showActionRef.current) {
+        showActionRef.current("warmup_complete", {});
+      }
+      return;
+    }
+
+    console.log("[ModuleContent] Starting inline warmup with", unansweredQuestions.length, "questions");
+
+    // Add first question to chat
+    const firstQuestion = unansweredQuestions[0];
+    const messageId = addWarmupQuestion({
+      id: firstQuestion.id,
+      question: firstQuestion.question,
+      options: firstQuestion.options,
+      correctOption: firstQuestion.correct_option,
+    });
+
+    if (messageId) {
+      // Set up warmup state to track progress
+      const messageIds = new Map<string, string>();
+      messageIds.set(firstQuestion.id, messageId);
+
+      setWarmupState({
+        isActive: true,
+        questions: unansweredQuestions,
+        currentIndex: 0,
+        messageIds,
+        correctCount: 0,
+        incorrectCount: 0,
+        skippedCount: 0,
+      });
+    }
+  }, [activeLesson?.quiz, activeLesson?.id, userId, addWarmupQuestion]);
+
+  // Handler for warmup MCQ answers
+  const handleWarmupAnswer = useCallback(
+    async (questionId: string, answer: string) => {
+      console.log("[ModuleContent] Warmup answer received:", { questionId, answer });
+
+      if (!warmupState.isActive) {
+        console.warn("[ModuleContent] No active warmup");
+        return;
+      }
+
+      const currentQuestion = warmupState.questions[warmupState.currentIndex];
+      if (!currentQuestion || currentQuestion.id !== questionId) {
+        console.warn("[ModuleContent] Question ID mismatch");
+        return;
+      }
+
+      const messageId = warmupState.messageIds.get(questionId);
+      if (!messageId) {
+        console.warn("[ModuleContent] No message ID for question");
+        return;
+      }
+
+      const isCorrect = answer === currentQuestion.correct_option;
+      const feedback = currentQuestion.feedback || (isCorrect
+        ? "Great job! You got it right."
+        : "That's not quite right, but don't worry - keep learning!");
+
+      // Mark message as answered (triggers celebration in InLessonQuestion)
+      markWarmupAnswered(messageId, answer);
+
+      // Record attempt in DB
+      if (activeLesson?.id) {
+        await recordAttempt({
+          odataUserId: userId,
+          lessonId: activeLesson.id,
+          assessmentType: "warmup",
+          questionId,
+          answer,
+          isCorrect,
+          isSkipped: false,
+          feedback,
+        });
+      }
+
+      // Wait for celebration animation
+      await new Promise((resolve) => setTimeout(resolve, isCorrect ? 2500 : 2000));
+
+      // Add feedback message
+      addWarmupFeedback(isCorrect, feedback);
+
+      // Check if there are more questions
+      const nextIndex = warmupState.currentIndex + 1;
+      if (nextIndex < warmupState.questions.length) {
+        // Add next question after a short delay
+        await new Promise((resolve) => setTimeout(resolve, 500));
+
+        const nextQuestion = warmupState.questions[nextIndex];
+        const nextMessageId = addWarmupQuestion({
+          id: nextQuestion.id,
+          question: nextQuestion.question,
+          options: nextQuestion.options,
+          correctOption: nextQuestion.correct_option,
+        });
+
+        if (nextMessageId) {
+          setWarmupState((prev) => {
+            const newMessageIds = new Map(prev.messageIds);
+            newMessageIds.set(nextQuestion.id, nextMessageId);
+            return {
+              ...prev,
+              currentIndex: nextIndex,
+              messageIds: newMessageIds,
+              correctCount: prev.correctCount + (isCorrect ? 1 : 0),
+              incorrectCount: prev.incorrectCount + (isCorrect ? 0 : 1),
+            };
+          });
+        }
+      } else {
+        // Warmup complete
+        console.log("[ModuleContent] Warmup complete!");
+        const totalQuestions = warmupState.questions.length;
+        const finalCorrectCount = warmupState.correctCount + (isCorrect ? 1 : 0);
+        const finalIncorrectCount = warmupState.incorrectCount + (isCorrect ? 0 : 1);
+
+        setWarmupState({
+          isActive: false,
+          questions: [],
+          currentIndex: 0,
+          messageIds: new Map(),
+          correctCount: 0,
+          incorrectCount: 0,
+          skippedCount: 0,
+        });
+
+        // Add completion feedback message
+        let completionMessage: string;
+        if (finalCorrectCount === totalQuestions) {
+          completionMessage = `Amazing! You got all ${totalQuestions} questions right! You're ready to dive into the lesson.`;
+        } else if (finalCorrectCount > 0) {
+          completionMessage = `Nice effort! You got ${finalCorrectCount} out of ${totalQuestions} correct. Let's watch the lesson to strengthen your understanding.`;
+        } else {
+          completionMessage = `No worries! The warmup helps identify areas to focus on. Let's watch the lesson together.`;
+        }
+
+        let feedbackMessageId: string | undefined;
+        if (addAssistantMessageRef.current) {
+          feedbackMessageId = await addAssistantMessageRef.current(completionMessage, "general");
+        }
+
+        // Show warmup complete action buttons anchored to feedback message
+        if (showActionRef.current) {
+          showActionRef.current("warmup_complete", {}, feedbackMessageId);
+        }
+      }
+    },
+    [warmupState, activeLesson?.id, userId, markWarmupAnswered, addWarmupFeedback, addWarmupQuestion]
+  );
+
+  // Handler for warmup question skip
+  const handleWarmupSkip = useCallback(
+    async (questionId: string) => {
+      console.log("[ModuleContent] Warmup question skipped:", questionId);
+
+      if (!warmupState.isActive) {
+        console.warn("[ModuleContent] No active warmup");
+        return;
+      }
+
+      const messageId = warmupState.messageIds.get(questionId);
+      if (messageId) {
+        markWarmupSkipped(messageId);
+      }
+
+      // Record skipped attempt in DB
+      if (activeLesson?.id) {
+        await recordAttempt({
+          odataUserId: userId,
+          lessonId: activeLesson.id,
+          assessmentType: "warmup",
+          questionId,
+          answer: null,
+          isCorrect: null,
+          isSkipped: true,
+          feedback: null,
+        });
+      }
+
+      // Check if there are more questions
+      const nextIndex = warmupState.currentIndex + 1;
+      if (nextIndex < warmupState.questions.length) {
+        // Add next question
+        const nextQuestion = warmupState.questions[nextIndex];
+        const nextMessageId = addWarmupQuestion({
+          id: nextQuestion.id,
+          question: nextQuestion.question,
+          options: nextQuestion.options,
+          correctOption: nextQuestion.correct_option,
+        });
+
+        if (nextMessageId) {
+          setWarmupState((prev) => {
+            const newMessageIds = new Map(prev.messageIds);
+            newMessageIds.set(nextQuestion.id, nextMessageId);
+            return {
+              ...prev,
+              currentIndex: nextIndex,
+              messageIds: newMessageIds,
+              skippedCount: prev.skippedCount + 1,
+            };
+          });
+        }
+      } else {
+        // Warmup complete (skipped last question)
+        console.log("[ModuleContent] Warmup complete (skipped)!");
+        const totalQuestions = warmupState.questions.length;
+        const finalCorrectCount = warmupState.correctCount;
+        const finalSkippedCount = warmupState.skippedCount + 1;
+
+        setWarmupState({
+          isActive: false,
+          questions: [],
+          currentIndex: 0,
+          messageIds: new Map(),
+          correctCount: 0,
+          incorrectCount: 0,
+          skippedCount: 0,
+        });
+
+        // Add completion feedback message
+        let completionMessage: string;
+        if (finalCorrectCount === totalQuestions) {
+          completionMessage = `Amazing! You got all ${totalQuestions} questions right! You're ready to dive into the lesson.`;
+        } else if (finalCorrectCount > 0) {
+          completionMessage = `Nice effort! You got ${finalCorrectCount} out of ${totalQuestions} correct${finalSkippedCount > 0 ? ` (${finalSkippedCount} skipped)` : ""}. Let's watch the lesson to strengthen your understanding.`;
+        } else if (finalSkippedCount === totalQuestions) {
+          completionMessage = `No problem! Let's watch the lesson and you can always try the warmup questions later.`;
+        } else {
+          completionMessage = `No worries! The warmup helps identify areas to focus on. Let's watch the lesson together.`;
+        }
+
+        let feedbackMessageId: string | undefined;
+        if (addAssistantMessageRef.current) {
+          feedbackMessageId = await addAssistantMessageRef.current(completionMessage, "general");
+        }
+
+        // Show warmup complete action buttons anchored to feedback message
+        if (showActionRef.current) {
+          showActionRef.current("warmup_complete", {}, feedbackMessageId);
+        }
+      }
+    },
+    [warmupState, activeLesson?.id, userId, markWarmupSkipped, addWarmupQuestion]
+  );
 
   // Wrapper for addUserMessage that also sets the flag to track user interaction
   // This prevents welcome messages from being stored - only user messages and responses
@@ -1053,7 +1355,7 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
     sendTextToAgent: liveKit.sendTextToAgent,
     addUserMessage: handleAddUserMessage,
     startTour,
-    startWarmup: assessmentQuiz.startWarmup,
+    startWarmup: handleInlineWarmup,
     getLastAssistantMessageId,
   };
 
@@ -1216,6 +1518,9 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
         // In-lesson question handlers
         onInlessonAnswer={handleInlessonAnswer}
         onInlessonSkip={handleInlessonSkip}
+        // Warmup question handlers (inline in chat)
+        onWarmupAnswer={handleWarmupAnswer}
+        onWarmupSkip={handleWarmupSkip}
       />
 
       {/* Module Lessons Overview - Removed as not needed */}

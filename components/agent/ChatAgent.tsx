@@ -176,6 +176,8 @@ interface ChatAgentProps {
   isActionDisabled?: boolean;
   onInlessonAnswer?: (questionId: string, answer: string) => void;
   onInlessonSkip?: (questionId: string) => void;
+  onWarmupAnswer?: (questionId: string, answer: string) => void;
+  onWarmupSkip?: (questionId: string) => void;
 }
 
 /**
@@ -212,6 +214,8 @@ export function ChatAgent({
   isActionDisabled = false,
   onInlessonAnswer: _onInlessonAnswer,
   onInlessonSkip: _onInlessonSkip,
+  onWarmupAnswer: _onWarmupAnswer,
+  onWarmupSkip: _onWarmupSkip,
 }: ChatAgentProps) {
   // State for session initialization
   const [historyMessages, setHistoryMessages] = useState<MessageData[]>([]);
@@ -444,7 +448,7 @@ export function ChatAgent({
         {historyMessages.length > 0 && (
           <div className="space-y-4">
             {expandMessagesWithSeparator(historyMessages).map((msg) => (
-              <ChatMessage key={msg.id} message={msg} onQuestionAnswer={handleQuestionAnswer} onQuestionSkip={handleQuestionSkip} onTimestampClick={onTimestampClick} isFromHistory={true} onInlessonAnswer={_onInlessonAnswer} onInlessonSkip={_onInlessonSkip} />
+              <ChatMessage key={msg.id} message={msg} onQuestionAnswer={handleQuestionAnswer} onQuestionSkip={handleQuestionSkip} onTimestampClick={onTimestampClick} isFromHistory={true} onInlessonAnswer={_onInlessonAnswer} onInlessonSkip={_onInlessonSkip} onWarmupAnswer={_onWarmupAnswer} onWarmupSkip={_onWarmupSkip} />
             ))}
           </div>
         )}
@@ -545,8 +549,10 @@ export function ChatAgent({
                      onQuestionSkip={handleQuestionSkip}
                      onTimestampClick={onTimestampClick}
                      isFromHistory={false}
-onInlessonAnswer={_onInlessonAnswer}
-                      onInlessonSkip={_onInlessonSkip}
+                     onInlessonAnswer={_onInlessonAnswer}
+                     onInlessonSkip={_onInlessonSkip}
+                     onWarmupAnswer={_onWarmupAnswer}
+                     onWarmupSkip={_onWarmupSkip}
                    />
                    {shouldShowActionButtons && (
                      <ActionButtons

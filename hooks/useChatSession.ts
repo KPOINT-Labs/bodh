@@ -398,6 +398,97 @@ export function useChatSession({
     []
   );
 
+  // Add warmup question to chat (same as in-lesson but with warmup type)
+  const addWarmupQuestion = useCallback(
+    (question: {
+      id: string;
+      question: string;
+      options?: QuizOption[];
+      correctOption?: string;
+    }) => {
+      const convId = conversationIdRef.current;
+      if (!convId) {
+        console.error("Conversation not ready");
+        return null;
+      }
+
+      const tempId = `warmup-${Date.now()}-${++tempIdCounter}`;
+      const warmupMessage: ExtendedMessageData = {
+        id: tempId,
+        conversationId: convId,
+        role: "assistant",
+        content: question.question,
+        inputType: "text",
+        messageType: "warmup_mcq",
+        createdAt: new Date().toISOString(),
+        metadata: {
+          questionId: question.id,
+          questionType: "mcq",
+          options: question.options,
+          correctOption: question.correctOption,
+          isAnswered: false,
+          isSkipped: false,
+        },
+      };
+
+      console.log("[ChatSession] Adding warmup question to chat:", {
+        questionId: question.id,
+      });
+
+      setChatMessages((prev) => [...prev, warmupMessage]);
+      return tempId;
+    },
+    []
+  );
+
+  // Mark a warmup question as answered
+  const markWarmupAnswered = useCallback((messageId: string, userAnswer?: string) => {
+    setChatMessages((prev) =>
+      prev.map((msg) =>
+        msg.id === messageId && msg.metadata
+          ? { ...msg, metadata: { ...msg.metadata, isAnswered: true, userAnswer } }
+          : msg
+      )
+    );
+  }, []);
+
+  // Mark a warmup question as skipped
+  const markWarmupSkipped = useCallback((messageId: string) => {
+    setChatMessages((prev) =>
+      prev.map((msg) =>
+        msg.id === messageId && msg.metadata
+          ? { ...msg, metadata: { ...msg.metadata, isSkipped: true } }
+          : msg
+      )
+    );
+  }, []);
+
+  // Add feedback message for warmup answer
+  const addWarmupFeedback = useCallback(
+    (isCorrect: boolean, feedback: string) => {
+      const convId = conversationIdRef.current;
+      if (!convId) {
+        console.error("Conversation not ready");
+        return;
+      }
+
+      const tempId = `warmup-feedback-${Date.now()}-${++tempIdCounter}`;
+      const feedbackMessage: ExtendedMessageData = {
+        id: tempId,
+        conversationId: convId,
+        role: "assistant",
+        content: `${isCorrect ? "**Correct!**" : "**Not quite.**"} ${feedback}`,
+        inputType: "text",
+        messageType: "warmup_feedback",
+        createdAt: new Date().toISOString(),
+      };
+
+      setChatMessages((prev) => [...prev, feedbackMessage]);
+      return tempId;
+    },
+    []
+  );
+
   return {
     chatMessages,
     setChatMessages,
@@ -411,5 +502,10 @@ export function useChatSession({
     markInlessonSkipped,
     addInlessonFeedback,
     getLastAssistantMessageId,
+    // Warmup support
+    addWarmupQuestion,
+    markWarmupAnswered,
+    markWarmupSkipped,
+    addWarmupFeedback,
   };
 }

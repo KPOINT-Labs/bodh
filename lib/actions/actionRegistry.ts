@@ -30,6 +30,7 @@ export type ActionType =
   | "lesson_welcome_back" // Returning to lesson → "Continue where left", "Start from beginning"
   | "fa_intro" // Mid-lesson FA trigger → "Start quick check", "Skip for now"
   | "inlesson_complete" // After in-lesson question answered → "Continue watching"
+  | "warmup_complete" // After warmup quiz finished → "Watch the lesson", "Skip"
   | "concept_check" // Concept completion → "Submit", "Skip"
   | "lesson_complete" // After lesson ends → "Take assessment", "Warm-up", "Next lesson"
   | "assessment_complete" // After FA done → "View feedback"
@@ -82,6 +83,11 @@ export const ACTION_REGISTRY: Record<ActionType, ActionDefinition> = {
   inlesson_complete: {
     buttons: [
       { id: "continue_video", label: "Continue watching", variant: "primary" },
+    ],
+  },
+  warmup_complete: {
+    buttons: [
+      { id: "watch_lesson", label: "Start the video", variant: "primary" },
     ],
   },
   concept_check: {

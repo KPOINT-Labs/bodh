@@ -12,6 +12,9 @@ interface ChatMessageProps {
   // In-lesson question handlers
   onInlessonAnswer?: (questionId: string, answer: string) => void;
   onInlessonSkip?: (questionId: string) => void;
+  // Warmup question handlers
+  onWarmupAnswer?: (questionId: string, answer: string) => void;
+  onWarmupSkip?: (questionId: string) => void;
 }
 
 /**
@@ -27,10 +30,17 @@ export function ChatMessage({
   isFromHistory = false,
   onInlessonAnswer,
   onInlessonSkip,
+  onWarmupAnswer,
+  onWarmupSkip,
 }: ChatMessageProps) {
   const isUser = message.role === "user";
   // Check if this is an assessment summary (second part of a split FA message)
   const isAssessmentSummary = message.id.endsWith('-part2') && message.messageType === 'fa';
+
+  // For warmup messages, use warmup handlers; for inlesson, use inlesson handlers
+  const isWarmupMessage = message.messageType === 'warmup_mcq';
+  const effectiveOnAnswer = isWarmupMessage ? onWarmupAnswer : onInlessonAnswer;
+  const effectiveOnSkip = isWarmupMessage ? onWarmupSkip : onInlessonSkip;
 
   return (
     <div
@@ -66,8 +76,8 @@ export function ChatMessage({
             onTimestampClick={onTimestampClick}
             isFromHistory={isFromHistory}
             inlessonMetadata={message.metadata}
-            onInlessonAnswer={onInlessonAnswer}
-            onInlessonSkip={onInlessonSkip}
+            onInlessonAnswer={effectiveOnAnswer}
+            onInlessonSkip={effectiveOnSkip}
           />
         )}
       </div>

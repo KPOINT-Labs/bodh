@@ -5,6 +5,9 @@ import { CheckCircle, Circle, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { QuizOption } from "@/types/assessment";
 import { audioManager } from "@/lib/audio/quizAudio";
+import { Celebration } from "./Celebration";
+import { SuccessMessage } from "./SuccessMessage";
+import { ErrorMessage } from "./ErrorMessage";
 
 interface InLessonQuestionProps {
   question: string;
@@ -12,7 +15,7 @@ interface InLessonQuestionProps {
   isAnswered?: boolean;
   isSkipped?: boolean;
   correctOption?: string;
-  userAnswer?: string; 
+  userAnswer?: string;
   onAnswer: (optionId: string) => void;
   onSkip: () => void;
 }
@@ -29,6 +32,8 @@ export function InLessonQuestion({
 }: InLessonQuestionProps) {
   const [selected, setSelected] = useState<string | null>(userAnswer || null);
   const [submitting, setSubmitting] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [showError, setShowError] = useState(false);
 
   useEffect(() => {
     if (userAnswer) setSelected(userAnswer);
@@ -43,11 +48,23 @@ export function InLessonQuestion({
     if (!selected) return;
     setSubmitting(true);
 
-    // Brief delay for visual feedback before calling parent handler
-    // Parent handles audio/confetti based on correctness
+    // Check correctness and show celebration/error
+    const isAnswerCorrect = correctOption && selected === correctOption;
+
+    if (isAnswerCorrect) {
+      audioManager?.play("success");
+      setShowCelebration(true);
+      setTimeout(() => setShowCelebration(false), 3500);
+    } else if (correctOption) {
+      audioManager?.play("error");
+      setShowError(true);
+      setTimeout(() => setShowError(false), 2500);
+    }
+
+    // Call parent handler after delay to let animations play
     setTimeout(() => {
       onAnswer(selected);
-    }, 800);
+    }, isAnswerCorrect ? 2000 : 1500);
   };
 
   const handleOptionSelect = (id: string) => {
@@ -58,8 +75,13 @@ export function InLessonQuestion({
   };
 
   return (
-    <div className="space-y-4">
-      <p className="text-sm font-medium text-gray-900 leading-relaxed">{question}</p>
+    <>
+      <Celebration show={showCelebration} />
+      <SuccessMessage show={submitting && showCelebration} message="Awesome! 🎉" />
+      <ErrorMessage show={submitting && showError} message="Oops! Try again." />
+
+      <div className="space-y-4">
+        <p className="text-sm font-medium text-gray-900 leading-relaxed">{question}</p>
 
       <div className={cn(
         "animate-fade-in mx-auto max-w-2xl backdrop-blur-xl bg-white/80 border-2 rounded-2xl p-4 space-y-2 shadow-lg transition-all duration-300",
@@ -165,5 +187,6 @@ export function InLessonQuestion({
         )}
       </div>
     </div>
+    </>
   );
 }

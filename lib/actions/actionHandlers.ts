@@ -146,6 +146,12 @@ export const ACTION_HANDLERS: Record<ActionType, ActionHandler> = {
     }
   },
 
+  warmup_complete: (buttonId, _metadata, deps) => {
+    if (buttonId === "watch_lesson") {
+      deps.playVideo();
+    }
+  },
+
   lesson_complete: async (buttonId, metadata, deps) => {
     switch (buttonId) {
       case "assessment":

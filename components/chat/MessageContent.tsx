@@ -40,7 +40,7 @@ interface MessageContentProps {
   onQuestionSkip?: (questionNumber: number) => void;
   onTimestampClick?: (seconds: number, youtubeVideoId?: string | null) => void;
   isFromHistory?: boolean;
-  // In-lesson question props
+  // In-lesson question props (also used for warmup_mcq)
   inlessonMetadata?: {
     questionId?: string;
     questionType?: "mcq" | "text";
@@ -48,6 +48,7 @@ interface MessageContentProps {
     correctOption?: string;
     isAnswered?: boolean;
     isSkipped?: boolean;
+    userAnswer?: string;
   };
   onInlessonAnswer?: (questionId: string, answer: string) => void;
   onInlessonSkip?: (questionId: string) => void;
@@ -132,6 +133,34 @@ export function MessageContent({
   onInlessonAnswer,
   onInlessonSkip,
 }: MessageContentProps) {
+  // Handle warmup MCQ messages (inline in chat)
+  if (messageType === "warmup_mcq" && role === "assistant" && inlessonMetadata) {
+    const { questionId, options, isAnswered, isSkipped, correctOption, userAnswer } = inlessonMetadata;
+
+    if (options && questionId) {
+      return (
+        <div className="space-y-4">
+          <InLessonQuestion
+            question={content}
+            options={options}
+            isAnswered={isAnswered}
+            isSkipped={isSkipped}
+            correctOption={correctOption}
+            userAnswer={userAnswer}
+            onAnswer={(optionId: string) => onInlessonAnswer?.(questionId, optionId)}
+            onSkip={() => onInlessonSkip?.(questionId)}
+          />
+        </div>
+      );
+    }
+
+    return (
+      <div className="text-sm leading-relaxed">
+        {content}
+      </div>
+    );
+  }
+
   // Handle in-lesson question messages
   if (messageType === "inlesson" && role === "assistant" && inlessonMetadata) {
     const { questionId, questionType, options, isAnswered, isSkipped, correctOption } = inlessonMetadata;
