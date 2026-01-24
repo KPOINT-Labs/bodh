@@ -335,9 +335,14 @@ export function parseAssessmentContent(content: string): ParsedAssessment {
 
 /**
  * Checks if the content contains assessment questions
- * Matches formats like "Question 1:", "Question 1", "Question 1 (Multiple Choice):", etc.
+ * Matches formats like "Question 1:", "Question 1", "[QUESTION 1]", etc.
  */
 export function isAssessmentContent(content: string): boolean {
+  // Match marker-based format [QUESTION N]
+  if (/\[QUESTION\s*\d+\]/i.test(content)) {
+    return true;
+  }
+
   // Match "Question N" with optional type indicator and optional colon
   return (
     /Question\s+\d+/i.test(content) || content.toLowerCase().includes("quiz")
@@ -352,8 +357,49 @@ export interface FeedbackResult {
 
 /**
  * Detects if the content contains feedback about a correct or incorrect answer
+ * First checks for [CORRECT]/[INCORRECT] markers, then falls back to keyword detection
  */
 export function detectAnswerFeedback(content: string): FeedbackResult {
+  // Check for markers first (most reliable)
+  const hasCorrectMarker = /\[CORRECT\]/i.test(content);
+  const hasIncorrectMarker = /\[INCORRECT\]/i.test(content);
+
+  if (hasCorrectMarker && !hasIncorrectMarker) {
+    return {
+      type: "correct",
+      feedbackText: "Awesome!",
+      explanation: content,
+    };
+  }
+
+  if (hasIncorrectMarker && !hasCorrectMarker) {
+    return {
+      type: "incorrect",
+      feedbackText: "Not quite right",
+      explanation: content,
+    };
+  }
+
+  // If both markers present, check which comes first
+  if (hasCorrectMarker && hasIncorrectMarker) {
+    const correctIndex = content.search(/\[CORRECT\]/i);
+    const incorrectIndex = content.search(/\[INCORRECT\]/i);
+
+    if (correctIndex < incorrectIndex) {
+      return {
+        type: "correct",
+        feedbackText: "Awesome!",
+        explanation: content,
+      };
+    }
+    return {
+      type: "incorrect",
+      feedbackText: "Not quite right",
+      explanation: content,
+    };
+  }
+
+  // Fallback to keyword-based detection
   const lowerContent = content.toLowerCase();
 
   // Correct answer patterns
@@ -466,11 +512,126 @@ export function detectAnswerFeedback(content: string): FeedbackResult {
  * Checks if content is primarily feedback (not a new question)
  */
 export function isFeedbackContent(content: string): boolean {
-  const hasQuestion = /Question\s+\d+/i.test(content);
+  // Check for marker-based questions
+  const hasMarkerQuestion = /\[QUESTION\s*\d+\]/i.test(content);
+  const hasLegacyQuestion = /Question\s+\d+/i.test(content);
+  const hasQuestion = hasMarkerQuestion || hasLegacyQuestion;
+
   const feedback = detectAnswerFeedback(content);
 
   // It's feedback if it has feedback indicators but no new questions
   return feedback.type !== null && !hasQuestion;
+}
+
+/**
+ * Checks if assessment is complete based on [COMPLETE] marker
+ */
+export function isAssessmentComplete(content: string): boolean {
+  return /\[COMPLETE\]/i.test(content);
+}
+
+/**
+ * Parsed marker-based FA response
+ */
+export interface MarkerFAResponse {
+  feedbackType: "correct" | "incorrect" | null;
+  feedbackText: string | null;
+  questionNumber: number | null;
+  questionText: string | null;
+  options: string[] | null;
+  isMcq: boolean;
+  isComplete: boolean;
+  completionSummary: string | null;
+  ttsText: string;
+}
+
+/**
+ * Parse marker-based FA response content
+ * Extracts [QUESTION N], [OPTION A-D], [CORRECT], [INCORRECT], [COMPLETE]
+ */
+export function parseMarkerFAResponse(content: string): MarkerFAResponse {
+  if (!content) {
+    return {
+      feedbackType: null,
+      feedbackText: null,
+      questionNumber: null,
+      questionText: null,
+      options: null,
+      isMcq: false,
+      isComplete: false,
+      completionSummary: null,
+      ttsText: "",
+    };
+  }
+
+  // Check for completion
+  const isComplete = /\[COMPLETE\]/i.test(content);
+  let completionSummary: string | null = null;
+  const completeMatch = content.match(/\[COMPLETE\]\s*([\s\S]+?)(?=\[|$)/i);
+  if (completeMatch) {
+    completionSummary = completeMatch[1].trim();
+  }
+
+  // Extract feedback type
+  let feedbackType: "correct" | "incorrect" | null = null;
+  if (/\[CORRECT\]/i.test(content)) {
+    feedbackType = "correct";
+  } else if (/\[INCORRECT\]/i.test(content)) {
+    feedbackType = "incorrect";
+  }
+
+  // Extract feedback text (text after feedback marker, before next marker)
+  let feedbackText: string | null = null;
+  const feedbackMatch = content.match(
+    /\[(CORRECT|INCORRECT)\]\s*([\s\S]+?)(?=\[QUESTION|\[COMPLETE\]|$)/i
+  );
+  if (feedbackMatch) {
+    feedbackText = feedbackMatch[2].trim();
+  }
+
+  // Extract question number and text
+  let questionNumber: number | null = null;
+  let questionText: string | null = null;
+  const questionMatch = content.match(
+    /\[QUESTION\s*(\d+)\]\s*([\s\S]+?)(?=\[OPTION|\[CORRECT|\[INCORRECT|\[COMPLETE\]|$)/i
+  );
+  if (questionMatch) {
+    questionNumber = Number.parseInt(questionMatch[1], 10);
+    questionText = questionMatch[2].trim();
+  }
+
+  // Extract MCQ options
+  const options: string[] = [];
+  const optionMatches = content.matchAll(
+    /\[OPTION\s*([A-D])\]\s*([\s\S]+?)(?=\[OPTION|\[CORRECT|\[INCORRECT|\[COMPLETE\]|\[QUESTION|$)/gi
+  );
+  for (const match of optionMatches) {
+    const letter = match[1].toUpperCase();
+    const text = match[2].trim();
+    options.push(`${letter}) ${text}`);
+  }
+  const isMcq = options.length > 0;
+
+  // Build clean TTS text (remove markers but keep content)
+  let ttsText = content;
+  ttsText = ttsText.replace(/\[CORRECT\]/gi, "");
+  ttsText = ttsText.replace(/\[INCORRECT\]/gi, "");
+  ttsText = ttsText.replace(/\[COMPLETE\]/gi, "");
+  ttsText = ttsText.replace(/\[QUESTION\s*\d+\]/gi, "");
+  ttsText = ttsText.replace(/\[OPTION\s*[A-D]\]/gi, "");
+  ttsText = ttsText.replace(/\s+/g, " ").trim();
+
+  return {
+    feedbackType,
+    feedbackText,
+    questionNumber,
+    questionText,
+    options: isMcq ? options : null,
+    isMcq,
+    isComplete,
+    completionSummary,
+    ttsText,
+  };
 }
 
 export interface MessageData {
