@@ -1,9 +1,11 @@
 "use client";
 
 import { usePathname, useSearchParams } from "next/navigation";
+import Script from "next/script";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 import { type ReactNode, useMemo } from "react";
 import { PeerLearningPanel } from "@/components/learning/PeerLearningPanel";
+import { AnimatedBackground } from "@/components/ui/animated-background";
 import { CourseProgressProvider } from "@/contexts/CourseProgressContext";
 import {
   LearningPanelProvider,
@@ -47,12 +49,20 @@ function LearningLayoutContent({ children }: { children: ReactNode }) {
 
 export default function LearningLayout({ children }: { children: ReactNode }) {
   return (
-    <NuqsAdapter>
-      <LearningPanelProvider>
-        <CourseProgressProvider>
-          <LearningLayoutContent>{children}</LearningLayoutContent>
-        </CourseProgressProvider>
-      </LearningPanelProvider>
-    </NuqsAdapter>
+    <>
+      <Script
+        id="kpoint-player-sdk"
+        src="https://assets.zencite.in/orca/media/embed/videofront-vega.js"
+        strategy="afterInteractive"
+      />
+      <AnimatedBackground intensity="medium" theme="learning" variant="full" />
+      <NuqsAdapter>
+        <LearningPanelProvider>
+          <CourseProgressProvider>
+            <LearningLayoutContent>{children}</LearningLayoutContent>
+          </CourseProgressProvider>
+        </LearningPanelProvider>
+      </NuqsAdapter>
+    </>
   );
 }
