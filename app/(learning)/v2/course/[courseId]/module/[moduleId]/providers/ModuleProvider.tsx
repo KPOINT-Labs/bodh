@@ -1,13 +1,7 @@
 "use client";
 
 import { createContext, type ReactNode, useContext, useMemo } from "react";
-
-// Session type result (will be imported from actions/session-type.ts in Task 11)
-// For now, define inline
-interface SessionTypeResult {
-  sessionType: "warmup" | "lesson" | "revision";
-  reason: string;
-}
+import type { SessionTypeResult } from "@/actions/session-type";
 
 interface Lesson {
   id: string;
