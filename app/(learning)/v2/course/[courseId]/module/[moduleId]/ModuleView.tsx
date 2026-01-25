@@ -6,6 +6,10 @@ import { updateRoomMetadata } from "@/actions/livekit";
 import type { SessionTypeResult } from "@/actions/session-type";
 import { ResizableContent } from "@/components/layout/resizable-content";
 import { useLearningPanel } from "@/contexts/LearningPanelContext";
+import { ChatInput } from "./components/ChatInput";
+import { ChatPanel } from "./components/ChatPanel";
+import { ModuleHeader } from "./components/ModuleHeader";
+import { VideoPanel } from "./components/VideoPanel";
 import { ActionsProvider } from "./providers/ActionsProvider";
 import { MessagesProvider } from "./providers/MessagesProvider";
 import { ModuleProvider } from "./providers/ModuleProvider";
@@ -61,10 +65,8 @@ export function ModuleView({
   // Panel state from context (URL-synced via nuqs)
   const {
     isRightPanelOpen,
-    openRightPanel,
     closeRightPanel,
     selectedLessonId,
-    setSelectedLessonId,
     highlightRightPanel,
     collapseSidebar,
     expandSidebar,
@@ -98,15 +100,6 @@ export function ModuleView({
     collapseSidebar,
     expandSidebar,
   ]);
-
-  // Handle lesson selection
-  const handleLessonSelect = useCallback(
-    (lesson: Lesson) => {
-      setSelectedLessonId(lesson.id);
-      openRightPanel();
-    },
-    [setSelectedLessonId, openRightPanel]
-  );
 
   // Handle panel close
   const handleClosePanel = useCallback(() => {
@@ -151,12 +144,9 @@ export function ModuleView({
             />
             <ModuleLayout
               activeLesson={activeLesson}
-              course={course}
               highlightRightPanel={highlightRightPanel}
               isRightPanelOpen={isRightPanelOpen}
-              module={module}
               onClosePanel={handleClosePanel}
-              onLessonSelect={handleLessonSelect}
             />
           </MessagesProvider>
         </LiveKitRoom>
@@ -220,64 +210,31 @@ function RoomMetadataUpdater({
   return null;
 }
 
-// Layout orchestration component - placeholder until child components are created
+// Layout orchestration component using real components
 function ModuleLayout({
-  course,
-  module,
   activeLesson,
   isRightPanelOpen,
   highlightRightPanel,
   onClosePanel,
-  onLessonSelect,
 }: {
-  course: Course;
-  module: Module;
   activeLesson: Lesson | undefined;
   isRightPanelOpen: boolean;
   highlightRightPanel: boolean;
   onClosePanel: () => void;
-  onLessonSelect: (lesson: Lesson) => void;
 }) {
-  // Placeholder components until Tasks 15-20 create them
-  const header = (
-    <div className="border-b p-4">
-      <h1 className="font-semibold text-lg">{course.title}</h1>
-      <p className="text-muted-foreground text-sm">{module.title}</p>
-    </div>
-  );
+  const header = <ModuleHeader />;
 
-  const content = (
-    <div className="flex-1 p-4">
-      <div className="py-8 text-center text-muted-foreground">
-        Chat panel placeholder - Task 17
-      </div>
-    </div>
-  );
+  const content = <ChatPanel />;
 
-  const footer = (
-    <div className="border-t p-4">
-      <div className="text-center text-muted-foreground">
-        Chat input placeholder - Task 18
-      </div>
-    </div>
-  );
+  const footer = <ChatInput />;
 
   const rightPanel =
     isRightPanelOpen && activeLesson?.kpointVideoId ? (
-      <div className="p-4">
-        <div className="text-muted-foreground">
-          Video panel placeholder - Task 19
-          <br />
-          Lesson: {activeLesson.title}
-          <button
-            className="mt-2 rounded bg-muted px-2 py-1 text-sm"
-            onClick={onClosePanel}
-            type="button"
-          >
-            Close
-          </button>
-        </div>
-      </div>
+      <VideoPanel
+        highlightPanel={highlightRightPanel}
+        lesson={activeLesson}
+        onClose={onClosePanel}
+      />
     ) : null;
 
   return (
