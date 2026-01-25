@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname, useSearchParams } from "next/navigation";
+import { NuqsAdapter } from "nuqs/adapters/next/app";
 import { type ReactNode, useMemo } from "react";
 import { PeerLearningPanel } from "@/components/learning/PeerLearningPanel";
 import { CourseProgressProvider } from "@/contexts/CourseProgressContext";
@@ -46,10 +47,12 @@ function LearningLayoutContent({ children }: { children: ReactNode }) {
 
 export default function LearningLayout({ children }: { children: ReactNode }) {
   return (
-    <LearningPanelProvider>
-      <CourseProgressProvider>
-        <LearningLayoutContent>{children}</LearningLayoutContent>
-      </CourseProgressProvider>
-    </LearningPanelProvider>
+    <NuqsAdapter>
+      <LearningPanelProvider>
+        <CourseProgressProvider>
+          <LearningLayoutContent>{children}</LearningLayoutContent>
+        </CourseProgressProvider>
+      </LearningPanelProvider>
+    </NuqsAdapter>
   );
 }
