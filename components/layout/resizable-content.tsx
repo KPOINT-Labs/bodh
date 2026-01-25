@@ -61,8 +61,8 @@ export function ResizableContent({
         {/* Main Content Panel */}
         <ResizablePanel
           className="flex flex-col"
-          defaultSize={rightPanel ? 25 : 100}
-          minSize={25}
+          defaultSize={rightPanel ? 65 : 100}
+          minSize={40}
           style={{
             backgroundImage: "url(/background.png)",
             backgroundSize: "cover",
@@ -95,9 +95,9 @@ export function ResizableContent({
             </ResizableHandle>
             <ResizablePanel
               className="hidden lg:block"
-              defaultSize={25}
+              defaultSize={35}
               maxSize={60}
-              minSize={30}
+              minSize={25}
             >
               {rightPanel}
             </ResizablePanel>
