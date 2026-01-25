@@ -122,3 +122,5 @@ page.tsx (Server Component)
 | `06a-quiz-question.md` | QuizQuestion with Framer Motion |
 | `07-actions-system.md` | Actions as message fields + distributed handlers |
 | `08-livekit-integration.md` | LiveKit SDK integration patterns |
+| `09-module-provider.md` | ModuleProvider (minimal read-only context) |
+| `10-video-panel.md` | VideoPanel (V1 KPoint wrapper) |
