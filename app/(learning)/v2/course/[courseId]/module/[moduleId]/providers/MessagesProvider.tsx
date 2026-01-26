@@ -1,6 +1,6 @@
 "use client";
 
-import { useRoomContext } from "@livekit/components-react";
+import { useRoomContext, useTranscriptions } from "@livekit/components-react";
 import {
   createContext,
   type ReactNode,
@@ -99,6 +99,9 @@ export function MessagesProvider({ children }: MessagesProviderProps) {
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [showErrorToast, setShowErrorToast] = useState(false);
 
+  // Track processed transcription segments to avoid duplicates
+  const processedSegmentsRef = useRef<Set<string>>(new Set());
+
   useEffect(() => {
     if (hasInitialized.current) return;
     hasInitialized.current = true;
@@ -133,6 +136,9 @@ export function MessagesProvider({ children }: MessagesProviderProps) {
   // Chat hook
   const chat = useChat({ conversationId });
 
+  // LiveKit transcriptions hook - captures agent voice transcriptions
+  const transcriptions = useTranscriptions();
+
   // Data channel publish function (for quiz evaluation requests, etc.)
   const publishData = useCallback(
     async (data: string) => {
@@ -153,6 +159,41 @@ export function MessagesProvider({ children }: MessagesProviderProps) {
     quiz: (activeLesson?.quiz as unknown) || null,
     publishData,
   });
+
+  // ---------------------------------------------------------------------------
+  // Agent Transcription Listener
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    if (!conversationId) return;
+
+    for (const transcription of transcriptions) {
+      // Get attributes and id from streamInfo
+      const attrs = transcription.streamInfo?.attributes;
+      const segmentId = transcription.streamInfo?.id;
+
+      // Check if this is a final agent transcription
+      const isFinal = attrs?.["lk.transcription_final"] === "true";
+      const isAgent = !!attrs?.["lk.transcribed_track_id"];
+
+      // Only process final agent transcriptions that haven't been processed
+      if (
+        isFinal &&
+        isAgent &&
+        segmentId &&
+        transcription.text?.trim() &&
+        !processedSegmentsRef.current.has(segmentId)
+      ) {
+        processedSegmentsRef.current.add(segmentId);
+        console.log(
+          "[MessagesProvider] Agent transcription:",
+          transcription.text
+        );
+
+        // Add to chat as assistant message
+        chat.addAssistantMessage(transcription.text.trim(), "agent_voice");
+      }
+    }
+  }, [transcriptions, conversationId, chat.addAssistantMessage]);
 
   // ---------------------------------------------------------------------------
   // Data Channel Listener (for FA responses)

@@ -1,10 +1,16 @@
 "use client";
 
-import { LiveKitRoom, RoomAudioRenderer } from "@livekit/components-react";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import {
+  LiveKitRoom,
+  RoomAudioRenderer,
+  useRoomContext,
+} from "@livekit/components-react";
+import { RoomEvent } from "livekit-client";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { updateRoomMetadata } from "@/actions/livekit";
 import type { SessionTypeResult } from "@/actions/session-type";
 import { ResizableContent } from "@/components/layout/resizable-content";
+import { useAudioContext } from "@/contexts/AudioContext";
 import { useLearningPanel } from "@/contexts/LearningPanelContext";
 import { ChatInput } from "./components/ChatInput";
 import { ChatPanel } from "./components/ChatPanel";
@@ -124,6 +130,7 @@ export function ModuleView({
       <ActionsProvider onActionHandled={handleActionHandled}>
         <LiveKitRoom
           audio={false}
+          className="h-full"
           connect={true}
           options={{
             adaptiveStream: true,
@@ -134,6 +141,7 @@ export function ModuleView({
           video={false}
         >
           <RoomAudioRenderer />
+          <AudioPlaybackHandler />
           <MessagesProvider>
             <RoomMetadataUpdater
               activeLesson={activeLesson}
@@ -153,6 +161,83 @@ export function ModuleView({
       </ActionsProvider>
     </ModuleProvider>
   );
+}
+
+// Component to handle browser autoplay restrictions and global mute sync
+function AudioPlaybackHandler() {
+  const room = useRoomContext();
+  const { isMuted, registerMuteCallback, unregisterMuteCallback } =
+    useAudioContext();
+  const [canPlayAudio, setCanPlayAudio] = useState(true);
+
+  // Listen for audio playback status changes from LiveKit
+  useEffect(() => {
+    if (!room) return;
+
+    const handleAudioStatus = () => {
+      setCanPlayAudio(room.canPlaybackAudio);
+      console.log(
+        "[AudioPlaybackHandler] canPlaybackAudio:",
+        room.canPlaybackAudio
+      );
+    };
+
+    // Set initial state
+    setCanPlayAudio(room.canPlaybackAudio);
+
+    room.on(RoomEvent.AudioPlaybackStatusChanged, handleAudioStatus);
+    return () => {
+      room.off(RoomEvent.AudioPlaybackStatusChanged, handleAudioStatus);
+    };
+  }, [room]);
+
+  // Auto-start audio on first user interaction if blocked
+  useEffect(() => {
+    if (canPlayAudio || !room) return;
+
+    const handleInteraction = async () => {
+      try {
+        await room.startAudio();
+        console.log("[AudioPlaybackHandler] Audio started after user click");
+        document.removeEventListener("click", handleInteraction);
+        document.removeEventListener("touchstart", handleInteraction);
+      } catch (err) {
+        console.error("[AudioPlaybackHandler] Failed to start audio:", err);
+      }
+    };
+
+    document.addEventListener("click", handleInteraction);
+    document.addEventListener("touchstart", handleInteraction);
+
+    return () => {
+      document.removeEventListener("click", handleInteraction);
+      document.removeEventListener("touchstart", handleInteraction);
+    };
+  }, [canPlayAudio, room]);
+
+  // Sync global mute state with LiveKit audio output
+  useEffect(() => {
+    if (!room) return;
+
+    const handleMuteChange = (muted: boolean) => {
+      console.log("[AudioPlaybackHandler] Mute state changed:", muted);
+      // Mute/unmute all remote audio tracks via publication
+      for (const participant of room.remoteParticipants.values()) {
+        for (const publication of participant.audioTrackPublications.values()) {
+          // setEnabled on publication controls server-side streaming
+          publication.setEnabled(!muted);
+        }
+      }
+    };
+
+    // Apply initial mute state
+    handleMuteChange(isMuted);
+
+    registerMuteCallback(handleMuteChange);
+    return () => unregisterMuteCallback(handleMuteChange);
+  }, [room, isMuted, registerMuteCallback, unregisterMuteCallback]);
+
+  return null;
 }
 
 // Separate component to update room metadata when lesson changes
