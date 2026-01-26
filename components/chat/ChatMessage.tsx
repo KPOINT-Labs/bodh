@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Sparkles, User } from "lucide-react";
+import { Sparkles, User } from "lucide-react";
 import { MessageContent } from "./MessageContent";
 import { AssessmentSummary } from "./AssessmentSummary";
 import { Button } from "@/components/ui/button";
@@ -138,7 +138,8 @@ export function ChatMessage({
       {/* V2: Action Buttons (rendered below the message) */}
       {hasAction && actionDefinition && actionsContext && (
         <div className="ml-11 mt-3">
-          {isPending && (
+          {/* Show buttons when pending OR when handled but disableAfterClick is false */}
+          {(isPending || (isHandled && actionDefinition.disableAfterClick === false)) && (
             <div className="flex items-center gap-3 animate-in fade-in slide-in-from-bottom-2 duration-500">
               {actionDefinition.buttons.map((button) => (
                 <Button
@@ -156,13 +157,24 @@ export function ChatMessage({
               ))}
             </div>
           )}
-          {isHandled && (
-            <span className="text-sm text-muted-foreground flex items-center gap-1.5">
-              <Check className="h-4 w-4" />
-              {actionDefinition.buttons.find(
-                (b) => b.id === message.actionHandledButtonId
-              )?.label || "Done"}
-            </span>
+          {/* Show disabled buttons when handled and disableAfterClick is not false */}
+          {isHandled && actionDefinition.disableAfterClick !== false && (
+            <div className="flex items-center gap-3">
+              {actionDefinition.buttons.map((button) => (
+                <Button
+                  key={button.id}
+                  disabled
+                  variant={button.variant === "primary" ? "default" : "outline"}
+                  className={
+                    button.variant === "primary"
+                      ? "gap-2 bg-blue-500 text-white rounded-full px-5 opacity-50 cursor-not-allowed"
+                      : "gap-2 border-gray-300 text-gray-700 rounded-full px-5 opacity-50 cursor-not-allowed"
+                  }
+                >
+                  {button.label}
+                </Button>
+              ))}
+            </div>
           )}
         </div>
       )}

@@ -323,25 +323,41 @@ export function ChatAgent({
     threshold: 150, // Consider "at bottom" if within 150px
   });
 
+  // Get IDs of chatMessages with pending actions (these take precedence over history)
+  const pendingActionMessageIds = useMemo(
+    () => new Set(
+      chatMessages
+        .filter((msg) => msg.action && msg.actionStatus === "pending")
+        .map((msg) => msg.id)
+    ),
+    [chatMessages]
+  );
+
+  // Filter historyMessages to exclude those with pending actions in chatMessages
+  // (the chatMessages version has the current action state)
+  const filteredHistoryMessages = useMemo(
+    () => historyMessages.filter((msg) => !pendingActionMessageIds.has(msg.id)),
+    [historyMessages, pendingActionMessageIds]
+  );
+
   // Filter out chatMessages that already exist in historyMessages to avoid duplicate keys
   // Also deduplicate within chatMessages in case the same message was added twice
   const historyMessageIds = useMemo(
-    () => new Set(historyMessages.map((msg) => msg.id)),
-    [historyMessages]
+    () => new Set(filteredHistoryMessages.map((msg) => msg.id)),
+    [filteredHistoryMessages]
   );
   const filteredChatMessages = useMemo(() => {
     const seen = new Set<string>();
     const filtered = chatMessages.filter((msg) => {
-      // Skip if already in history
-      if (historyMessageIds.has(msg.id)) return false;
+      // Skip if already in filtered history
+      if (historyMessageIds.has(msg.id)) {
+        return false;
+      }
       // Skip if already seen in this array (deduplication)
       if (seen.has(msg.id)) return false;
       seen.add(msg.id);
       return true;
     });
-    // Debug: log what's in chatMessages and filtered
-    console.log("[ChatAgent] chatMessages:", chatMessages.length, "filtered:", filtered.length,
-      "messages:", filtered.map(m => ({ id: m.id.substring(0, 20), role: m.role, content: m.content.substring(0, 30) })));
     return filtered;
   }, [chatMessages, historyMessageIds]);
 

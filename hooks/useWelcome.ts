@@ -56,7 +56,9 @@ export function useWelcome(
   const { speak, isPlaying, isLoading: ttsLoading, stop } = useTTS();
   const { isMuted } = useAudioContext();
 
-  const hasStartedRef = useRef(false);
+  // Track which session type we've already started generating for
+  // This prevents duplicate generation even if component remounts (StrictMode)
+  const hasStartedForSessionRef = useRef<string | null>(null);
   const [welcomeMessage, setWelcomeMessage] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
@@ -64,12 +66,12 @@ export function useWelcome(
 
   // Generate and play welcome message
   useEffect(() => {
-    // Skip if disabled, no session type, or already started
-    if (!enabled || !sessionType || hasStartedRef.current) {
+    // Skip if disabled, no session type, or already started for this session type
+    if (!enabled || !sessionType || hasStartedForSessionRef.current === sessionType) {
       return;
     }
 
-    hasStartedRef.current = true;
+    hasStartedForSessionRef.current = sessionType;
 
     const generateAndPlay = async () => {
       setIsGenerating(true);

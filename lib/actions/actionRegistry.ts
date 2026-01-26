@@ -20,6 +20,8 @@ export interface ActionDefinition {
   buttons: ActionButton[];
   /** If true, buttons disappear after click. If false, buttons stay visible. Default: true */
   dismissAfterClick?: boolean;
+  /** If true (default), buttons become disabled after click. If false, buttons stay enabled. */
+  disableAfterClick?: boolean;
 }
 
 // All possible action types
