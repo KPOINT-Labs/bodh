@@ -2,10 +2,7 @@
 
 import { useCallback, useState } from "react";
 import type { ActionType } from "@/lib/actions/actionRegistry";
-import {
-  getAnsweredQuestionIds,
-  recordAttempt,
-} from "@/lib/actions/assessment";
+import { recordAttempt } from "@/lib/actions/assessment";
 import type { LessonQuiz, WarmupQuestion } from "@/types/assessment";
 
 interface WarmupState {
@@ -78,29 +75,16 @@ export function useWarmupFlow({
       return;
     }
 
-    const answeredIds = await getAnsweredQuestionIds(
-      userId,
-      lessonId,
-      "warmup"
-    );
-
-    const unansweredQuestions = quiz.warmup.filter(
-      (q: WarmupQuestion) => !answeredIds.has(q.id)
-    );
-
-    if (unansweredQuestions.length === 0) {
-      console.log("[useWarmupFlow] All warmup questions already answered");
-      showActionRef.current?.("warmup_complete", {});
-      return;
-    }
+    // Always show all warmup questions (no filtering by answered status)
+    const allQuestions = quiz.warmup;
 
     console.log(
       "[useWarmupFlow] Starting warmup with",
-      unansweredQuestions.length,
+      allQuestions.length,
       "questions"
     );
 
-    const firstQuestion = unansweredQuestions[0];
+    const firstQuestion = allQuestions[0];
     const messageId = addWarmupQuestion({
       id: firstQuestion.id,
       question: firstQuestion.question,
@@ -114,7 +98,7 @@ export function useWarmupFlow({
 
       setWarmupState({
         isActive: true,
-        questions: unansweredQuestions,
+        questions: allQuestions,
         currentIndex: 0,
         messageIds,
         correctCount: 0,
@@ -122,7 +106,7 @@ export function useWarmupFlow({
         skippedCount: 0,
       });
     }
-  }, [quiz, lessonId, userId, addWarmupQuestion, showActionRef]);
+  }, [quiz, lessonId, addWarmupQuestion, showActionRef]);
 
   const handleAnswer = useCallback(
     async (questionId: string, answer: string) => {
