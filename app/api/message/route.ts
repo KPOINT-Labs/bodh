@@ -112,41 +112,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // For assistant messages in welcome conversations, check for duplicate WELCOME messages only
-    // This prevents the initial welcome message from being duplicated, but allows subsequent responses
-    if (role === "assistant" && messageType === "general") {
-      const conversation = await prisma.conversation.findUnique({
-        where: { id: conversationId },
-        include: {
-          messages: {
-            where: { role: "user" },
-            take: 1,
-          },
+    // For assistant messages with actions, check for duplicates with the SAME action type
+    // This prevents the same welcome/action message from being duplicated (e.g., in React StrictMode)
+    if (role === "assistant" && action) {
+      const existingWithSameAction = await prisma.message.findFirst({
+        where: {
+          conversationId,
+          role: "assistant",
+          action: action,
         },
+        orderBy: { createdAt: "desc" },
       });
 
-      // Only prevent duplicate if:
-      // 1. It's a welcome conversation
-      // 2. No user messages exist yet (this is the initial welcome, not a response to user)
-      // 3. Check if an assistant message with similar content already exists
-      if (conversation?.contextType === "welcome" && conversation.messages.length === 0) {
-        const existingWelcome = await prisma.message.findFirst({
-          where: {
-            conversationId,
-            role: "assistant",
-          },
-          orderBy: { createdAt: "asc" },
+      if (existingWithSameAction) {
+        // Return existing message with same action instead of creating duplicate
+        console.log("[Message API] Returning existing message with same action:", action);
+        return NextResponse.json({
+          success: true,
+          message: existingWithSameAction,
+          existing: true,
         });
-
-        if (existingWelcome) {
-          // Return existing welcome message instead of creating duplicate
-          console.log("[Message API] Returning existing welcome message, not creating duplicate");
-          return NextResponse.json({
-            success: true,
-            message: existingWelcome,
-            existing: true,
-          });
-        }
       }
     }
 
