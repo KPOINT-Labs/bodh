@@ -112,28 +112,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // For assistant messages with actions, check for duplicates with the SAME action type
-    // This prevents the same welcome/action message from being duplicated (e.g., in React StrictMode)
-    if (role === "assistant" && action) {
-      const existingWithSameAction = await prisma.message.findFirst({
-        where: {
-          conversationId,
-          role: "assistant",
-          action: action,
-        },
-        orderBy: { createdAt: "desc" },
-      });
-
-      if (existingWithSameAction) {
-        // Return existing message with same action instead of creating duplicate
-        console.log("[Message API] Returning existing message with same action:", action);
-        return NextResponse.json({
-          success: true,
-          message: existingWithSameAction,
-          existing: true,
-        });
-      }
-    }
 
     const message = await prisma.message.create({
       data: {

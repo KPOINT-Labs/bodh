@@ -84,12 +84,6 @@ export async function getOrCreateConversation(
   return data.conversation;
 }
 
-export interface StoreMessageResult {
-  message: MessageData;
-  /** True if this message already existed (not newly created) */
-  existing: boolean;
-}
-
 /**
  * Store a message in a conversation
  */
@@ -110,7 +104,7 @@ export async function storeMessage(
     actionMetadata?: Record<string, unknown>;
     actionStatus?: "pending" | "handled" | "dismissed";
   }
-): Promise<StoreMessageResult> {
+): Promise<MessageData> {
   const response = await fetch("/api/message", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -128,10 +122,7 @@ export async function storeMessage(
     throw new Error(data.error || "Failed to store message");
   }
 
-  return {
-    message: data.message,
-    existing: data.existing === true,
-  };
+  return data.message;
 }
 
 /**
@@ -165,7 +156,7 @@ export async function initializeChatSession(params: {
 
   // Step 3: Store welcome message if provided and conversation is new (no messages)
   if (welcomeMessage && conversation.messages.length === 0) {
-    const { message } = await storeMessage(
+    const message = await storeMessage(
       conversation.id,
       "assistant",
       welcomeMessage

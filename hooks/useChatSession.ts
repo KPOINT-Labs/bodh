@@ -253,7 +253,7 @@ export function useChatSession({
 
       // Store in database
       try {
-        const { message: savedMessage } = await storeMessage(convId, "user", message, {
+        const savedMessage = await storeMessage(convId, "user", message, {
           inputType,
           messageType,
         });
@@ -321,7 +321,7 @@ export function useChatSession({
 
       // Store in database
       try {
-        const { message: savedMessage, existing } = await storeMessage(convId, "assistant", message, {
+        const savedMessage = await storeMessage(convId, "assistant", message, {
           inputType: "text",
           messageType: opts.messageType || "general",
           // V2: Store action fields
@@ -329,16 +329,8 @@ export function useChatSession({
           actionMetadata: opts.actionMetadata,
           actionStatus: opts.action ? "pending" : undefined,
         });
-        console.log("[ChatSession] Assistant message stored in DB:", savedMessage.id, "existing:", existing);
+        console.log("[ChatSession] Assistant message stored in DB:", savedMessage.id);
         lastAssistantMessageIdRef.current = savedMessage.id;
-
-        if (existing) {
-          // Message already existed (duplicate prevention triggered)
-          // Remove the temp message since we already have this message stored
-          console.log("[ChatSession] Removing temp message, already exists:", tempId);
-          setChatMessages((prev) => prev.filter((msg) => msg.id !== tempId));
-          return savedMessage.id;
-        }
 
         // Update the temp ID with the real ID
         setChatMessages((prev) =>
