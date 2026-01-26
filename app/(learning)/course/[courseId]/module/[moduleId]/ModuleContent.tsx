@@ -47,6 +47,9 @@ interface ActionHandlerRegistryProps {
   router: ReturnType<typeof useRouter>;
   courseId: string;
   startWarmup: () => void;
+  // For FA intro handlers
+  addUserMessage: (message: string, messageType?: string, inputType?: string) => Promise<void>;
+  sendTextToAgent: (text: string) => Promise<void>;
 }
 
 function ActionHandlerRegistry({
@@ -58,6 +61,8 @@ function ActionHandlerRegistry({
   router,
   courseId,
   startWarmup,
+  addUserMessage,
+  sendTextToAgent,
 }: ActionHandlerRegistryProps) {
   const { registerHandler, unregisterHandler } = useActions();
 
@@ -121,6 +126,34 @@ function ActionHandlerRegistry({
       startWarmup();
     });
 
+    // FA intro handlers
+    registerHandler("fa_intro", "start", async (meta) => {
+      // Display user message in chat UI
+      await addUserMessage("Ask me a formative assessment", "fa", "auto");
+      // Send FA request to agent
+      const topic = meta.topic as string;
+      const agentMessage = `
+        Be in assessment mode.
+
+        Generate EXACTLY 3 questions on ${topic} (use mixed question types if needed).
+        Ask questions one by one.
+        If the user answers 2 questions correctly, stop the assessment and provide feedback.
+
+        IMPORTANT:
+        - Do NOT tell the user about the 3 question limit or the 2 correct answers threshold.
+        - Do NOT mention "I will ask 3 questions" or similar.
+        - Just start with the first question naturally.
+        - Give answer explanation in strictly 2 sentences.
+
+        User query: Ask me a formative assessment on "${topic}".
+      `.trim();
+      await sendTextToAgent(agentMessage);
+    });
+
+    registerHandler("fa_intro", "skip", () => {
+      playerRef.current?.playVideo?.();
+    });
+
     // Cleanup
     return () => {
       const handlers: Array<[ActionType, string]> = [
@@ -132,6 +165,8 @@ function ActionHandlerRegistry({
         ["intro_complete", "continue_to_lesson1"],
         ["lesson_complete", "next_lesson"],
         ["lesson_welcome", "start_warmup"],
+        ["fa_intro", "start"],
+        ["fa_intro", "skip"],
       ];
       for (const [actionType, buttonId] of handlers) {
         unregisterHandler(actionType, buttonId);
@@ -148,6 +183,8 @@ function ActionHandlerRegistry({
     router,
     courseId,
     startWarmup,
+    addUserMessage,
+    sendTextToAgent,
   ]);
 
   return null; // This component doesn't render anything
@@ -1831,6 +1868,8 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
         router={router}
         courseId={course.id}
         startWarmup={handleInlineWarmup}
+        addUserMessage={handleAddUserMessage}
+        sendTextToAgent={liveKit.sendTextToAgent}
       />
       <AnimatedBackground variant="full" intensity="medium" theme="learning" />
       <OnboardingModal isReturningUser={isReturningUser} />
