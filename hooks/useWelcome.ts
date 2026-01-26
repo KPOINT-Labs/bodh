@@ -23,8 +23,8 @@ interface UseWelcomeOptions {
   enabled?: boolean;
   /** Called when welcome message is generated (before TTS) */
   onMessageGenerated?: (message: string) => void;
-  /** Called when welcome flow completes (after TTS or immediately if muted) */
-  onComplete?: () => void;
+  /** Called when welcome flow completes (after TTS or immediately if muted) - receives the message */
+  onComplete?: (message: string) => void;
 }
 
 interface UseWelcomeReturn {
@@ -74,24 +74,25 @@ export function useWelcome(
     const generateAndPlay = async () => {
       setIsGenerating(true);
       setError(null);
+      let generatedMessage: string | null = null;
 
       try {
         console.log("[useWelcome] Generating welcome message for:", sessionType);
 
         // Generate message via server action
-        const message = await generateWelcomeMessage({
+        generatedMessage = await generateWelcomeMessage({
           sessionType,
           ...context,
         });
 
-        console.log("[useWelcome] Generated message:", message.substring(0, 100) + "...");
-        setWelcomeMessage(message);
-        onMessageGenerated?.(message);
+        console.log("[useWelcome] Generated message:", generatedMessage.substring(0, 100) + "...");
+        setWelcomeMessage(generatedMessage);
+        onMessageGenerated?.(generatedMessage);
 
         // Play TTS if not muted
         if (!isMuted) {
           console.log("[useWelcome] Playing TTS...");
-          await speak(message);
+          await speak(generatedMessage);
           console.log("[useWelcome] TTS complete");
         } else {
           console.log("[useWelcome] Audio muted, skipping TTS");
@@ -102,7 +103,9 @@ export function useWelcome(
       } finally {
         setIsGenerating(false);
         setIsComplete(true);
-        onComplete?.();
+        if (generatedMessage) {
+          onComplete?.(generatedMessage);
+        }
       }
     };
 

@@ -431,8 +431,33 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
     },
     {
       enabled: !isTourMode && !!sessionType && !isSessionTypeLoading,
-      onComplete: () => {
-        console.log("[ModuleContent] Direct welcome flow complete");
+      onComplete: async (message: string) => {
+        console.log("[ModuleContent] Direct welcome flow complete - storing message with action");
+        // Store the welcome message with action attached for V2 button rendering
+        if (addAssistantMessageRef.current && message && sessionType) {
+          const sessionTypeToAction: Record<string, ActionType> = {
+            course_welcome: "course_welcome",
+            course_welcome_back: "course_welcome_back",
+            lesson_welcome: "lesson_welcome",
+            lesson_welcome_back: "lesson_welcome_back",
+          };
+
+          const actionType = sessionTypeToAction[sessionType];
+          if (actionType) {
+            await addAssistantMessageRef.current(message, {
+              messageType: "general",
+              action: actionType,
+              actionMetadata: {
+                introLesson: sortedLessons[0],
+                firstLesson: sortedLessons[1] || sortedLessons[0],
+                lastLesson: activeLesson,
+                lastPosition: sessionLessonProgress?.lastPosition || 0,
+                prevLessonTitle,
+              },
+            });
+            console.log("[ModuleContent] Welcome message stored with action:", actionType);
+          }
+        }
       },
     }
   );
@@ -936,7 +961,12 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
       await addAssistantMessageRef.current(completionMessage, {
         messageType: "general",
         action: "lesson_complete",
-        actionMetadata: { nextLesson, courseId: course.id }, // nextLesson may be null if last lesson
+        actionMetadata: { 
+          nextLesson, 
+          courseId: course.id,
+          lessonTitle: activeLesson.title,
+          lessonDescription: activeLesson.description,
+        }, // nextLesson may be null if last lesson
       });
       console.log("[ModuleContent] V2: lesson_complete action added to message");
     } else {
@@ -1560,6 +1590,9 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
     resetHandledActions();
   }, [activeLesson?.id, resetHandledActions]);
 
+  // V2: Welcome message is now stored directly in onComplete callback with action attached
+  // This old pattern (showAction after welcome completes) is no longer needed
+  /*
   // Trigger session type action when direct welcome flow completes
   // (replaces LiveKit-dependent logic)
   useEffect(() => {
@@ -1569,6 +1602,8 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
       directWelcomeMessage: directWelcomeMessage?.substring(0, 30),
       sessionType,
       pendingAction: pendingAction?.type,
+      isWelcomePlaying,
+      chatMessagesCount: chatMessages.length,
     });
 
     // Show action buttons when direct welcome is complete
@@ -1609,6 +1644,7 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
     sessionLessonProgress?.lastPosition,
     prevLessonTitle,
   ]);
+  */
 
   // Handle lesson selection
   const handleLessonSelect = useCallback((lesson: Lesson) => {
