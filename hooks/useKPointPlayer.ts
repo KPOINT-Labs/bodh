@@ -79,6 +79,7 @@ export function useKPointPlayer({ kpointVideoId, userId, lessonId, videoDuration
   const triggeredInlessonRef = useRef<Set<string>>(new Set()); // Track triggered in-lesson questions
   const isPlayingRef = useRef(false);
   const bookmarksRef = useRef<Bookmark[]>([]);
+  const hasEndedRef = useRef(false);
 
   // Context for optimistic progress updates
   const { updateLessonProgress: updateLessonProgressContext } = useCourseProgress();
@@ -143,6 +144,7 @@ export function useKPointPlayer({ kpointVideoId, userId, lessonId, videoDuration
   // Store kpointVideoId in ref for cleanup and reset state when video changes/removed
   useEffect(() => {
     kpointVideoIdRef.current = kpointVideoId ?? null;
+    hasEndedRef.current = false;
 
     // Reset playing state when video is removed (kpointVideoId becomes null/undefined)
     if (!kpointVideoId) {
@@ -292,6 +294,9 @@ export function useKPointPlayer({ kpointVideoId, userId, lessonId, videoDuration
       // Update playing state
       const nowPlaying = stateValue === PLAYER_STATE.PLAYING;
       setIsPlaying(nowPlaying);
+      if (nowPlaying || stateValue === PLAYER_STATE.REPLAYING) {
+        hasEndedRef.current = false;
+      }
 
       // Save progress on pause (only if watched at least 5 seconds)
       if (stateValue === PLAYER_STATE.PAUSED && playerRef.current) {
@@ -305,6 +310,11 @@ export function useKPointPlayer({ kpointVideoId, userId, lessonId, videoDuration
 
       // Detect video end and trigger callback
       if (stateValue === PLAYER_STATE.ENDED) {
+        if (hasEndedRef.current) {
+          console.log("KPoint video ENDED already handled, skipping duplicate");
+          return;
+        }
+        hasEndedRef.current = true;
         console.log("KPoint video ENDED, triggering onVideoEnd callback");
         if (playerRef.current) {
           const currentTimeSec = playerRef.current.getCurrentTime() / 1000;
@@ -435,6 +445,7 @@ export function useKPointPlayer({ kpointVideoId, userId, lessonId, videoDuration
 
     const handlePlayerStarted = (data: unknown) => {
       console.log("KPoint player started:", data);
+      hasEndedRef.current = false;
 
       // Set playing state when player starts
       setIsPlaying(true);
@@ -471,6 +482,12 @@ export function useKPointPlayer({ kpointVideoId, userId, lessonId, videoDuration
       event: CustomEvent<{ message: string; container: unknown; player: KPointPlayer }>
     ) => {
       console.log("KPoint player ready:", event.detail.message);
+      if (playerRef.current) {
+        eventHandlersRef.current.forEach((handler, eventName) => {
+          playerRef.current?.removeEventListener(eventName, handler);
+        });
+        eventHandlersRef.current.clear();
+      }
       const player = event.detail.player;
       playerRef.current = player;
       

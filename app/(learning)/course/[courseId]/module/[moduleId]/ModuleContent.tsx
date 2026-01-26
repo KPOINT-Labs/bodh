@@ -846,8 +846,23 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
     };
   }, [liveKit.isConnected, liveKit.setAudioOutputEnabled, registerMuteCallback, unregisterMuteCallback]);
 
+  const lastVideoEndRef = useRef<{ lessonId: string | null; timestamp: number } | null>(null);
+
   // Handle video end - auto-play next lesson
   const handleVideoEnd = useCallback(async () => {
+    const lessonId = activeLesson?.id ?? null;
+    if (lessonId) {
+      const now = Date.now();
+      const last = lastVideoEndRef.current;
+      if (last && last.lessonId === lessonId && now - last.timestamp < 2000) {
+        console.log("[ModuleContent] Duplicate video end ignored", {
+          lessonId,
+          deltaMs: now - last.timestamp,
+        });
+        return;
+      }
+      lastVideoEndRef.current = { lessonId, timestamp: now };
+    }
     console.log("[ModuleContent] handleVideoEnd called", {
       activeLesson: activeLesson?.title,
       lessonsCount: module.lessons.length,
