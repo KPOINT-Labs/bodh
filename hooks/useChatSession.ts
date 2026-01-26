@@ -4,6 +4,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { type MessageData, storeMessage } from "@/lib/chat/message-store";
 import type { QuizOption } from "@/types/assessment";
 import type { ActionType } from "@/lib/actions/actionRegistry";
+import { useTTS } from "@/hooks/useTTS";
 
 // Counter for generating unique temp IDs (prevents duplicates when called in same millisecond)
 let tempIdCounter = 0;
@@ -30,6 +31,8 @@ export interface AddAssistantMessageOptions {
   messageType?: string;
   action?: ActionType;
   actionMetadata?: Record<string, unknown>;
+  /** When true, automatically plays TTS for this message using default voice settings */
+  tts?: boolean;
 }
 
 interface Lesson {
@@ -63,6 +66,9 @@ export function useChatSession({
   const [chatMessages, setChatMessages] = useState<ExtendedMessageData[]>([]);
   const [isSending, setIsSending] = useState(false);
   const lastAssistantMessageIdRef = useRef<string | undefined>(undefined);
+
+  // TTS hook for automatic text-to-speech on messages with tts: true
+  const { speak } = useTTS();
 
   // Use refs for values that change but shouldn't recreate sendMessage
   const conversationIdRef = useRef(conversationId);
@@ -266,6 +272,7 @@ export function useChatSession({
 
   // Add assistant message to chat and store in DB (for LiveKit agent transcript)
   // V2: Now accepts options object with optional action fields
+  // V3: Supports tts: true for automatic text-to-speech
   const addAssistantMessage = useCallback(
     async (
       message: string,
@@ -304,7 +311,13 @@ export function useChatSession({
         tempId,
         messageType: opts.messageType,
         action: opts.action,
+        tts: opts.tts,
       });
+
+      // Play TTS if enabled (for fresh messages only - this function is only called for new messages)
+      if (opts.tts) {
+        speak(message);
+      }
 
       // Store in database
       try {
@@ -329,7 +342,7 @@ export function useChatSession({
       }
       return tempId;
     },
-    []
+    [speak]
   );
 
   const getLastAssistantMessageId = useCallback(() => lastAssistantMessageIdRef.current, []);
@@ -531,9 +544,13 @@ export function useChatSession({
       status: "handled" | "dismissed",
       buttonId?: string
     ) => {
+      // Debug: Log message count before update
+      console.log("[ChatSession] updateMessageAction - messageId:", messageId, "chatMessages count:", chatMessages.length);
+
       // Update local state immediately (optimistic)
-      setChatMessages((prev) =>
-        prev.map((m) =>
+      setChatMessages((prev) => {
+        console.log("[ChatSession] updateMessageAction - prev messages:", prev.length);
+        const updated = prev.map((m) =>
           m.id === messageId
             ? {
                 ...m,
@@ -541,8 +558,10 @@ export function useChatSession({
                 actionHandledButtonId: buttonId,
               }
             : m
-        )
-      );
+        );
+        console.log("[ChatSession] updateMessageAction - updated messages:", updated.length);
+        return updated;
+      });
       console.log("[ChatSession] updateMessageAction", { messageId, status, buttonId });
 
       // Persist to DB (skip temp IDs that haven't been saved yet)
