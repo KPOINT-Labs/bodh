@@ -558,6 +558,41 @@ export function useKPointPlayer({ kpointVideoId, userId, lessonId, videoDuration
     return isPlaying;
   }, [isPlaying]);
 
+  // Play video
+  const playVideo = useCallback(() => {
+    if (playerRef.current) {
+      try {
+        if (playerRef.current.playVideo) {
+          playerRef.current.playVideo();
+        }
+        return true;
+      } catch (error) {
+        console.error("[useKPointPlayer] Failed to play video:", error);
+        return false;
+      }
+    }
+    console.warn("[useKPointPlayer] Cannot play - player not ready");
+    return false;
+  }, []);
+
+  // Pause video
+  const pauseVideo = useCallback(() => {
+    if (playerRef.current) {
+      try {
+        if (playerRef.current.pauseVideo) {
+          playerRef.current.pauseVideo();
+       }
+        console.log("[useKPointPlayer] Video paused");
+        return true;
+      } catch (error) {
+        console.error("[useKPointPlayer] Failed to pause video:", error);
+        return false;
+      }
+    }
+    console.warn("[useKPointPlayer] Cannot pause - player not ready");
+    return false;
+  }, []);
+
   return {
     playerRef,
     seekTo,
@@ -565,6 +600,8 @@ export function useKPointPlayer({ kpointVideoId, userId, lessonId, videoDuration
     isPlayerReady,
     isPlaying,
     getIsPlaying,
+    playVideo,
+    pauseVideo,
     bookmarks,
   };
 }

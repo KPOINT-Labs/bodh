@@ -39,14 +39,15 @@ import type { ActionType } from "@/lib/actions/actionRegistry";
  * Registers action handlers when mounted inside ActionsProvider
  */
 interface ActionHandlerRegistryProps {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  playerRef: React.RefObject<{ playVideo?: () => void; pauseVideo?: () => void } | null>;
-  seekTo: (time: number) => void;
+  playVideo: () => boolean;
+  pauseVideo: () => boolean;
+  seekTo: (time: number) => boolean;
   setSelectedLesson: (lesson: Lesson | null) => void;
   activeLesson: Lesson | null;
   sortedLessons: Lesson[];
   router: ReturnType<typeof useRouter>;
   courseId: string;
+  moduleId: string;
   startWarmup: () => void;
   startTour: () => void;
   // For FA intro handlers
@@ -55,13 +56,15 @@ interface ActionHandlerRegistryProps {
 }
 
 function ActionHandlerRegistry({
-  playerRef,
+  playVideo,
+  pauseVideo,
   seekTo,
   setSelectedLesson,
   activeLesson,
   sortedLessons,
   router,
   courseId,
+  moduleId,
   startWarmup,
   startTour,
   addUserMessage,
@@ -102,7 +105,7 @@ function ActionHandlerRegistry({
       setTimeout(() => {
         const pos = meta.lastPosition as number;
         if (pos) seekTo(pos);
-        playerRef.current?.playVideo?.();
+        playVideo();
       }, 500);
     });
 
@@ -112,26 +115,26 @@ function ActionHandlerRegistry({
 
     // Video control handlers
     registerHandler("inlesson_complete", "continue_video", () => {
-      playerRef.current?.playVideo?.();
+      playVideo();
     });
 
     registerHandler("warmup_complete", "watch_lesson", () => {
-      playerRef.current?.playVideo?.();
+      playVideo();
     });
 
     registerHandler("lesson_welcome", "skip", () => {
-      playerRef.current?.playVideo?.();
+      playVideo();
     });
 
     registerHandler("lesson_welcome_back", "continue", (meta) => {
       const pos = meta.lastPosition as number;
       if (pos) seekTo(pos);
-      playerRef.current?.playVideo?.();
+      playVideo();
     });
 
     registerHandler("lesson_welcome_back", "restart", () => {
       seekTo(0);
-      playerRef.current?.playVideo?.();
+      playVideo();
     });
 
     // Navigation handlers
@@ -139,7 +142,7 @@ function ActionHandlerRegistry({
       const nextLesson = meta.nextLesson as Lesson & { moduleId?: string };
       const metaCourseId = meta.courseId as string;
       if (nextLesson && metaCourseId) {
-        const targetModuleId = nextLesson.moduleId || module.id;
+        const targetModuleId = nextLesson.moduleId || moduleId;
         setSelectedLesson(nextLesson);
         router.push(`/course/${metaCourseId}/module/${targetModuleId}?lesson=${nextLesson.id}`);
       }
@@ -148,7 +151,7 @@ function ActionHandlerRegistry({
     registerHandler("lesson_complete", "next_lesson", (meta) => {
       const nextLesson = meta.nextLesson as Lesson & { moduleId?: string };
       if (nextLesson) {
-        const targetModuleId = nextLesson.moduleId || module.id;
+        const targetModuleId = nextLesson.moduleId || moduleId;
         setSelectedLesson(nextLesson);
         router.push(`/course/${courseId}/module/${targetModuleId}?lesson=${nextLesson.id}`);
       }
@@ -193,7 +196,7 @@ function ActionHandlerRegistry({
     });
 
     registerHandler("fa_intro", "skip", () => {
-      playerRef.current?.playVideo?.();
+      playVideo();
     });
 
     // Cleanup
@@ -223,13 +226,15 @@ function ActionHandlerRegistry({
   }, [
     registerHandler,
     unregisterHandler,
-    playerRef,
+    playVideo,
+    pauseVideo,
     seekTo,
     setSelectedLesson,
     activeLesson,
     sortedLessons,
     router,
     courseId,
+    moduleId,
     startWarmup,
     startTour,
     addUserMessage,
@@ -1089,7 +1094,7 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
     (lessonProgress?.status === "in_progress" ? lessonProgress.lastPosition : null);
 
   // KPoint player hook with FA trigger integration
-  const { seekTo, getCurrentTime, isPlayerReady, isPlaying, playerRef } = useKPointPlayer({
+  const { seekTo, getCurrentTime, isPlayerReady, isPlaying, playVideo, pauseVideo, playerRef } = useKPointPlayer({
     kpointVideoId: activeLesson?.kpointVideoId,
     userId,
     lessonId: activeLesson?.id,
@@ -1648,25 +1653,13 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
     seekTo,
     playVideo: () => {
       setIsPanelClosed(false); // Ensure panel is visible when playing
-      if (playerRef.current) {
-        if (playerRef.current.playVideo) {
-          playerRef.current.playVideo();
-        } else if (playerRef.current.setState) {
-          playerRef.current.setState(1); // PLAYING = 1
-        }
-      }
+      playVideo();
     },
-    pauseVideo: () => {
-      if (playerRef.current?.pauseVideo) {
-        playerRef.current.pauseVideo();
-      }
-    },
+    pauseVideo,
     selectLesson: (lesson) => {
       // If already on this lesson, just play the video
       if (activeLesson?.id === lesson.id) {
-        if (playerRef.current?.playVideo) {
-          playerRef.current.playVideo();
-        }
+        playVideo();
       } else {
         setSelectedLesson(lesson);
       }
@@ -1926,13 +1919,15 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
     <ActionsProvider onActionHandled={handleActionHandled}>
       {/* V2: Register action handlers for button clicks */}
       <ActionHandlerRegistry
-        playerRef={playerRef}
+        playVideo={playVideo}
+        pauseVideo={pauseVideo}
         seekTo={seekTo}
         setSelectedLesson={setSelectedLesson}
         activeLesson={activeLesson}
         sortedLessons={sortedLessons}
         router={router}
         courseId={course.id}
+        moduleId={module.id}
         startWarmup={handleInlineWarmup}
         startTour={startTour}
         addUserMessage={handleAddUserMessage}
