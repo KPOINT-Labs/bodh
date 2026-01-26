@@ -66,7 +66,6 @@ export function ActionsProvider({ children, onActionHandled }: ActionsProviderPr
     (actionType: ActionType, buttonId: string, handler: ActionHandler) => {
       const key = `${actionType}:${buttonId}`;
       handlersRef.current.set(key, handler);
-      console.log(`[ActionsProvider] Registered handler for ${key}`);
     },
     []
   );
@@ -74,7 +73,6 @@ export function ActionsProvider({ children, onActionHandled }: ActionsProviderPr
   const unregisterHandler = useCallback((actionType: ActionType, buttonId: string) => {
     const key = `${actionType}:${buttonId}`;
     handlersRef.current.delete(key);
-    console.log(`[ActionsProvider] Unregistered handler for ${key}`);
   }, []);
 
   const handleButtonClick = useCallback(
@@ -87,12 +85,9 @@ export function ActionsProvider({ children, onActionHandled }: ActionsProviderPr
       const key = `${actionType}:${buttonId}`;
       const handler = handlersRef.current.get(key);
 
-      console.log(`[ActionsProvider] Button clicked: ${key}`, { messageId, metadata });
-
       if (handler) {
         try {
           await handler(metadata);
-          console.log(`[ActionsProvider] Handler executed successfully for ${key}`);
         } catch (error) {
           console.error(`[ActionsProvider] Handler error for ${key}:`, error);
         }
