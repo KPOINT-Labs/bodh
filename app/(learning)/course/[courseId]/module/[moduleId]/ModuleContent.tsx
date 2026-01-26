@@ -407,6 +407,10 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
     lessonId: activeLesson?.id,
   });
 
+  // Track if welcome message has been stored (for first-time users only)
+  // Moved here to be available in useWelcome's onComplete callback
+  const welcomeStoredRef = useRef<boolean>(false);
+
   // Direct welcome flow (without LiveKit dependency)
   // Generates LLM welcome message and plays TTS directly
   const {
@@ -433,6 +437,11 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
       enabled: !isTourMode && !!sessionType && !isSessionTypeLoading,
       onComplete: async (message: string) => {
         console.log("[ModuleContent] Direct welcome flow complete - storing message with action");
+        // Guard: prevent duplicate welcome messages
+        if (welcomeStoredRef.current) {
+          console.log("[ModuleContent] Welcome already stored, skipping");
+          return;
+        }
         // Store the welcome message with action attached for V2 button rendering
         if (addAssistantMessageRef.current && message && sessionType) {
           const sessionTypeToAction: Record<string, ActionType> = {
@@ -444,6 +453,7 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
 
           const actionType = sessionTypeToAction[sessionType];
           if (actionType) {
+            welcomeStoredRef.current = true; // Mark as stored BEFORE async call
             await addAssistantMessageRef.current(message, {
               messageType: "general",
               action: actionType,
@@ -498,8 +508,7 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
   const userHasSentMessageRef = useRef<boolean>(false);
   // Track the last user message type (e.g., "fa", "general") for agent response typing
   const lastUserMessageTypeRef = useRef<string>("general");
-  // Track if welcome message has been stored (for first-time users only)
-  const welcomeStoredRef = useRef<boolean>(false);
+  // welcomeStoredRef moved earlier (before useWelcome) to be available in onComplete callback
   const welcomeMessageIdRef = useRef<string | undefined>(undefined);
   // Ref for isReturningUser to use in callback
   const isReturningUserRef = useRef<boolean>(isReturningUser);
@@ -1718,11 +1727,11 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
         isWaitingForResponse={isSending || liveKit.isWaitingForAgentResponse}
         isVideoPlaying={isPlaying}
         hasSelectedLesson={!!activeLesson}
-        // Direct welcome message (without LiveKit) - takes precedence for welcome flow
-        // Falls back to LiveKit transcript for regular conversations
-        agentTranscript={directWelcomeMessage || liveKit.agentTranscript}
-        isAgentSpeaking={isWelcomePlaying || liveKit.isAgentSpeaking}
-        isLiveKitConnected={!!directWelcomeMessage || liveKit.isConnected}
+        // LiveKit agent transcript for regular conversations (NOT for welcome)
+        // Welcome message is stored via addAssistantMessage with action attached (V2 pattern)
+        agentTranscript={liveKit.agentTranscript}
+        isAgentSpeaking={liveKit.isAgentSpeaking}
+        isLiveKitConnected={liveKit.isConnected}
         isReturningUser={isReturningUser}
         // LiveKit functions for FA answers
         sendTextToAgent={liveKit.sendTextToAgent}
