@@ -1,5 +1,5 @@
+import { ArrowLeft, BookOpen } from "lucide-react";
 import Link from "next/link";
-import { BookOpen, ArrowLeft } from "lucide-react";
 import { LogoutButton } from "@/components/logout-button";
 
 export default function ProfileLayout({
@@ -10,23 +10,25 @@ export default function ProfileLayout({
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
+      <header className="sticky top-0 z-10 border-gray-200 border-b bg-white">
+        <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-4 sm:px-6">
           <div className="flex items-center gap-4">
             <Link
+              className="flex items-center gap-2 text-gray-600 transition-colors hover:text-gray-900"
               href="/courses"
-              className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
             >
-              <ArrowLeft className="w-5 h-5" />
+              <ArrowLeft className="h-5 w-5" />
               <span className="hidden sm:inline">Back to Courses</span>
             </Link>
           </div>
 
-          <Link href="/courses" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-violet-500 to-fuchsia-500 rounded-lg flex items-center justify-center">
-              <BookOpen className="w-4 h-4 text-white" />
+          <Link className="flex items-center gap-2" href="/courses">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500">
+              <BookOpen className="h-4 w-4 text-white" />
             </div>
-            <span className="font-semibold text-gray-900 hidden sm:inline">Bodh</span>
+            <span className="hidden font-semibold text-gray-900 sm:inline">
+              Bodh
+            </span>
           </Link>
 
           <LogoutButton variant="default" />

@@ -9,7 +9,10 @@ interface ErrorMessageProps {
   message?: string;
 }
 
-export function ErrorMessage({ show, message = "Not quite correct!" }: ErrorMessageProps) {
+export function ErrorMessage({
+  show,
+  message = "Not quite correct!",
+}: ErrorMessageProps) {
   const [visible, setVisible] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -26,21 +29,25 @@ export function ErrorMessage({ show, message = "Not quite correct!" }: ErrorMess
     }
   }, [show]);
 
-  if (!visible || !mounted) return null;
+  if (!(visible && mounted)) {
+    return null;
+  }
 
   return createPortal(
     <div
-      className={`fixed top-8 left-1/2 -translate-x-1/2 z-[200] transition-all duration-300 ${
-        show ? "opacity-100 scale-100 translate-y-0" : "opacity-0 scale-90 -translate-y-4"
+      className={`fixed top-8 left-1/2 z-[200] -translate-x-1/2 transition-all duration-300 ${
+        show
+          ? "translate-y-0 scale-100 opacity-100"
+          : "-translate-y-4 scale-90 opacity-0"
       }`}
     >
-      <div className="backdrop-blur-xl bg-red-500/95 border-2 border-red-300 rounded-2xl px-6 py-4 shadow-2xl shadow-red-500/50 animate-shake">
+      <div className="animate-shake rounded-2xl border-2 border-red-300 bg-red-500/95 px-6 py-4 shadow-2xl shadow-red-500/50 backdrop-blur-xl">
         <div className="flex items-center gap-3">
           <div className="relative">
-            <XCircle className="w-8 h-8 text-white animate-pulse" />
-            <div className="absolute inset-0 bg-white/30 rounded-full animate-ping"></div>
+            <XCircle className="h-8 w-8 animate-pulse text-white" />
+            <div className="absolute inset-0 animate-ping rounded-full bg-white/30" />
           </div>
-          <p className="text-white text-lg font-semibold">{message}</p>
+          <p className="font-semibold text-lg text-white">{message}</p>
         </div>
       </div>
     </div>,

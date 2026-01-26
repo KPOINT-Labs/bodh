@@ -1,5 +1,5 @@
-import React from "react";
 import { Play } from "lucide-react";
+import React from "react";
 
 /**
  * Parse inline markdown (bold text and links) and return React nodes
@@ -37,7 +37,7 @@ export function parseInlineMarkdown(
     if (youtubeVideoId && onYouTubeClick) {
       // Extract time parameter if present (t=XXXs or t=XXX)
       const timeMatch = linkUrl.match(/[?&]t=(\d+)s?/);
-      const seconds = timeMatch ? parseInt(timeMatch[1], 10) : 0;
+      const seconds = timeMatch ? Number.parseInt(timeMatch[1], 10) : 0;
 
       // Render as clickable button for YouTube links with play icon
       result.push(
@@ -45,11 +45,15 @@ export function parseInlineMarkdown(
           "button",
           {
             key: `yt-link-${keyIndex++}`,
-            className: "text-blue-600 hover:text-blue-800 hover:underline cursor-pointer inline-flex items-center gap-1",
+            className:
+              "text-blue-600 hover:text-blue-800 hover:underline cursor-pointer inline-flex items-center gap-1",
             onClick: () => onYouTubeClick(seconds, youtubeVideoId),
             type: "button",
           },
-          React.createElement(Play, { className: "h-3 w-3 fill-current", key: "icon" }),
+          React.createElement(Play, {
+            className: "h-3 w-3 fill-current",
+            key: "icon",
+          }),
           linkText
         )
       );
@@ -121,13 +125,17 @@ export function parseInlineMarkdownWithTimestamps(
         "button",
         {
           key: `ts-${i}`,
-          className: "text-blue-600 hover:text-blue-800 hover:underline cursor-pointer inline-flex items-center gap-1",
+          className:
+            "text-blue-600 hover:text-blue-800 hover:underline cursor-pointer inline-flex items-center gap-1",
           onClick: () => onTimestampClick?.(seconds, youtubeVideoId),
           type: "button",
         },
         [
-          React.createElement(Play, { className: "h-3 w-3 fill-current", key: "icon" }),
-          linkText
+          React.createElement(Play, {
+            className: "h-3 w-3 fill-current",
+            key: "icon",
+          }),
+          linkText,
         ]
       );
     }
@@ -174,7 +182,9 @@ export interface ListItemResult {
 export function parseListItem(line: string): ListItemResult | null {
   // Check for leading whitespace (indentation)
   const leadingWhitespace = line.match(/^(\s*)/);
-  const isIndented = leadingWhitespace ? leadingWhitespace[1].length > 0 : false;
+  const isIndented = leadingWhitespace
+    ? leadingWhitespace[1].length > 0
+    : false;
   const trimmed = line.trim();
 
   // Check for numbered list item (1., 2., etc.)
@@ -182,7 +192,7 @@ export function parseListItem(line: string): ListItemResult | null {
   if (numberedMatch) {
     return {
       type: "numbered",
-      number: parseInt(numberedMatch[1], 10),
+      number: Number.parseInt(numberedMatch[1], 10),
       content: numberedMatch[2],
       isIndented,
     };
@@ -222,7 +232,9 @@ export function isLearningHeader(line: string): boolean {
  * Check if a line is a markdown header (# ## ### etc.)
  * Returns the header level (1-6) and text, or null
  */
-export function parseHeader(line: string): { level: number; text: string } | null {
+export function parseHeader(
+  line: string
+): { level: number; text: string } | null {
   const match = line.trim().match(/^(#{1,6})\s+(.+)/);
   if (match) {
     return {
@@ -276,13 +288,22 @@ function extractYouTubeVideoId(url: string): string | null {
  */
 export function parseTimestampLinks(text: string): {
   links: TimestampLink[];
-  parts: { type: "text" | "timestamp"; content: string; link?: TimestampLink }[]
+  parts: {
+    type: "text" | "timestamp";
+    content: string;
+    link?: TimestampLink;
+  }[];
 } {
   // Match [text (MM:SS)](url?t=XXXs) or [text (H:MM:SS)](url?t=XXXs)
-  const regex = /\[([^\]]*\((\d{1,2}:\d{2}(?::\d{2})?)\))\]\(([^)]+[?&]t=(\d+)s?[^)]*)\)/g;
+  const regex =
+    /\[([^\]]*\((\d{1,2}:\d{2}(?::\d{2})?)\))\]\(([^)]+[?&]t=(\d+)s?[^)]*)\)/g;
 
   const links: TimestampLink[] = [];
-  const parts: { type: "text" | "timestamp"; content: string; link?: TimestampLink }[] = [];
+  const parts: {
+    type: "text" | "timestamp";
+    content: string;
+    link?: TimestampLink;
+  }[] = [];
 
   let lastIndex = 0;
   let match;
@@ -296,10 +317,15 @@ export function parseTimestampLinks(text: string): {
     const fullText = match[1]; // "Watch explanation (38:32)"
     const displayTime = match[2]; // "38:32"
     const url = match[3]; // Full URL
-    const seconds = parseInt(match[4], 10); // 2312
+    const seconds = Number.parseInt(match[4], 10); // 2312
     const youtubeVideoId = extractYouTubeVideoId(url);
 
-    const link: TimestampLink = { text: fullText, displayTime, seconds, youtubeVideoId };
+    const link: TimestampLink = {
+      text: fullText,
+      displayTime,
+      seconds,
+      youtubeVideoId,
+    };
     links.push(link);
     parts.push({ type: "timestamp", content: fullText, link });
 
@@ -318,6 +344,7 @@ export function parseTimestampLinks(text: string): {
  * Check if text contains timestamp links
  */
 export function hasTimestampLinks(text: string): boolean {
-  const regex = /\[[^\]]*\(\d{1,2}:\d{2}(?::\d{2})?\)\]\([^)]+[?&]t=\d+s?[^)]*\)/;
+  const regex =
+    /\[[^\]]*\(\d{1,2}:\d{2}(?::\d{2})?\)\]\([^)]+[?&]t=\d+s?[^)]*\)/;
   return regex.test(text);
 }

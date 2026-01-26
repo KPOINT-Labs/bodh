@@ -3,22 +3,24 @@ import { prisma } from "@/lib/prisma";
 async function backfillEnrollments() {
   const dryRun = process.argv.includes("--dry-run");
 
-  console.log(`\n🔍 Finding users without enrollments...`);
+  console.log("\n🔍 Finding users without enrollments...");
 
   // Find users with no enrollments
   const usersWithoutEnrollments = await prisma.user.findMany({
     where: {
-      enrollments: { none: {} }
+      enrollments: { none: {} },
     },
-    select: { id: true, email: true, name: true }
+    select: { id: true, email: true, name: true },
   });
 
-  console.log(`Found ${usersWithoutEnrollments.length} users without enrollments\n`);
+  console.log(
+    `Found ${usersWithoutEnrollments.length} users without enrollments\n`
+  );
 
   // Get all published courses
   const publishedCourses = await prisma.course.findMany({
     where: { isPublished: true },
-    select: { id: true, title: true }
+    select: { id: true, title: true },
   });
 
   console.log(`Found ${publishedCourses.length} published courses\n`);
@@ -32,19 +34,21 @@ async function backfillEnrollments() {
 
   // For each user, create enrollments
   for (const user of usersWithoutEnrollments) {
-    const enrollmentData = publishedCourses.map(course => ({
+    const enrollmentData = publishedCourses.map((course) => ({
       userId: user.id,
       courseId: course.id,
-      status: "active" as const
+      status: "active" as const,
     }));
 
     if (dryRun) {
-      console.log(`[DRY RUN] Would enroll ${user.email} in ${publishedCourses.length} courses`);
+      console.log(
+        `[DRY RUN] Would enroll ${user.email} in ${publishedCourses.length} courses`
+      );
       totalEnrollments += publishedCourses.length;
     } else {
       const result = await prisma.enrollment.createMany({
         data: enrollmentData,
-        skipDuplicates: true
+        skipDuplicates: true,
       });
 
       console.log(`✅ Enrolled ${user.email} in ${result.count} courses`);
@@ -52,12 +56,14 @@ async function backfillEnrollments() {
     }
   }
 
-  console.log(`\n📊 Summary:`);
+  console.log("\n📊 Summary:");
   console.log(`   Users processed: ${usersWithoutEnrollments.length}`);
-  console.log(`   Total enrollments ${dryRun ? "would be" : ""} created: ${totalEnrollments}`);
+  console.log(
+    `   Total enrollments ${dryRun ? "would be" : ""} created: ${totalEnrollments}`
+  );
 
   if (dryRun) {
-    console.log(`\n💡 Run without --dry-run to apply changes`);
+    console.log("\n💡 Run without --dry-run to apply changes");
   }
 }
 

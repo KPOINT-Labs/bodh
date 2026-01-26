@@ -4,8 +4,8 @@
  * GET /api/livekit/room - List rooms
  */
 
-import { NextRequest, NextResponse } from "next/server";
 import { RoomAgentDispatch } from "@livekit/protocol";
+import { type NextRequest, NextResponse } from "next/server";
 import { roomService } from "@/lib/livekit";
 import type {
   CreateRoomRequest,
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     // Generate room name if not provided
     const roomName =
       body.room_name ||
-      `bodh-${Date.now()}-${Math.floor(Math.random() * 10000)
+      `bodh-${Date.now()}-${Math.floor(Math.random() * 10_000)
         .toString()
         .padStart(4, "0")}`;
 
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
       metadata.video_ids = body.video_ids;
     }
 
-    console.log(`[API_CREATE_ROOM] Room metadata prepared:`, metadata);
+    console.log("[API_CREATE_ROOM] Room metadata prepared:", metadata);
 
     try {
       // Create the room with agent dispatch
@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
     } catch (createError) {
       // Room might already exist - update its metadata instead
       console.warn(
-        `[API_CREATE_ROOM] Room creation failed (may already exist):`,
+        "[API_CREATE_ROOM] Room creation failed (may already exist):",
         createError
       );
       console.log(
@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(response);
       } catch (updateError) {
         console.error(
-          `[API_CREATE_ROOM] Failed to update room metadata:`,
+          "[API_CREATE_ROOM] Failed to update room metadata:",
           updateError
         );
         return NextResponse.json(

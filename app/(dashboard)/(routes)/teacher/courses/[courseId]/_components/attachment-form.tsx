@@ -1,14 +1,15 @@
 "use client";
 
-import * as z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import { Pencil, PlusCircle, File, Loader2, X } from "lucide-react";
-import { useState } from "react";
+import type { Attachment, Course } from "@prisma/client";
+import { File, Loader2, PlusCircle, X } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { Attachment, Course } from "@prisma/client";
-
+import * as z from "zod";
+import { createAttachment, deleteAttachment } from "@/actions/attachment";
+import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
@@ -16,9 +17,7 @@ import {
   FormItem,
   FormMessage,
 } from "@/components/ui/form";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { createAttachment, deleteAttachment } from "@/actions/attachment";
 
 interface AttachmentFormProps {
   initialData: Course & { attachments: Attachment[] };
@@ -32,7 +31,7 @@ const formSchema = z.object({
 
 export const AttachmentForm = ({
   initialData,
-  courseId
+  courseId,
 }: AttachmentFormProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -74,19 +73,17 @@ export const AttachmentForm = ({
     } finally {
       setDeletingId(null);
     }
-  }
+  };
 
   return (
-    <div className="mt-6 border bg-slate-100 rounded-md p-4">
-      <div className="font-medium flex items-center justify-between">
+    <div className="mt-6 rounded-md border bg-slate-100 p-4">
+      <div className="flex items-center justify-between font-medium">
         Course attachments
         <Button onClick={toggleEdit} variant="ghost">
-          {isEditing && (
-            <>Cancel</>
-          )}
+          {isEditing && <>Cancel</>}
           {!isEditing && (
             <>
-              <PlusCircle className="h-4 w-4 mr-2" />
+              <PlusCircle className="mr-2 h-4 w-4" />
               Add a file
             </>
           )}
@@ -95,7 +92,7 @@ export const AttachmentForm = ({
       {!isEditing && (
         <>
           {initialData.attachments.length === 0 && (
-            <p className="text-sm mt-2 text-slate-500 italic">
+            <p className="mt-2 text-slate-500 text-sm italic">
               No attachments yet
             </p>
           )}
@@ -103,13 +100,11 @@ export const AttachmentForm = ({
             <div className="space-y-2">
               {initialData.attachments.map((attachment) => (
                 <div
+                  className="flex w-full items-center rounded-md border border-sky-200 bg-sky-100 p-3 text-sky-700"
                   key={attachment.id}
-                  className="flex items-center p-3 w-full bg-sky-100 border-sky-200 border text-sky-700 rounded-md"
                 >
-                  <File className="h-4 w-4 mr-2 flex-shrink-0" />
-                  <p className="text-xs line-clamp-1">
-                    {attachment.name}
-                  </p>
+                  <File className="mr-2 h-4 w-4 flex-shrink-0" />
+                  <p className="line-clamp-1 text-xs">{attachment.name}</p>
                   {deletingId === attachment.id && (
                     <div className="ml-auto">
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -117,8 +112,8 @@ export const AttachmentForm = ({
                   )}
                   {deletingId !== attachment.id && (
                     <button
+                      className="ml-auto transition hover:opacity-75"
                       onClick={() => onDelete(attachment.id)}
-                      className="ml-auto hover:opacity-75 transition"
                     >
                       <X className="h-4 w-4" />
                     </button>
@@ -132,8 +127,8 @@ export const AttachmentForm = ({
       {isEditing && (
         <Form {...form}>
           <form
+            className="mt-4 space-y-4"
             onSubmit={form.handleSubmit(onSubmit)}
-            className="space-y-4 mt-4"
           >
             <FormField
               control={form.control}
@@ -151,7 +146,7 @@ export const AttachmentForm = ({
                 </FormItem>
               )}
             />
-             <FormField
+            <FormField
               control={form.control}
               name="name"
               render={({ field }) => (
@@ -168,10 +163,7 @@ export const AttachmentForm = ({
               )}
             />
             <div className="flex items-center gap-x-2">
-              <Button
-                disabled={!isValid || isSubmitting}
-                type="submit"
-              >
+              <Button disabled={!isValid || isSubmitting} type="submit">
                 Add
               </Button>
             </div>
@@ -179,5 +171,5 @@ export const AttachmentForm = ({
         </Form>
       )}
     </div>
-  )
-}
+  );
+};

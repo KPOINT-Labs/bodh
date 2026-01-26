@@ -1,52 +1,63 @@
 "use server";
 
-import { z } from "zod";
 import bcrypt from "bcryptjs";
-import { prisma } from "@/lib/prisma";
-import { auth, signOut } from "@/auth";
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
+import { auth, signOut } from "@/auth";
+import { prisma } from "@/lib/prisma";
 import { autoEnrollNewUser } from "./enrollment";
 
 // Invite code validation - 6 digits where sum equals 16
 function isValidInviteCode(code: string): boolean {
-  if (!/^\d{6}$/.test(code)) return false;
-  const sum = code.split("").reduce((acc, digit) => acc + parseInt(digit), 0);
+  if (!/^\d{6}$/.test(code)) {
+    return false;
+  }
+  const sum = code
+    .split("")
+    .reduce((acc, digit) => acc + Number.parseInt(digit, 10), 0);
   return sum === 16;
 }
 
 // Validation schemas
-const signupSchema = z.object({
-  inviteCode: z.string()
-    .length(6, "Invite code must be 6 digits")
-    .regex(/^\d{6}$/, "Invite code must contain only numbers")
-    .refine(isValidInviteCode, "Invalid invite code"),
-  name: z.string().min(2, "Name must be at least 2 characters"),
-  email: z.string().email("Invalid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  confirmPassword: z.string(),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords don't match",
-  path: ["confirmPassword"],
-});
+const signupSchema = z
+  .object({
+    inviteCode: z
+      .string()
+      .length(6, "Invite code must be 6 digits")
+      .regex(/^\d{6}$/, "Invite code must contain only numbers")
+      .refine(isValidInviteCode, "Invalid invite code"),
+    name: z.string().min(2, "Name must be at least 2 characters"),
+    email: z.string().email("Invalid email address"),
+    password: z.string().min(6, "Password must be at least 6 characters"),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords don't match",
+    path: ["confirmPassword"],
+  });
 
 const updateProfileSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
 });
 
-const changePasswordSchema = z.object({
-  currentPassword: z.string().min(1, "Current password is required"),
-  newPassword: z.string().min(6, "New password must be at least 6 characters"),
-  confirmPassword: z.string(),
-}).refine((data) => data.newPassword === data.confirmPassword, {
-  message: "Passwords don't match",
-  path: ["confirmPassword"],
-});
+const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Current password is required"),
+    newPassword: z
+      .string()
+      .min(6, "New password must be at least 6 characters"),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: "Passwords don't match",
+    path: ["confirmPassword"],
+  });
 
-export type ActionResult = {
+export interface ActionResult {
   success: boolean;
   error?: string;
   errors?: Record<string, string[]>;
-};
+}
 
 export async function signup(formData: FormData): Promise<ActionResult> {
   const rawData = {
@@ -132,7 +143,9 @@ export async function updateProfile(formData: FormData): Promise<ActionResult> {
   return { success: true };
 }
 
-export async function changePassword(formData: FormData): Promise<ActionResult> {
+export async function changePassword(
+  formData: FormData
+): Promise<ActionResult> {
   const session = await auth();
 
   if (!session?.user?.id) {
@@ -175,12 +188,16 @@ export async function changePassword(formData: FormData): Promise<ActionResult> 
   if (!user.passwordHash) {
     return {
       success: false,
-      error: "You signed in with Google. Password change is not available for Google accounts.",
+      error:
+        "You signed in with Google. Password change is not available for Google accounts.",
     };
   }
 
   // Verify current password
-  const passwordMatch = await bcrypt.compare(currentPassword, user.passwordHash);
+  const passwordMatch = await bcrypt.compare(
+    currentPassword,
+    user.passwordHash
+  );
 
   if (!passwordMatch) {
     return {

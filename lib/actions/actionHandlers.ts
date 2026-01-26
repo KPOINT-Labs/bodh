@@ -15,7 +15,11 @@ export interface ActionDependencies {
   pauseVideo: () => void;
   selectLesson: (lesson: Lesson) => void;
   sendTextToAgent: (message: string) => Promise<void>;
-  addUserMessage: (message: string, messageType?: string, inputType?: string) => Promise<void>;
+  addUserMessage: (
+    message: string,
+    messageType?: string,
+    inputType?: string
+  ) => Promise<void>;
   startTour: () => void;
   startWarmup?: () => Promise<void>; // Start DB-driven warmup quiz
   getLastAssistantMessageId?: () => string | undefined;
@@ -81,7 +85,7 @@ export const ACTION_HANDLERS: Record<ActionType, ActionHandler> = {
 
   lesson_welcome_back: (buttonId, metadata, deps) => {
     switch (buttonId) {
-      case "continue":
+      case "continue": {
         // Use explicit check for undefined/null to handle position 0 correctly
         const position = metadata.lastPosition as number | undefined;
         if (position !== undefined && position !== null) {
@@ -89,6 +93,7 @@ export const ACTION_HANDLERS: Record<ActionType, ActionHandler> = {
         }
         deps.playVideo();
         break;
+      }
       case "restart":
         deps.seekTo(0);
         deps.playVideo();
@@ -98,9 +103,13 @@ export const ACTION_HANDLERS: Record<ActionType, ActionHandler> = {
 
   fa_intro: async (buttonId, metadata, deps) => {
     switch (buttonId) {
-      case "start":
+      case "start": {
         // Display user message in chat UI
-        await deps.addUserMessage("Ask me a formative assessment", "fa", "auto");
+        await deps.addUserMessage(
+          "Ask me a formative assessment",
+          "fa",
+          "auto"
+        );
         // Send FA request to agent
         const topic = metadata.topic as string;
         const agentMessage = `
@@ -120,6 +129,7 @@ export const ACTION_HANDLERS: Record<ActionType, ActionHandler> = {
         `.trim();
         await deps.sendTextToAgent(agentMessage);
         break;
+      }
       case "skip":
         deps.playVideo();
         break;
@@ -155,13 +165,19 @@ export const ACTION_HANDLERS: Record<ActionType, ActionHandler> = {
   lesson_complete: async (buttonId, metadata, deps) => {
     switch (buttonId) {
       case "assessment":
-        await deps.addUserMessage("Take assessment on this lesson", "fa", "auto");
-        await deps.sendTextToAgent("Start a lesson assessment. Ask 5 questions covering the main topics.");
+        await deps.addUserMessage(
+          "Take assessment on this lesson",
+          "fa",
+          "auto"
+        );
+        await deps.sendTextToAgent(
+          "Start a lesson assessment. Ask 5 questions covering the main topics."
+        );
         break;
       case "warmup_next":
         await deps.addUserMessage("Warm-up for next lesson", "warmup", "auto");
         await deps.sendTextToAgent(
-          `Start a warm-up quiz to prepare for the next lesson. Ask 3 quick questions based on what we just learned.`
+          "Start a warm-up quiz to prepare for the next lesson. Ask 3 quick questions based on what we just learned."
         );
         break;
       case "next_lesson":

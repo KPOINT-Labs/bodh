@@ -5,7 +5,9 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
 async function verify() {
   // Get course
-  const course = await pool.query(`SELECT * FROM "Course" WHERE id = 'BSCCS1001'`);
+  const course = await pool.query(
+    `SELECT * FROM "Course" WHERE id = 'BSCCS1001'`
+  );
   console.log("\n=== COURSE ===");
   console.log(course.rows[0]);
 
@@ -31,7 +33,9 @@ async function verify() {
   `);
   console.log("\n=== LESSONS (in sequence) ===");
   lessons.rows.forEach((lesson, idx) => {
-    console.log(`${idx + 1}. [${lesson.module_title}] ${lesson.title} (${lesson.type})`);
+    console.log(
+      `${idx + 1}. [${lesson.module_title}] ${lesson.title} (${lesson.type})`
+    );
   });
 
   await pool.end();

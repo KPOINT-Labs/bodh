@@ -1,5 +1,5 @@
-import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, it, expect, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import { LessonTitleForm } from "./_components/lesson-title-form";
 
 // Mock router
@@ -12,12 +12,26 @@ vi.mock("next/navigation", () => ({
 
 describe("LessonTitleForm", () => {
   it("displays initial title", () => {
-    render(<LessonTitleForm initialData={{ title: "Lesson Title" }} courseId="1" moduleId="1" lessonId="1" />);
+    render(
+      <LessonTitleForm
+        courseId="1"
+        initialData={{ title: "Lesson Title" }}
+        lessonId="1"
+        moduleId="1"
+      />
+    );
     expect(screen.getByText("Lesson Title")).toBeDefined();
   });
 
   it("switches to edit mode", () => {
-    render(<LessonTitleForm initialData={{ title: "Lesson Title" }} courseId="1" moduleId="1" lessonId="1" />);
+    render(
+      <LessonTitleForm
+        courseId="1"
+        initialData={{ title: "Lesson Title" }}
+        lessonId="1"
+        moduleId="1"
+      />
+    );
     const editBtn = screen.getByRole("button", { name: /Edit/i });
     fireEvent.click(editBtn);
     expect(screen.getByRole("textbox")).toBeDefined();

@@ -1,8 +1,8 @@
 "use client";
 
 import { Layout, List } from "lucide-react";
-import { usePathname } from "next/navigation";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 import {
   SidebarMenu,
@@ -43,15 +43,16 @@ export const SidebarRoutes = () => {
               tooltip={route.label}
             >
               <Link
-                href={route.href}
                 className={cn(
-                  "flex items-center gap-x-2 text-slate-500 text-sm font-[500] pl-6 transition-all hover:text-slate-600 hover:bg-slate-300/20",
-                  isActive && "text-sky-700 bg-sky-200/20 hover:bg-sky-200/20 hover:text-sky-700"
+                  "flex items-center gap-x-2 pl-6 font-[500] text-slate-500 text-sm transition-all hover:bg-slate-300/20 hover:text-slate-600",
+                  isActive &&
+                    "bg-sky-200/20 text-sky-700 hover:bg-sky-200/20 hover:text-sky-700"
                 )}
+                href={route.href}
               >
                 <route.icon
-                  size={22}
                   className={cn("text-slate-500", isActive && "text-sky-700")}
+                  size={22}
                 />
                 {route.label}
               </Link>

@@ -27,7 +27,10 @@ export async function updateLessonProgress({
 
   // Server-side safeguard: require minimum 5 seconds of watch time
   if (lastPosition < MIN_WATCH_TIME_SECONDS) {
-    console.log("[Server Action] Skipping progress update - watched less than 5 seconds:", lastPosition);
+    console.log(
+      "[Server Action] Skipping progress update - watched less than 5 seconds:",
+      lastPosition
+    );
     return;
   }
 

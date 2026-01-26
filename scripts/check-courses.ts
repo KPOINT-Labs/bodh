@@ -5,10 +5,14 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
 async function checkCourses() {
   // Check all courses
-  const result = await pool.query(`SELECT id, title, "isPublished" FROM "Course"`);
+  const result = await pool.query(
+    `SELECT id, title, "isPublished" FROM "Course"`
+  );
   console.log("\n=== ALL COURSES ===");
   result.rows.forEach((course) => {
-    console.log(`- ${course.title} (id: ${course.id}) - Published: ${course.isPublished}`);
+    console.log(
+      `- ${course.title} (id: ${course.id}) - Published: ${course.isPublished}`
+    );
   });
 
   // Check table counts

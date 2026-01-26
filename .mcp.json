@@ -2,10 +2,7 @@
   "mcpServers": {
     "shadcn": {
       "command": "npx",
-      "args": [
-        "shadcn@latest",
-        "mcp"
-      ]
+      "args": ["shadcn@latest", "mcp"]
     },
     "livekit-docs": {
       "url": "https://docs.livekit.io/mcp",

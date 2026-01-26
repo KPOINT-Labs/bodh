@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
-import { describe, it, expect } from "vitest";
-import { DataTable } from "./_components/data-table";
+import { describe, expect, it } from "vitest";
 import { columns } from "./_components/columns";
+import { DataTable } from "./_components/data-table";
 
 describe("DataTable", () => {
   it("renders 'No results' when data is empty", () => {

@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useCallback, useState } from "react";
-import { updateLessonProgress } from "@/lib/actions/lesson-progress";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useCourseProgress } from "@/contexts/CourseProgressContext";
+import { updateLessonProgress } from "@/lib/actions/lesson-progress";
 import type { LessonQuiz } from "@/types/assessment";
 
 // KPoint player state constants
@@ -34,14 +34,17 @@ interface KPointPlayer {
       published_duration?: number; // Duration in seconds
     };
   };
-  getBookmarks: () => Array<Record<string, unknown>>;
+  getBookmarks: () => Record<string, unknown>[];
   events: {
     onStateChange: string;
     timeUpdate: string;
     started: string;
   };
   addEventListener: (event: string, callback: (data: unknown) => void) => void;
-  removeEventListener: (event: string, callback: (data: unknown) => void) => void;
+  removeEventListener: (
+    event: string,
+    callback: (data: unknown) => void
+  ) => void;
 }
 
 interface Bookmark {
@@ -59,7 +62,12 @@ interface UseKPointPlayerOptions {
   videoDuration?: number;
   onBookmarksReady?: (bookmarks: Bookmark[]) => void;
   onPlayerReady?: () => void;
-  onFATrigger?: (message: string, timestampSeconds: number, topic?: string, pauseVideo?: boolean) => Promise<void>;
+  onFATrigger?: (
+    message: string,
+    timestampSeconds: number,
+    topic?: string,
+    pauseVideo?: boolean
+  ) => Promise<void>;
   onVideoEnd?: () => void;
   quizData?: LessonQuiz | null; // Quiz data for in-lesson question detection
   onInLessonTrigger?: (questionId: string) => void; // Callback when in-lesson question timestamp is reached
@@ -69,9 +77,22 @@ interface UseKPointPlayerOptions {
  * Hook to manage KPoint video player lifecycle
  * Handles player initialization, event subscriptions, and cleanup
  */
-export function useKPointPlayer({ kpointVideoId, userId, lessonId, videoDuration, onBookmarksReady, onPlayerReady, onFATrigger, onVideoEnd, quizData, onInLessonTrigger }: UseKPointPlayerOptions) {
+export function useKPointPlayer({
+  kpointVideoId,
+  userId,
+  lessonId,
+  videoDuration,
+  onBookmarksReady,
+  onPlayerReady,
+  onFATrigger,
+  onVideoEnd,
+  quizData,
+  onInLessonTrigger,
+}: UseKPointPlayerOptions) {
   const playerRef = useRef<KPointPlayer | null>(null);
-  const eventHandlersRef = useRef<Map<string, (data: unknown) => void>>(new Map());
+  const eventHandlersRef = useRef<Map<string, (data: unknown) => void>>(
+    new Map()
+  );
   const kpointVideoIdRef = useRef<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
@@ -81,11 +102,12 @@ export function useKPointPlayer({ kpointVideoId, userId, lessonId, videoDuration
   const bookmarksRef = useRef<Bookmark[]>([]);
 
   // Context for optimistic progress updates
-  const { updateLessonProgress: updateLessonProgressContext } = useCourseProgress();
+  const { updateLessonProgress: updateLessonProgressContext } =
+    useCourseProgress();
 
   // Progress tracking
   const lastProgressUpdateRef = useRef<number>(0);
-  const PROGRESS_UPDATE_INTERVAL = 15000; // 15 seconds
+  const PROGRESS_UPDATE_INTERVAL = 15_000; // 15 seconds
   const MIN_WATCH_TIME_SECONDS = 5; // Minimum watch time before saving progress
   const actualVideoDurationRef = useRef<number>(videoDuration || 0); // Actual duration in seconds, updated from player
 
@@ -97,7 +119,7 @@ export function useKPointPlayer({ kpointVideoId, userId, lessonId, videoDuration
     videoDuration,
     hasProgressTracking: !!(userId && lessonId), // Duration will be fetched from player if not provided
   });
-  
+
   // Store callbacks in refs to avoid effect re-runs
   const onBookmarksReadyRef = useRef(onBookmarksReady);
   const onPlayerReadyRef = useRef(onPlayerReady);
@@ -122,20 +144,21 @@ export function useKPointPlayer({ kpointVideoId, userId, lessonId, videoDuration
       hasQuizData: !!quizData,
       warmupCount: quizData?.warmup?.length ?? 0,
       inlessonCount: quizData?.inlesson?.length ?? 0,
-      inlessonQuestions: quizData?.inlesson?.map(q => ({
-        id: q.id,
-        timestamp: q.timestamp,
-        question: q.question?.substring(0, 50) + "..."
-      })) ?? [],
-      alreadyTriggered: Array.from(triggeredInlessonRef.current)
+      inlessonQuestions:
+        quizData?.inlesson?.map((q) => ({
+          id: q.id,
+          timestamp: q.timestamp,
+          question: `${q.question?.substring(0, 50)}...`,
+        })) ?? [],
+      alreadyTriggered: Array.from(triggeredInlessonRef.current),
     });
   }, [quizData]);
-  
+
   // Keep state refs updated
   useEffect(() => {
     isPlayingRef.current = isPlaying;
   }, [isPlaying]);
-  
+
   useEffect(() => {
     bookmarksRef.current = bookmarks;
   }, [bookmarks]);
@@ -152,134 +175,165 @@ export function useKPointPlayer({ kpointVideoId, userId, lessonId, videoDuration
   }, [kpointVideoId]);
 
   // Internal function to check for FA triggers with explicit bookmarks parameter
-  const checkForFATriggersInternal = useCallback((currentTimeMs: number, currentBookmarks: Bookmark[]) => {
-    for (const bookmark of currentBookmarks) {
-      const bookmarkId = bookmark.id || `${bookmark.rel_offset}`;
-      
-      // Skip if already triggered
-      if (triggeredBookmarksRef.current.has(bookmarkId)) {
-        continue;
-      }
-      
-      // Check if we've reached or passed the bookmark time (within 500ms tolerance)
-      const timeDiff = currentTimeMs - bookmark.rel_offset;
-      
-      if (timeDiff >= 0 && timeDiff <= 500) {
-        console.log(`FA Trigger: Bookmark at ${bookmark.rel_offset}ms (${(bookmark.rel_offset / 1000).toFixed(1)}s)`);
-        
-        // Mark as triggered
-        triggeredBookmarksRef.current.add(bookmarkId);
-        
-        // Pause the video
-        if (playerRef.current) {
-          try {
-            if (playerRef.current.pauseVideo) {
-              playerRef.current.pauseVideo();
-            } else if (playerRef.current.setState) {
-              playerRef.current.setState(PLAYER_STATE.PAUSED);
-            }
-            setIsPlaying(false);
-          } catch (error) {
-            console.error('Failed to pause video:', error);
-          }
+  const checkForFATriggersInternal = useCallback(
+    (currentTimeMs: number, currentBookmarks: Bookmark[]) => {
+      for (const bookmark of currentBookmarks) {
+        const bookmarkId = bookmark.id || `${bookmark.rel_offset}`;
+
+        // Skip if already triggered
+        if (triggeredBookmarksRef.current.has(bookmarkId)) {
+          continue;
         }
-        
-        // Trigger FA with message, timestamp, and topic from bookmark
-        const message = "Ask me a formative assessment";
-        const timestampSeconds = bookmark.rel_offset / 1000; // Convert milliseconds to seconds
-        const topic = bookmark.text; // Topic from bookmark (e.g., "Introduction to Computational Thinking")
-        onFATriggerRef.current?.(message, timestampSeconds, topic, true).catch(error => {
-          console.error('FA trigger failed:', error);
-          // Resume video on error
+
+        // Check if we've reached or passed the bookmark time (within 500ms tolerance)
+        const timeDiff = currentTimeMs - bookmark.rel_offset;
+
+        if (timeDiff >= 0 && timeDiff <= 500) {
+          console.log(
+            `FA Trigger: Bookmark at ${bookmark.rel_offset}ms (${(bookmark.rel_offset / 1000).toFixed(1)}s)`
+          );
+
+          // Mark as triggered
+          triggeredBookmarksRef.current.add(bookmarkId);
+
+          // Pause the video
           if (playerRef.current) {
             try {
-              if (playerRef.current.playVideo) {
-                playerRef.current.playVideo();
+              if (playerRef.current.pauseVideo) {
+                playerRef.current.pauseVideo();
               } else if (playerRef.current.setState) {
-                playerRef.current.setState(PLAYER_STATE.PLAYING);
+                playerRef.current.setState(PLAYER_STATE.PAUSED);
               }
-              setIsPlaying(true);
-            } catch (playError) {
-              console.error('Failed to resume video:', playError);
+              setIsPlaying(false);
+            } catch (error) {
+              console.error("Failed to pause video:", error);
             }
           }
-        });
-        
-        break; // Only trigger one at a time
+
+          // Trigger FA with message, timestamp, and topic from bookmark
+          const message = "Ask me a formative assessment";
+          const timestampSeconds = bookmark.rel_offset / 1000; // Convert milliseconds to seconds
+          const topic = bookmark.text; // Topic from bookmark (e.g., "Introduction to Computational Thinking")
+          onFATriggerRef
+            .current?.(message, timestampSeconds, topic, true)
+            .catch((error) => {
+              console.error("FA trigger failed:", error);
+              // Resume video on error
+              if (playerRef.current) {
+                try {
+                  if (playerRef.current.playVideo) {
+                    playerRef.current.playVideo();
+                  } else if (playerRef.current.setState) {
+                    playerRef.current.setState(PLAYER_STATE.PLAYING);
+                  }
+                  setIsPlaying(true);
+                } catch (playError) {
+                  console.error("Failed to resume video:", playError);
+                }
+              }
+            });
+
+          break; // Only trigger one at a time
+        }
       }
-    }
-  }, []);
+    },
+    []
+  );
 
   // Helper to get video duration from player
-  const getVideoDurationFromPlayer = useCallback((player: KPointPlayer): number => {
-    // Try getDuration() first (returns milliseconds)
-    if (player.getDuration) {
-      const durationMs = player.getDuration();
-      if (durationMs > 0) {
-        const durationSec = durationMs / 1000;
-        console.log("[useKPointPlayer] Got duration from getDuration():", durationSec, "seconds");
+  const getVideoDurationFromPlayer = useCallback(
+    (player: KPointPlayer): number => {
+      // Try getDuration() first (returns milliseconds)
+      if (player.getDuration) {
+        const durationMs = player.getDuration();
+        if (durationMs > 0) {
+          const durationSec = durationMs / 1000;
+          console.log(
+            "[useKPointPlayer] Got duration from getDuration():",
+            durationSec,
+            "seconds"
+          );
+          return durationSec;
+        }
+      }
+
+      // Fallback to config.kapsuleinfo.published_duration (returns seconds)
+      if (player.config?.kapsuleinfo?.published_duration) {
+        const durationSec = player.config.kapsuleinfo.published_duration;
+        console.log(
+          "[useKPointPlayer] Got duration from config.kapsuleinfo.published_duration:",
+          durationSec,
+          "seconds"
+        );
         return durationSec;
       }
-    }
 
-    // Fallback to config.kapsuleinfo.published_duration (returns seconds)
-    if (player.config?.kapsuleinfo?.published_duration) {
-      const durationSec = player.config.kapsuleinfo.published_duration;
-      console.log("[useKPointPlayer] Got duration from config.kapsuleinfo.published_duration:", durationSec, "seconds");
-      return durationSec;
-    }
-
-    console.warn("[useKPointPlayer] Could not get duration from player");
-    return 0;
-  }, []);
+      console.warn("[useKPointPlayer] Could not get duration from player");
+      return 0;
+    },
+    []
+  );
 
   // Progress update helper
-  const updateProgress = useCallback(async (currentTimeSec: number, videoEnded: boolean) => {
-    const currentVideoDuration = actualVideoDurationRef.current;
+  const updateProgress = useCallback(
+    async (currentTimeSec: number, videoEnded: boolean) => {
+      const currentVideoDuration = actualVideoDurationRef.current;
 
-    if (!userId || !lessonId) {
-      console.warn("[useKPointPlayer] updateProgress called but missing params:", {
-        userId: !!userId,
-        lessonId: !!lessonId,
-      });
-      return;
-    }
+      if (!(userId && lessonId)) {
+        console.warn(
+          "[useKPointPlayer] updateProgress called but missing params:",
+          {
+            userId: !!userId,
+            lessonId: !!lessonId,
+          }
+        );
+        return;
+      }
 
-    // Calculate completion percentage (0 if duration unknown)
-    const completionPercentage = currentVideoDuration > 0
-      ? Math.min((currentTimeSec / currentVideoDuration) * 100, 100)
-      : 0;
+      // Calculate completion percentage (0 if duration unknown)
+      const completionPercentage =
+        currentVideoDuration > 0
+          ? Math.min((currentTimeSec / currentVideoDuration) * 100, 100)
+          : 0;
 
-    console.log("[useKPointPlayer] Calling updateLessonProgress server action:", {
-      userId,
-      lessonId,
-      lastPosition: Math.floor(currentTimeSec),
-      completionPercentage: Math.round(completionPercentage),
-      videoEnded,
-      videoDuration: currentVideoDuration,
-    });
-
-    try {
-      await updateLessonProgress({
-        userId,
-        lessonId,
-        lastPosition: Math.floor(currentTimeSec),
-        completionPercentage: Math.round(completionPercentage),
-        videoEnded,
-      });
-      console.log("[useKPointPlayer] Progress updated successfully");
-
-      // Optimistically update context for immediate sidebar refresh
-      updateLessonProgressContext(
-        lessonId,
-        Math.round(completionPercentage),
-        videoEnded
+      console.log(
+        "[useKPointPlayer] Calling updateLessonProgress server action:",
+        {
+          userId,
+          lessonId,
+          lastPosition: Math.floor(currentTimeSec),
+          completionPercentage: Math.round(completionPercentage),
+          videoEnded,
+          videoDuration: currentVideoDuration,
+        }
       );
-    } catch (error) {
-      console.error("[useKPointPlayer] Failed to update lesson progress:", error);
-      // Silent failure - don't disrupt user experience
-    }
-  }, [userId, lessonId, updateLessonProgressContext]);
+
+      try {
+        await updateLessonProgress({
+          userId,
+          lessonId,
+          lastPosition: Math.floor(currentTimeSec),
+          completionPercentage: Math.round(completionPercentage),
+          videoEnded,
+        });
+        console.log("[useKPointPlayer] Progress updated successfully");
+
+        // Optimistically update context for immediate sidebar refresh
+        updateLessonProgressContext(
+          lessonId,
+          Math.round(completionPercentage),
+          videoEnded
+        );
+      } catch (error) {
+        console.error(
+          "[useKPointPlayer] Failed to update lesson progress:",
+          error
+        );
+        // Silent failure - don't disrupt user experience
+      }
+    },
+    [userId, lessonId, updateLessonProgressContext]
+  );
 
   // Listen for KPoint player ready event - runs only once on mount
   useEffect(() => {
@@ -299,7 +353,10 @@ export function useKPointPlayer({ kpointVideoId, userId, lessonId, videoDuration
         if (currentTimeSec >= MIN_WATCH_TIME_SECONDS) {
           updateProgress(currentTimeSec, false);
         } else {
-          console.log("[useKPointPlayer] Skipping progress update on pause - watched less than 5 seconds:", currentTimeSec.toFixed(1));
+          console.log(
+            "[useKPointPlayer] Skipping progress update on pause - watched less than 5 seconds:",
+            currentTimeSec.toFixed(1)
+          );
         }
       }
 
@@ -312,7 +369,10 @@ export function useKPointPlayer({ kpointVideoId, userId, lessonId, videoDuration
           if (currentTimeSec >= MIN_WATCH_TIME_SECONDS) {
             updateProgress(currentTimeSec, true);
           } else {
-            console.log("[useKPointPlayer] Skipping progress update on end - watched less than 5 seconds:", currentTimeSec.toFixed(1));
+            console.log(
+              "[useKPointPlayer] Skipping progress update on end - watched less than 5 seconds:",
+              currentTimeSec.toFixed(1)
+            );
           }
         }
         onVideoEndRef.current?.();
@@ -320,7 +380,9 @@ export function useKPointPlayer({ kpointVideoId, userId, lessonId, videoDuration
     };
 
     const handlePlayerTimeUpdate = () => {
-      if (!playerRef.current) return;
+      if (!playerRef.current) {
+        return;
+      }
 
       const currentTimeMs = playerRef.current.getCurrentTime();
       const currentTimeSec = currentTimeMs / 1000;
@@ -330,7 +392,11 @@ export function useKPointPlayer({ kpointVideoId, userId, lessonId, videoDuration
         const duration = getVideoDurationFromPlayer(playerRef.current);
         if (duration > 0) {
           actualVideoDurationRef.current = duration;
-          console.log("[useKPointPlayer] Got duration on timeUpdate:", duration, "seconds");
+          console.log(
+            "[useKPointPlayer] Got duration on timeUpdate:",
+            duration,
+            "seconds"
+          );
         }
       }
 
@@ -347,15 +413,26 @@ export function useKPointPlayer({ kpointVideoId, userId, lessonId, videoDuration
       const currentQuizData = quizDataRef.current;
       if (currentQuizData?.inlesson && currentIsPlaying) {
         // DEBUG: Log every 5 seconds to show quiz checking is active
-        if (Math.floor(currentTimeSec) % 5 === 0 && Math.floor(currentTimeSec) !== Math.floor((currentTimeMs - 100) / 1000)) {
-          console.log(`[useKPointPlayer] Quiz check at ${currentTimeSec.toFixed(1)}s:`, {
-            inlessonCount: currentQuizData.inlesson.length,
-            nextPendingQuestions: currentQuizData.inlesson
-              .filter(q => !triggeredInlessonRef.current.has(q.id))
-              .map(q => ({ id: q.id, timestamp: q.timestamp, timeTillTrigger: (q.timestamp - currentTimeSec).toFixed(1) + "s" }))
-              .slice(0, 3),
-            alreadyTriggered: Array.from(triggeredInlessonRef.current)
-          });
+        if (
+          Math.floor(currentTimeSec) % 5 === 0 &&
+          Math.floor(currentTimeSec) !==
+            Math.floor((currentTimeMs - 100) / 1000)
+        ) {
+          console.log(
+            `[useKPointPlayer] Quiz check at ${currentTimeSec.toFixed(1)}s:`,
+            {
+              inlessonCount: currentQuizData.inlesson.length,
+              nextPendingQuestions: currentQuizData.inlesson
+                .filter((q) => !triggeredInlessonRef.current.has(q.id))
+                .map((q) => ({
+                  id: q.id,
+                  timestamp: q.timestamp,
+                  timeTillTrigger: `${(q.timestamp - currentTimeSec).toFixed(1)}s`,
+                }))
+                .slice(0, 3),
+              alreadyTriggered: Array.from(triggeredInlessonRef.current),
+            }
+          );
         }
 
         for (const question of currentQuizData.inlesson) {
@@ -367,11 +444,11 @@ export function useKPointPlayer({ kpointVideoId, userId, lessonId, videoDuration
           // Check if we've reached the question timestamp (within 1 second tolerance)
           const timeDiff = currentTimeSec - question.timestamp;
           if (timeDiff >= 0 && timeDiff < 1) {
-            console.log(`[useKPointPlayer] 🎯 In-lesson question TRIGGERED:`, {
+            console.log("[useKPointPlayer] 🎯 In-lesson question TRIGGERED:", {
               questionId: question.id,
               timestamp: question.timestamp,
               currentTime: currentTimeSec.toFixed(2),
-              timeDiff: timeDiff.toFixed(3)
+              timeDiff: timeDiff.toFixed(3),
             });
 
             // Mark as triggered
@@ -392,9 +469,14 @@ export function useKPointPlayer({ kpointVideoId, userId, lessonId, videoDuration
             }
 
             // Trigger the callback
-            console.log(`[useKPointPlayer] Calling onInLessonTrigger callback with questionId:`, question.id);
+            console.log(
+              "[useKPointPlayer] Calling onInLessonTrigger callback with questionId:",
+              question.id
+            );
             onInLessonTriggerRef.current?.(question.id);
-            console.log(`[useKPointPlayer] onInLessonTrigger callback completed`);
+            console.log(
+              "[useKPointPlayer] onInLessonTrigger callback completed"
+            );
 
             break; // Only trigger one at a time
           }
@@ -402,7 +484,12 @@ export function useKPointPlayer({ kpointVideoId, userId, lessonId, videoDuration
       }
 
       // Update progress every 15 seconds (only if watched at least 5 seconds)
-      if (userId && lessonId && currentIsPlaying && currentTimeSec >= MIN_WATCH_TIME_SECONDS) {
+      if (
+        userId &&
+        lessonId &&
+        currentIsPlaying &&
+        currentTimeSec >= MIN_WATCH_TIME_SECONDS
+      ) {
         const now = Date.now();
         const timeSinceLastUpdate = now - lastProgressUpdateRef.current;
 
@@ -423,11 +510,17 @@ export function useKPointPlayer({ kpointVideoId, userId, lessonId, videoDuration
         const now = Date.now();
         if (!currentIsPlaying) {
           // Silent - video not playing
-        } else if ((!userId || !lessonId) && now - lastProgressUpdateRef.current > 60000) {
-          console.warn("[useKPointPlayer] Progress tracking skipped - missing params:", {
-            userId: !!userId,
-            lessonId: !!lessonId,
-          });
+        } else if (
+          !(userId && lessonId) &&
+          now - lastProgressUpdateRef.current > 60_000
+        ) {
+          console.warn(
+            "[useKPointPlayer] Progress tracking skipped - missing params:",
+            {
+              userId: !!userId,
+              lessonId: !!lessonId,
+            }
+          );
           lastProgressUpdateRef.current = now; // Update to avoid spam
         }
       }
@@ -441,13 +534,19 @@ export function useKPointPlayer({ kpointVideoId, userId, lessonId, videoDuration
 
       // Add delay before getting bookmarks to ensure player is fully initialized
       setTimeout(() => {
-        if (!playerRef.current) return;
+        if (!playerRef.current) {
+          return;
+        }
 
         // Get video duration from player
         const duration = getVideoDurationFromPlayer(playerRef.current);
         if (duration > 0) {
           actualVideoDurationRef.current = duration;
-          console.log("[useKPointPlayer] Updated actualVideoDurationRef to:", duration, "seconds");
+          console.log(
+            "[useKPointPlayer] Updated actualVideoDurationRef to:",
+            duration,
+            "seconds"
+          );
         }
 
         const playerBookmarks = playerRef.current.getBookmarks();
@@ -468,12 +567,15 @@ export function useKPointPlayer({ kpointVideoId, userId, lessonId, videoDuration
     };
 
     const handlePlayerReady = (
-      event: CustomEvent<{ message: string; container: unknown; player: KPointPlayer }>
+      event: CustomEvent<{
+        message: string;
+        container: unknown;
+        player: KPointPlayer;
+      }>
     ) => {
       console.log("KPoint player ready:", event.detail.message);
       const player = event.detail.player;
       playerRef.current = player;
-      
 
       // Notify parent that player is ready
       onPlayerReadyRef.current?.();
@@ -492,10 +594,16 @@ export function useKPointPlayer({ kpointVideoId, userId, lessonId, videoDuration
       });
     };
 
-    document.addEventListener("kpointPlayerReady", handlePlayerReady as EventListener);
+    document.addEventListener(
+      "kpointPlayerReady",
+      handlePlayerReady as EventListener
+    );
 
     return () => {
-      document.removeEventListener("kpointPlayerReady", handlePlayerReady as EventListener);
+      document.removeEventListener(
+        "kpointPlayerReady",
+        handlePlayerReady as EventListener
+      );
 
       // Unsubscribe from all events
       if (playerRef.current) {
@@ -507,12 +615,20 @@ export function useKPointPlayer({ kpointVideoId, userId, lessonId, videoDuration
 
       // Delete player instance from window
       if (kpointVideoIdRef.current) {
-        delete (window as unknown as Record<string, unknown>)[kpointVideoIdRef.current];
+        delete (window as unknown as Record<string, unknown>)[
+          kpointVideoIdRef.current
+        ];
       }
 
       playerRef.current = null;
     };
-  }, []); // Empty deps - only run once on mount
+  }, [
+    checkForFATriggersInternal,
+    getVideoDurationFromPlayer,
+    lessonId,
+    updateProgress,
+    userId,
+  ]); // Empty deps - only run once on mount
 
   // Seek to a specific time in seconds
   const seekTo = useCallback((seconds: number) => {
@@ -529,7 +645,7 @@ export function useKPointPlayer({ kpointVideoId, userId, lessonId, videoDuration
     if (playerRef.current) {
       try {
         const currentTimeMs = playerRef.current.getCurrentTime();
-        if (typeof currentTimeMs === "number" && !isNaN(currentTimeMs)) {
+        if (typeof currentTimeMs === "number" && !Number.isNaN(currentTimeMs)) {
           return Math.floor(currentTimeMs / 1000); // Convert milliseconds to seconds
         }
       } catch (error) {
@@ -543,8 +659,7 @@ export function useKPointPlayer({ kpointVideoId, userId, lessonId, videoDuration
   const isPlayerReady = useCallback(() => {
     return playerRef.current !== null;
   }, []);
-  ;
-  
+
   // Get current playing state
   const getIsPlaying = useCallback(() => {
     return isPlaying;

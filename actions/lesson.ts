@@ -1,7 +1,7 @@
 "use server";
 
-import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { prisma } from "@/lib/prisma";
 
 function generateSlug(title: string) {
   return title
@@ -14,7 +14,7 @@ export async function createLesson(moduleId: string, title: string) {
   try {
     const courseModule = await prisma.module.findUnique({
       where: { id: moduleId },
-      select: { courseId: true }
+      select: { courseId: true },
     });
 
     if (!courseModule) {
@@ -23,7 +23,7 @@ export async function createLesson(moduleId: string, title: string) {
 
     const lastLesson = await prisma.lesson.findFirst({
       where: {
-        moduleId: moduleId,
+        moduleId,
       },
       orderBy: {
         orderIndex: "desc",
@@ -43,7 +43,9 @@ export async function createLesson(moduleId: string, title: string) {
       },
     });
 
-    revalidatePath(`/teacher/courses/${courseModule.courseId}/modules/${moduleId}`);
+    revalidatePath(
+      `/teacher/courses/${courseModule.courseId}/modules/${moduleId}`
+    );
     return lesson;
   } catch (error) {
     console.log("[LESSON_CREATE]", error);
@@ -51,22 +53,40 @@ export async function createLesson(moduleId: string, title: string) {
   }
 }
 
-export async function updateLesson(lessonId: string, moduleId: string, values: { title?: string; description?: string; isPublished?: boolean; orderIndex?: number; kpointVideoId?: string; youtubeVideoId?: string; slug?: string }) {
+export async function updateLesson(
+  lessonId: string,
+  moduleId: string,
+  values: {
+    title?: string;
+    description?: string;
+    isPublished?: boolean;
+    orderIndex?: number;
+    kpointVideoId?: string;
+    youtubeVideoId?: string;
+    slug?: string;
+  }
+) {
   try {
     const lesson = await prisma.lesson.update({
       where: {
         id: lessonId,
-        moduleId: moduleId,
+        moduleId,
       },
       data: {
         ...values,
       },
     });
-    
-    const courseModule = await prisma.module.findUnique({ where: { id: moduleId } });
+
+    const courseModule = await prisma.module.findUnique({
+      where: { id: moduleId },
+    });
     if (courseModule) {
-        revalidatePath(`/teacher/courses/${courseModule.courseId}/modules/${moduleId}`);
-        revalidatePath(`/teacher/courses/${courseModule.courseId}/modules/${moduleId}/lessons/${lessonId}`);
+      revalidatePath(
+        `/teacher/courses/${courseModule.courseId}/modules/${moduleId}`
+      );
+      revalidatePath(
+        `/teacher/courses/${courseModule.courseId}/modules/${moduleId}/lessons/${lessonId}`
+      );
     }
     return lesson;
   } catch (error) {
@@ -80,13 +100,17 @@ export async function deleteLesson(lessonId: string, moduleId: string) {
     const lesson = await prisma.lesson.delete({
       where: {
         id: lessonId,
-        moduleId: moduleId,
+        moduleId,
       },
     });
 
-    const courseModule = await prisma.module.findUnique({ where: { id: moduleId } });
+    const courseModule = await prisma.module.findUnique({
+      where: { id: moduleId },
+    });
     if (courseModule) {
-        revalidatePath(`/teacher/courses/${courseModule.courseId}/modules/${moduleId}`);
+      revalidatePath(
+        `/teacher/courses/${courseModule.courseId}/modules/${moduleId}`
+      );
     }
     return lesson;
   } catch (error) {
@@ -95,7 +119,10 @@ export async function deleteLesson(lessonId: string, moduleId: string) {
   }
 }
 
-export async function reorderLessons(moduleId: string, updateData: { id: string; orderIndex: number }[]) {
+export async function reorderLessons(
+  moduleId: string,
+  updateData: { id: string; orderIndex: number }[]
+) {
   try {
     for (const item of updateData) {
       await prisma.lesson.update({
@@ -104,9 +131,13 @@ export async function reorderLessons(moduleId: string, updateData: { id: string;
       });
     }
 
-    const courseModule = await prisma.module.findUnique({ where: { id: moduleId } });
+    const courseModule = await prisma.module.findUnique({
+      where: { id: moduleId },
+    });
     if (courseModule) {
-        revalidatePath(`/teacher/courses/${courseModule.courseId}/modules/${moduleId}`);
+      revalidatePath(
+        `/teacher/courses/${courseModule.courseId}/modules/${moduleId}`
+      );
     }
   } catch (error) {
     console.log("[LESSON_REORDER]", error);

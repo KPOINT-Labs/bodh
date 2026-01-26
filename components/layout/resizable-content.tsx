@@ -1,13 +1,13 @@
 "use client";
 
-import { ReactNode, useState, useEffect } from "react";
+import { MoreVertical } from "lucide-react";
+import { type ReactNode, useEffect, useState } from "react";
 import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { MoreVertical } from "lucide-react";
 
 interface ResizableContentProps {
   header: ReactNode;
@@ -16,7 +16,12 @@ interface ResizableContentProps {
   rightPanel?: ReactNode | null;
 }
 
-export function ResizableContent({ header, content, footer, rightPanel }: ResizableContentProps) {
+export function ResizableContent({
+  header,
+  content,
+  footer,
+  rightPanel,
+}: ResizableContentProps) {
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
@@ -28,26 +33,20 @@ export function ResizableContent({ header, content, footer, rightPanel }: Resiza
       <div className="h-full overflow-hidden bg-[#F4F4F4]">
         <div className="flex h-full">
           {/* Main Content Panel - Static Layout */}
-          <div className="flex-1 flex flex-col">
+          <div className="flex flex-1 flex-col">
             {/* Fixed Header */}
-            <div className="shrink-0">
-              {header}
-            </div>
+            <div className="shrink-0">{header}</div>
 
             {/* Scrollable Content */}
-            <ScrollArea className="flex-1 h-0">
-              {content}
-            </ScrollArea>
+            <ScrollArea className="h-0 flex-1">{content}</ScrollArea>
 
             {/* Fixed Footer */}
-            <div className="shrink-0">
-              {footer}
-            </div>
+            <div className="shrink-0">{footer}</div>
           </div>
 
           {/* Right Panel - Only rendered when there's content */}
           {rightPanel && (
-            <div className="hidden lg:block w-1/4 min-w-[20%] max-w-[60%]">
+            <div className="hidden w-1/4 min-w-[20%] max-w-[60%] lg:block">
               {rightPanel}
             </div>
           )}
@@ -58,53 +57,47 @@ export function ResizableContent({ header, content, footer, rightPanel }: Resiza
 
   return (
     <div className="h-full overflow-hidden bg-[#F4F4F4]">
-      <ResizablePanelGroup direction="horizontal" className="h-full">
+      <ResizablePanelGroup className="h-full" direction="horizontal">
         {/* Main Content Panel */}
         <ResizablePanel
-          defaultSize={rightPanel ? 25 : 100}
-          minSize={25}
           className="flex flex-col"
+          defaultSize={rightPanel ? 65 : 100}
+          minSize={40}
           style={{
-            backgroundImage: 'url(/background.png)',
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            backgroundRepeat: 'no-repeat',
+            backgroundImage: "url(/background.png)",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            backgroundRepeat: "no-repeat",
           }}
         >
           {/* Fixed Header */}
-          <div className="shrink-0">
-            {header}
-          </div>
+          <div className="shrink-0">{header}</div>
 
           {/* Scrollable Content */}
-          <ScrollArea className="flex-1 h-0">
-            {content}
-          </ScrollArea>
+          <ScrollArea className="h-0 flex-1">{content}</ScrollArea>
 
           {/* Fixed Footer */}
-          <div className="shrink-0">
-            {footer}
-          </div>
+          <div className="shrink-0">{footer}</div>
         </ResizablePanel>
 
         {/* Right Panel - Only rendered when there's content */}
         {rightPanel && (
           <>
             <ResizableHandle
+              className="relative hidden w-px bg-transparent lg:flex"
               withHandle
-              className="hidden lg:flex w-px bg-transparent relative"
             >
-              <div className="absolute inset-y-0 left-1/2 transform -translate-x-1/2 flex items-center">
-                <div className="bg-blue-50 border-blue-200 z-10 flex h-6 w-4 items-center justify-center rounded-sm border shadow-sm hover:shadow-md hover:bg-blue-100 transition-all duration-200">
+              <div className="absolute inset-y-0 left-1/2 flex -translate-x-1/2 transform items-center">
+                <div className="z-10 flex h-6 w-4 items-center justify-center rounded-sm border border-blue-200 bg-blue-50 shadow-sm transition-all duration-200 hover:bg-blue-100 hover:shadow-md">
                   <MoreVertical className="h-3 w-3 text-blue-400" />
                 </div>
               </div>
             </ResizableHandle>
             <ResizablePanel
-              defaultSize={25}
-              minSize={30}
-              maxSize={60}
               className="hidden lg:block"
+              defaultSize={35}
+              maxSize={60}
+              minSize={25}
             >
               {rightPanel}
             </ResizablePanel>

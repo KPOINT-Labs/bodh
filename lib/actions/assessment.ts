@@ -2,9 +2,9 @@
 
 import { prisma } from "@/lib/prisma";
 import type {
-  LessonQuiz,
   AssessmentAttemptInput,
   AssessmentType,
+  LessonQuiz,
 } from "@/types/assessment";
 
 /**

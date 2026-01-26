@@ -1,7 +1,7 @@
 "use client";
 
-import { signOut } from "next-auth/react";
 import { LogOut } from "lucide-react";
+import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
 
 interface LogoutButtonProps {
@@ -9,7 +9,10 @@ interface LogoutButtonProps {
   variant?: "default" | "icon" | "text";
 }
 
-export function LogoutButton({ className, variant = "default" }: LogoutButtonProps) {
+export function LogoutButton({
+  className,
+  variant = "default",
+}: LogoutButtonProps) {
   const handleLogout = () => {
     signOut({ callbackUrl: "/login" });
   };
@@ -17,14 +20,14 @@ export function LogoutButton({ className, variant = "default" }: LogoutButtonPro
   if (variant === "icon") {
     return (
       <button
-        onClick={handleLogout}
         className={cn(
-          "p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-all",
+          "rounded-lg p-2 text-gray-500 transition-all hover:bg-gray-100 hover:text-gray-700",
           className
         )}
+        onClick={handleLogout}
         title="Sign out"
       >
-        <LogOut className="w-5 h-5" />
+        <LogOut className="h-5 w-5" />
       </button>
     );
   }
@@ -32,13 +35,13 @@ export function LogoutButton({ className, variant = "default" }: LogoutButtonPro
   if (variant === "text") {
     return (
       <button
-        onClick={handleLogout}
         className={cn(
-          "text-gray-500 hover:text-gray-700 transition-all flex items-center gap-2",
+          "flex items-center gap-2 text-gray-500 transition-all hover:text-gray-700",
           className
         )}
+        onClick={handleLogout}
       >
-        <LogOut className="w-4 h-4" />
+        <LogOut className="h-4 w-4" />
         Sign out
       </button>
     );
@@ -46,13 +49,13 @@ export function LogoutButton({ className, variant = "default" }: LogoutButtonPro
 
   return (
     <button
-      onClick={handleLogout}
       className={cn(
-        "px-4 py-2 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-all flex items-center gap-2",
+        "flex items-center gap-2 rounded-xl bg-gray-100 px-4 py-2 font-medium text-gray-700 transition-all hover:bg-gray-200",
         className
       )}
+      onClick={handleLogout}
     >
-      <LogOut className="w-4 h-4" />
+      <LogOut className="h-4 w-4" />
       Sign out
     </button>
   );

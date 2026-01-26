@@ -1,9 +1,9 @@
 "use client";
 
+import { AnimatePresence, motion } from "framer-motion";
+import { XCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { XCircle } from "lucide-react";
-import { AnimatePresence, motion } from "framer-motion";
 
 interface ErrorMessageProps {
   show: boolean;
@@ -12,7 +12,12 @@ interface ErrorMessageProps {
   onClose?: () => void;
 }
 
-export function ErrorMessage({ show, message = "Not quite correct!", duration = 2000, onClose }: ErrorMessageProps) {
+export function ErrorMessage({
+  show,
+  message = "Not quite correct!",
+  duration = 2000,
+  onClose,
+}: ErrorMessageProps) {
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);
 
@@ -31,29 +36,31 @@ export function ErrorMessage({ show, message = "Not quite correct!", duration = 
     }
   }, [show, duration, onClose]);
 
-  if (!mounted) return null;
+  if (!mounted) {
+    return null;
+  }
 
   return createPortal(
     <AnimatePresence>
       {visible && (
         <motion.div
-          initial={{ opacity: 0, scale: 0.9, y: -10 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
+          className="pointer-events-none fixed top-8 left-1/2 z-[200] -translate-x-1/2"
           exit={{ opacity: 0, scale: 0.9, y: -10 }}
+          initial={{ opacity: 0, scale: 0.9, y: -10 }}
           transition={{ type: "spring", stiffness: 260, damping: 20 }}
-          className="fixed top-8 left-1/2 -translate-x-1/2 z-[200] pointer-events-none"
         >
           <motion.div
             animate={{ x: [0, -10, 10, -6, 6, -3, 3, 0] }}
+            className="rounded-2xl border-2 border-red-300 bg-red-500/95 px-6 py-4 shadow-2xl shadow-red-500/50 backdrop-blur-xl"
             transition={{ duration: 0.6, ease: "easeInOut" }}
-            className="backdrop-blur-xl bg-red-500/95 border-2 border-red-300 rounded-2xl px-6 py-4 shadow-2xl shadow-red-500/50"
           >
             <div className="flex items-center gap-3">
               <div className="relative">
-                <XCircle className="w-8 h-8 text-white" />
-                <div className="absolute inset-0 bg-white/30 rounded-full animate-ping"></div>
+                <XCircle className="h-8 w-8 text-white" />
+                <div className="absolute inset-0 animate-ping rounded-full bg-white/30" />
               </div>
-              <p className="text-white text-lg font-semibold">{message}</p>
+              <p className="font-semibold text-lg text-white">{message}</p>
             </div>
           </motion.div>
         </motion.div>

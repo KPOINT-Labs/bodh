@@ -1,9 +1,9 @@
 import { notFound } from "next/navigation";
-import { prisma } from "@/lib/prisma";
-import { auth } from "@/auth";
-import { ModuleContent } from "./ModuleContent";
-import { mockTourData } from "@/lib/mockTourData";
 import { ensureEnrollment } from "@/actions/enrollment";
+import { auth } from "@/auth";
+import { mockTourData } from "@/lib/mockTourData";
+import { prisma } from "@/lib/prisma";
+import { ModuleContent } from "./ModuleContent";
 
 // Render at request time (database required)
 export const dynamic = "force-dynamic";
@@ -80,7 +80,10 @@ async function getModuleData(courseIdOrSlug: string, moduleId: string) {
   return { course, module: foundModule };
 }
 
-export default async function ModulePage({ params, searchParams }: ModulePageProps) {
+export default async function ModulePage({
+  params,
+  searchParams,
+}: ModulePageProps) {
   const { courseId, moduleId } = await params;
   const resolvedSearchParams = await searchParams;
   const { lesson: initialLessonId, panel } = resolvedSearchParams;
@@ -95,17 +98,18 @@ export default async function ModulePage({ params, searchParams }: ModulePagePro
 
   // Detect tour mode: both route params AND query parameter must match
   const tourParam = resolvedSearchParams.tour;
-  const isTourMode = courseId === "demo" && moduleId === "demo" && tourParam === "true";
+  const isTourMode =
+    courseId === "demo" && moduleId === "demo" && tourParam === "true";
 
   // If tour mode, use mock data instead of database
   if (isTourMode) {
     return (
       <ModuleContent
         course={mockTourData.course}
-        module={mockTourData.module}
-        userId={session.user.id}
         initialLessonId={mockTourData.module.lessons[0]?.id}
         isTourMode={true}
+        module={mockTourData.module}
+        userId={session.user.id}
       />
     );
   }
@@ -124,11 +128,11 @@ export default async function ModulePage({ params, searchParams }: ModulePagePro
   return (
     <ModuleContent
       course={course}
-      module={module}
-      userId={session.user.id}
       initialLessonId={initialLessonId}
       initialPanelOpen={initialPanelOpen}
       isTourMode={false}
+      module={module}
+      userId={session.user.id}
     />
   );
 }

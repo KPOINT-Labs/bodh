@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { deleteAccount } from "@/actions/auth";
 
 export function DeleteAccountButton() {
@@ -34,10 +34,10 @@ export function DeleteAccountButton() {
   if (!showConfirm) {
     return (
       <button
+        className="flex items-center gap-2 rounded-xl bg-red-600 px-6 py-3 font-medium text-white transition-all hover:bg-red-700"
         onClick={() => setShowConfirm(true)}
-        className="px-6 py-3 bg-red-600 text-white rounded-xl font-medium hover:bg-red-700 transition-all flex items-center gap-2"
       >
-        <Trash2 className="w-4 h-4" />
+        <Trash2 className="h-4 w-4" />
         Delete Account
       </button>
     );
@@ -46,27 +46,28 @@ export function DeleteAccountButton() {
   return (
     <div className="space-y-4">
       {error && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">
+        <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-red-600 text-sm">
           {error}
         </div>
       )}
 
-      <p className="text-sm text-gray-600">
-        Are you sure you want to delete your account? This action cannot be undone.
+      <p className="text-gray-600 text-sm">
+        Are you sure you want to delete your account? This action cannot be
+        undone.
       </p>
 
       <div className="flex gap-3">
         <button
-          onClick={handleDelete}
+          className="rounded-xl bg-red-600 px-6 py-3 font-medium text-white transition-all hover:bg-red-700 disabled:opacity-50"
           disabled={isLoading}
-          className="px-6 py-3 bg-red-600 text-white rounded-xl font-medium hover:bg-red-700 transition-all disabled:opacity-50"
+          onClick={handleDelete}
         >
           {isLoading ? "Deleting..." : "Yes, Delete My Account"}
         </button>
         <button
-          onClick={() => setShowConfirm(false)}
+          className="rounded-xl bg-gray-100 px-6 py-3 font-medium text-gray-700 transition-all hover:bg-gray-200 disabled:opacity-50"
           disabled={isLoading}
-          className="px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-all disabled:opacity-50"
+          onClick={() => setShowConfirm(false)}
         >
           Cancel
         </button>

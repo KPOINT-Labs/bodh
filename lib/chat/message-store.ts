@@ -56,7 +56,7 @@ export async function getOrCreateThread(
 export async function getOrCreateConversation(
   threadId: string,
   lessonId: string | null = null,
-  contextType: string = "general"
+  contextType = "general"
 ): Promise<ConversationData> {
   const params = new URLSearchParams({
     threadId,

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 
 // Auth routes that must be accessible without authentication
 const authRoutes = ["/login", "/signup", "/api/auth"];

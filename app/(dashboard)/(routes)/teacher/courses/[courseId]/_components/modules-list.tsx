@@ -1,17 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import {
   DragDropContext,
-  Droppable,
   Draggable,
-  DropResult,
+  Droppable,
+  type DropResult,
 } from "@hello-pangea/dnd";
+import type { Module } from "@prisma/client";
 import { Grip, Pencil } from "lucide-react";
-
-import { cn } from "@/lib/utils";
+import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Module } from "@prisma/client";
+import { cn } from "@/lib/utils";
 
 interface ModulesListProps {
   items: Module[];
@@ -19,11 +18,7 @@ interface ModulesListProps {
   onEdit: (id: string) => void;
 }
 
-export const ModulesList = ({
-  items,
-  onReorder,
-  onEdit
-}: ModulesListProps) => {
+export const ModulesList = ({ items, onReorder, onEdit }: ModulesListProps) => {
   const [isMounted, setIsMounted] = useState(false);
   const [modules, setModules] = useState(items);
 
@@ -36,7 +31,9 @@ export const ModulesList = ({
   }, [items]);
 
   const onDragEnd = (result: DropResult) => {
-    if (!result.destination) return;
+    if (!result.destination) {
+      return;
+    }
 
     const items = Array.from(modules);
     const [reorderedItem] = items.splice(result.source.index, 1);
@@ -55,7 +52,7 @@ export const ModulesList = ({
     }));
 
     onReorder(bulkUpdateData);
-  }
+  };
 
   if (!isMounted) {
     return null;
@@ -67,44 +64,42 @@ export const ModulesList = ({
         {(provided) => (
           <div {...provided.droppableProps} ref={provided.innerRef}>
             {modules.map((module, index) => (
-              <Draggable
-                key={module.id}
-                draggableId={module.id}
-                index={index}
-              >
+              <Draggable draggableId={module.id} index={index} key={module.id}>
                 {(provided) => (
                   <div
                     className={cn(
-                      "flex items-center gap-x-2 bg-slate-200 border-slate-200 border text-slate-700 rounded-md mb-4 text-sm",
-                      module.isPublished && "bg-sky-100 border-sky-200 text-sky-700"
+                      "mb-4 flex items-center gap-x-2 rounded-md border border-slate-200 bg-slate-200 text-slate-700 text-sm",
+                      module.isPublished &&
+                        "border-sky-200 bg-sky-100 text-sky-700"
                     )}
                     ref={provided.innerRef}
                     {...provided.draggableProps}
                   >
                     <div
                       className={cn(
-                        "px-2 py-3 border-r border-r-slate-200 hover:bg-slate-300 rounded-l-md transition",
-                        module.isPublished && "border-r-sky-200 hover:bg-sky-200"
+                        "rounded-l-md border-r border-r-slate-200 px-2 py-3 transition hover:bg-slate-300",
+                        module.isPublished &&
+                          "border-r-sky-200 hover:bg-sky-200"
                       )}
                       {...provided.dragHandleProps}
                     >
                       <Grip className="h-5 w-5" />
                     </div>
-                    <span 
+                    <span
+                      className="cursor-pointer transition hover:text-sky-700"
                       onClick={() => onEdit(module.slug || module.id)}
-                      className="cursor-pointer hover:text-sky-700 transition"
                     >
                       {module.title}
                     </span>
-                    <div className="ml-auto pr-2 flex items-center gap-x-2">
+                    <div className="ml-auto flex items-center gap-x-2 pr-2">
                       {module.isPublished ? (
                         <Badge className="bg-sky-700">Published</Badge>
                       ) : (
                         <Badge className="bg-slate-500">Draft</Badge>
                       )}
                       <Pencil
+                        className="h-4 w-4 cursor-pointer transition hover:opacity-75"
                         onClick={() => onEdit(module.slug || module.id)}
-                        className="w-4 h-4 cursor-pointer hover:opacity-75 transition"
                       />
                     </div>
                   </div>
@@ -116,5 +111,5 @@ export const ModulesList = ({
         )}
       </Droppable>
     </DragDropContext>
-  )
-}
+  );
+};

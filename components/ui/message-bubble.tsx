@@ -1,8 +1,8 @@
-import { Bot, User, Sparkles } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { Sparkles, User } from "lucide-react";
+import { useEffect, useState } from "react";
 
 interface MessageBubbleProps {
-  type: 'ai' | 'user';
+  type: "ai" | "user";
   content: string;
   onAnimationComplete?: () => void;
   enableAnimation?: boolean;
@@ -14,7 +14,7 @@ export function MessageBubble({
   content,
   onAnimationComplete,
   enableAnimation = false,
-  isFirstMessage = false
+  isFirstMessage = false,
 }: MessageBubbleProps) {
   const [words, setWords] = useState<string[]>([]);
   const [currentWordIndex, setCurrentWordIndex] = useState(-1);
@@ -23,7 +23,9 @@ export function MessageBubble({
   useEffect(() => {
     if (enableAnimation) {
       // Split content into words for typing animation
-      const wordArray = content.split(/(\s+)/g).filter(segment => segment.trim().length > 0);
+      const wordArray = content
+        .split(/(\s+)/g)
+        .filter((segment) => segment.trim().length > 0);
       setWords(wordArray);
       setCurrentWordIndex(0);
       setAnimationComplete(false);
@@ -36,19 +38,34 @@ export function MessageBubble({
 
   // Word-by-word typing animation
   useEffect(() => {
-    if (enableAnimation && words.length > 0 && currentWordIndex < words.length) {
+    if (
+      enableAnimation &&
+      words.length > 0 &&
+      currentWordIndex < words.length
+    ) {
       const timer = setTimeout(() => {
-        setCurrentWordIndex(prev => prev + 1);
+        setCurrentWordIndex((prev) => prev + 1);
       }, 80); // Show each word every 80ms
 
       return () => clearTimeout(timer);
-    } else if (enableAnimation && currentWordIndex >= words.length && !animationComplete) {
+    }
+    if (
+      enableAnimation &&
+      currentWordIndex >= words.length &&
+      !animationComplete
+    ) {
       setAnimationComplete(true);
       if (onAnimationComplete) {
         setTimeout(() => onAnimationComplete(), 200);
       }
     }
-  }, [currentWordIndex, words.length, enableAnimation, animationComplete, onAnimationComplete]);
+  }, [
+    currentWordIndex,
+    words.length,
+    enableAnimation,
+    animationComplete,
+    onAnimationComplete,
+  ]);
 
   // Call completion callback immediately if no animation
   useEffect(() => {
@@ -58,30 +75,30 @@ export function MessageBubble({
     }
   }, [enableAnimation, onAnimationComplete]);
 
-  if (type === 'ai') {
+  if (type === "ai") {
     if (enableAnimation && words.length > 0) {
       return (
-        <div className="flex gap-2 items-start animate-fade-in w-full">
+        <div className="flex w-full animate-fade-in items-start gap-2">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-500">
             <Sparkles className="h-4 w-4 text-white" />
           </div>
-          <div className={`bg-gray-50 rounded-2xl rounded-tl-sm px-4 py-3 max-w-[85%] ${
-            isFirstMessage ? 'text-base' : 'text-sm'
-          }`}>
-            <p className="leading-relaxed text-gray-800 whitespace-pre-line">
+          <div
+            className={`max-w-[85%] rounded-2xl rounded-tl-sm bg-gray-50 px-4 py-3 ${
+              isFirstMessage ? "text-base" : "text-sm"
+            }`}
+          >
+            <p className="whitespace-pre-line text-gray-800 leading-relaxed">
               {words.map((word, index) => {
                 const isVisible = index < currentWordIndex;
                 const isCurrent = index === currentWordIndex;
                 return (
                   <span
-                    key={index}
-                    className={`${
-                      isVisible ? 'opacity-100' : 'opacity-0'
-                    } ${
-                      isCurrent ? 'font-semibold' : ''
+                    className={`${isVisible ? "opacity-100" : "opacity-0"} ${
+                      isCurrent ? "font-semibold" : ""
                     } transition-opacity duration-100`}
+                    key={index}
                   >
-                    {word}{' '}
+                    {word}{" "}
                   </span>
                 );
               })}
@@ -93,14 +110,16 @@ export function MessageBubble({
 
     // No animation - show instantly
     return (
-      <div className="flex gap-2 items-start animate-fade-in w-full">
+      <div className="flex w-full animate-fade-in items-start gap-2">
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-500">
           <Sparkles className="h-4 w-4 text-white" />
         </div>
-        <div className={`bg-gray-50 rounded-2xl rounded-tl-sm px-4 py-3 max-w-[85%] ${
-          isFirstMessage ? 'text-base' : 'text-sm'
-        }`}>
-          <p className="leading-relaxed text-gray-800 whitespace-pre-line">
+        <div
+          className={`max-w-[85%] rounded-2xl rounded-tl-sm bg-gray-50 px-4 py-3 ${
+            isFirstMessage ? "text-base" : "text-sm"
+          }`}
+        >
+          <p className="whitespace-pre-line text-gray-800 leading-relaxed">
             {content.trim()}
           </p>
         </div>
@@ -109,26 +128,26 @@ export function MessageBubble({
   }
 
   // User message
-  if (type === 'user') {
+  if (type === "user") {
     if (enableAnimation && words.length > 0) {
       return (
-        <div className="flex gap-2 items-start justify-end animate-fade-in w-full">
-          <div className="bg-blue-500 rounded-2xl rounded-tr-sm px-4 py-3 max-w-[70%]">
-            <p className="text-white text-sm whitespace-pre-line">
+        <div className="flex w-full animate-fade-in items-start justify-end gap-2">
+          <div className="max-w-[70%] rounded-2xl rounded-tr-sm bg-blue-500 px-4 py-3">
+            <p className="whitespace-pre-line text-sm text-white">
               {words.map((word, index) => {
                 const isVisible = index < currentWordIndex;
                 return (
                   <span
+                    className={`${isVisible ? "opacity-100" : "opacity-0"} transition-opacity duration-100`}
                     key={index}
-                    className={`${isVisible ? 'opacity-100' : 'opacity-0'} transition-opacity duration-100`}
                   >
-                    {word}{' '}
+                    {word}{" "}
                   </span>
                 );
               })}
             </p>
           </div>
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-100 border border-indigo-200">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-indigo-200 bg-indigo-100">
             <User className="h-4 w-4 text-indigo-700" />
           </div>
         </div>
@@ -137,11 +156,13 @@ export function MessageBubble({
 
     // No animation - show instantly
     return (
-      <div className="flex gap-2 items-start justify-end animate-fade-in w-full">
-        <div className="bg-blue-500 rounded-2xl rounded-tr-sm px-4 py-3 max-w-[70%]">
-          <p className="text-white text-sm whitespace-pre-line">{content.trim()}</p>
+      <div className="flex w-full animate-fade-in items-start justify-end gap-2">
+        <div className="max-w-[70%] rounded-2xl rounded-tr-sm bg-blue-500 px-4 py-3">
+          <p className="whitespace-pre-line text-sm text-white">
+            {content.trim()}
+          </p>
         </div>
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-100 border border-indigo-200">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-indigo-200 bg-indigo-100">
           <User className="h-4 w-4 text-indigo-700" />
         </div>
       </div>

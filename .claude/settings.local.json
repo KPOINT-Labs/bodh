@@ -25,10 +25,5 @@
     ]
   },
   "enableAllProjectMcpServers": true,
-  "enabledMcpjsonServers": [
-    "shadcn",
-    "livekit-docs",
-    "figma",
-    "next-devtools"
-  ]
+  "enabledMcpjsonServers": ["shadcn", "livekit-docs", "figma", "next-devtools"]
 }

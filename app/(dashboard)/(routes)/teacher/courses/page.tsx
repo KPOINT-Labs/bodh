@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
-import { DataTable } from "./_components/data-table";
 import { columns } from "./_components/columns";
+import { DataTable } from "./_components/data-table";
 
 // Render at request time (database required)
 export const dynamic = "force-dynamic";

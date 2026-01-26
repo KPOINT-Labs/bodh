@@ -2,7 +2,12 @@
  * Shared types for learning components
  */
 
-export type LessonStatus = "completed" | "seen" | "attempted" | "in_progress" | "not_started";
+export type LessonStatus =
+  | "completed"
+  | "seen"
+  | "attempted"
+  | "in_progress"
+  | "not_started";
 export type ModuleStatus = "completed" | "in_progress" | "yet_to_start";
 export type CourseStatus = "completed" | "in_progress" | "yet_to_start";
 

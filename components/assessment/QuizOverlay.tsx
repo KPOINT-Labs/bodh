@@ -1,11 +1,15 @@
 "use client";
 
-import { X, BookOpen, Clock } from "lucide-react";
+import { BookOpen, Clock, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { QuizQuestion } from "./QuizQuestion";
-import { QuizFeedback } from "./QuizFeedback";
 import { cn } from "@/lib/utils";
-import type { WarmupQuestion, InLessonQuestion, QuizOption } from "@/types/assessment";
+import type {
+  InLessonQuestion,
+  QuizOption,
+  WarmupQuestion,
+} from "@/types/assessment";
+import { QuizFeedback } from "./QuizFeedback";
+import { QuizQuestion } from "./QuizQuestion";
 
 type QuizType = "warmup" | "inlesson";
 
@@ -53,8 +57,7 @@ export function QuizOverlay({
   const progress = ((currentQuestionIndex + 1) / totalQuestions) * 100;
 
   // Determine question type and options
-  const questionType =
-    "type" in currentQuestion ? currentQuestion.type : "mcq";
+  const questionType = "type" in currentQuestion ? currentQuestion.type : "mcq";
   const options: QuizOption[] | undefined =
     "options" in currentQuestion ? currentQuestion.options : undefined;
 
@@ -66,8 +69,8 @@ export function QuizOverlay({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
       <div
         className={cn(
-          "relative w-full max-w-lg mx-4 bg-background rounded-2xl shadow-2xl overflow-hidden",
-          "animate-in fade-in-0 zoom-in-95 duration-200"
+          "relative mx-4 w-full max-w-lg overflow-hidden rounded-2xl bg-background shadow-2xl",
+          "fade-in-0 zoom-in-95 animate-in duration-200"
         )}
       >
         {/* Header */}
@@ -86,7 +89,7 @@ export function QuizOverlay({
               <Clock className="h-5 w-5 text-white" />
             )}
             <div>
-              <h3 className="font-semibold text-white text-sm">
+              <h3 className="font-semibold text-sm text-white">
                 {isWarmup ? "Warm-up Quiz" : "Quick Check"}
               </h3>
               <p className="text-white/80 text-xs">
@@ -95,10 +98,10 @@ export function QuizOverlay({
             </div>
           </div>
           <Button
-            variant="ghost"
-            size="icon-sm"
+            className="text-white/80 hover:bg-white/20 hover:text-white"
             onClick={onClose}
-            className="text-white/80 hover:text-white hover:bg-white/20"
+            size="icon-sm"
+            variant="ghost"
           >
             <X className="h-4 w-4" />
           </Button>
@@ -119,19 +122,19 @@ export function QuizOverlay({
         <div className="p-6">
           {showFeedback && lastAnswer ? (
             <QuizFeedback
-              isCorrect={lastAnswer.isCorrect}
-              feedback={lastAnswer.feedback}
-              onContinue={onContinue}
               continueLabel={continueLabel}
+              feedback={lastAnswer.feedback}
+              isCorrect={lastAnswer.isCorrect}
+              onContinue={onContinue}
             />
           ) : (
             <QuizQuestion
+              isLoading={isLoading}
+              onSkip={onSkipQuestion}
+              onSubmit={onSubmitAnswer}
+              options={options}
               question={currentQuestion.question}
               type={questionType}
-              options={options}
-              onSubmit={onSubmitAnswer}
-              onSkip={onSkipQuestion}
-              isLoading={isLoading}
             />
           )}
         </div>

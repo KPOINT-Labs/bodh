@@ -68,7 +68,9 @@ async function resetStudent(identifier: string) {
   const threadResult = await prisma.thread.deleteMany({
     where: { userId: user.id },
   });
-  console.log(`Deleted ${threadResult.count} threads (+ cascaded conversations/messages)`);
+  console.log(
+    `Deleted ${threadResult.count} threads (+ cascaded conversations/messages)`
+  );
 
   // Delete learning profile
   const profileResult = await prisma.learningProfile.deleteMany({

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 export interface ThreadRequest {
@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     const userId = searchParams.get("userId");
     const moduleId = searchParams.get("moduleId");
 
-    if (!userId || !moduleId) {
+    if (!(userId && moduleId)) {
       return NextResponse.json(
         { error: "userId and moduleId are required" },
         { status: 400 }
@@ -90,7 +90,7 @@ export async function DELETE(request: NextRequest) {
     const userId = searchParams.get("userId");
     const moduleId = searchParams.get("moduleId");
 
-    if (!userId || !moduleId) {
+    if (!(userId && moduleId)) {
       return NextResponse.json(
         { error: "userId and moduleId are required" },
         { status: 400 }
@@ -108,10 +108,7 @@ export async function DELETE(request: NextRequest) {
     });
 
     if (!thread) {
-      return NextResponse.json(
-        { error: "Thread not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Thread not found" }, { status: 404 });
     }
 
     // Delete the thread - cascade will handle conversations and messages
@@ -146,7 +143,7 @@ export async function POST(request: NextRequest) {
     const body: ThreadRequest = await request.json();
     const { userId, moduleId } = body;
 
-    if (!userId || !moduleId) {
+    if (!(userId && moduleId)) {
       return NextResponse.json(
         { error: "userId and moduleId are required" },
         { status: 400 }

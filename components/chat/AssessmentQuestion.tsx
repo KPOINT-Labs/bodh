@@ -12,7 +12,7 @@ interface AssessmentQuestionProps {
   onAnswer: (answer: string) => void;
   onSkip?: () => void;
   isAnswered?: boolean;
-  answerType?: 'multiple_choice' | 'short_answer' | 'numerical' | 'long_answer';
+  answerType?: "multiple_choice" | "short_answer" | "numerical" | "long_answer";
   placeholder?: string;
   isFromHistory?: boolean;
   submittedAnswer?: string;
@@ -25,10 +25,10 @@ export function AssessmentQuestion({
   onAnswer,
   onSkip,
   isAnswered = false,
-  answerType = 'multiple_choice',
+  answerType = "multiple_choice",
   placeholder,
   isFromHistory = false,
-  submittedAnswer
+  submittedAnswer,
 }: AssessmentQuestionProps) {
   const [selectedAnswer, setSelectedAnswer] = useState<string>("");
   const [textAnswer, setTextAnswer] = useState<string>("");
@@ -38,7 +38,7 @@ export function AssessmentQuestion({
   // Initialize with submitted answer if it exists
   React.useEffect(() => {
     if (submittedAnswer && isFromHistory) {
-      if (answerType === 'multiple_choice') {
+      if (answerType === "multiple_choice") {
         setSelectedAnswer(submittedAnswer);
       } else {
         setTextAnswer(submittedAnswer);
@@ -47,13 +47,14 @@ export function AssessmentQuestion({
     }
   }, [submittedAnswer, isFromHistory, answerType]);
 
-
   const handleSubmit = () => {
-    if (answerType === 'multiple_choice' && selectedAnswer && options) {
+    if (answerType === "multiple_choice" && selectedAnswer && options) {
       // Get the full option text for display
       const optionIndex = selectedAnswer.charCodeAt(0) - 65;
       if (optionIndex >= 0 && optionIndex < options.length) {
-        const optionText = options[optionIndex].replace(/^[A-D]\)\s*/i, '').trim();
+        const optionText = options[optionIndex]
+          .replace(/^[A-D]\)\s*/i, "")
+          .trim();
         onAnswer(optionText);
         setHasSubmitted(true);
       }
@@ -64,7 +65,7 @@ export function AssessmentQuestion({
   };
 
   const handleOptionSelect = (optionLetter: string) => {
-    if (!hasSubmitted && !hasSkipped) {
+    if (!(hasSubmitted || hasSkipped)) {
       setSelectedAnswer(optionLetter);
     }
   };
@@ -74,57 +75,69 @@ export function AssessmentQuestion({
     onSkip?.();
   };
 
-  const isMultipleChoice = answerType === 'multiple_choice' && options && options.length > 0;
-  const isTextInput = ['short_answer', 'numerical', 'long_answer'].includes(answerType);
+  const isMultipleChoice =
+    answerType === "multiple_choice" && options && options.length > 0;
+  const isTextInput = ["short_answer", "numerical", "long_answer"].includes(
+    answerType
+  );
 
   return (
     <div className="w-full space-y-4">
       {/* Question Number and Text */}
-      <p className="text-gray-800 text-sm leading-relaxed font-medium">
-        {questionNumber && <span className="text-gray-900">Q{questionNumber}: </span>}
+      <p className="font-medium text-gray-800 text-sm leading-relaxed">
+        {questionNumber && (
+          <span className="text-gray-900">Q{questionNumber}: </span>
+        )}
         {question}
       </p>
 
       {/* Options and Submit Section - Card Style */}
       {isMultipleChoice && (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 space-y-3">
+        <div className="space-y-3 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
           {/* Options */}
           {options.map((option, index) => {
             const optionLetter = String.fromCharCode(65 + index);
-            const optionText = option.replace(/^[A-D]\)\s*/i, '').trim();
+            const optionText = option.replace(/^[A-D]\)\s*/i, "").trim();
             const isSelected = selectedAnswer === optionLetter;
 
             return (
               <button
-                key={index}
-                type="button"
-                onClick={() => handleOptionSelect(optionLetter)}
-                disabled={hasSubmitted || hasSkipped || isFromHistory}
-                className={`
-                  w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-left transition-all duration-200
-                  ${isSelected
-                    ? 'bg-blue-50 border-2 border-blue-400'
-                    : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
-                  }
-                  ${(hasSubmitted || hasSkipped || isFromHistory) ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'}
+                className={`flex w-full items-center gap-3 rounded-xl px-4 py-3.5 text-left transition-all duration-200 ${
+                  isSelected
+                    ? "border-2 border-blue-400 bg-blue-50"
+                    : "border-2 border-transparent bg-gray-50 hover:bg-gray-100"
+                }
+                  ${hasSubmitted || hasSkipped || isFromHistory ? "cursor-not-allowed opacity-75" : "cursor-pointer"}
                 `}
+                disabled={hasSubmitted || hasSkipped || isFromHistory}
+                key={index}
+                onClick={() => handleOptionSelect(optionLetter)}
+                type="button"
               >
                 {/* Radio Circle */}
                 <div
-                  className={`
-                    w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all
-                    ${isSelected ? 'border-blue-500 bg-blue-500' : 'border-gray-300 bg-white'}
+                  className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border-2 transition-all ${isSelected ? "border-blue-500 bg-blue-500" : "border-gray-300 bg-white"}
                   `}
                 >
                   {isSelected && (
-                    <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    <svg
+                      className="h-3 w-3 text-white"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        clipRule="evenodd"
+                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                        fillRule="evenodd"
+                      />
                     </svg>
                   )}
                 </div>
 
                 {/* Option Text */}
-                <span className={`text-sm ${isSelected ? 'text-gray-900 font-medium' : 'text-gray-700'}`}>
+                <span
+                  className={`text-sm ${isSelected ? "font-medium text-gray-900" : "text-gray-700"}`}
+                >
                   {optionText}
                 </span>
               </button>
@@ -133,50 +146,94 @@ export function AssessmentQuestion({
 
           {/* Submit Button */}
           <Button
+            className="mt-2 w-full transform rounded-xl bg-gradient-to-r from-blue-500 to-indigo-400 px-6 py-3 font-medium text-sm text-white shadow-md transition-all duration-150 hover:scale-[1.02] hover:from-blue-600 hover:to-indigo-500 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={
+              !selectedAnswer || hasSubmitted || hasSkipped || isFromHistory
+            }
             onClick={handleSubmit}
-            disabled={!selectedAnswer || hasSubmitted || hasSkipped || isFromHistory}
-            className="w-full bg-gradient-to-r from-blue-500 to-indigo-400 hover:from-blue-600 hover:to-indigo-500 text-white px-6 py-3 rounded-xl text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed shadow-md mt-2 transform transition-all duration-150 hover:scale-[1.02] active:scale-[0.98]"
           >
             {isFromHistory ? (
               <span className="flex items-center justify-center gap-2">
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                <svg
+                  className="h-4 w-4"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    clipRule="evenodd"
+                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                    fillRule="evenodd"
+                  />
                 </svg>
                 Attempted
               </span>
             ) : hasSubmitted ? (
               <span className="flex items-center justify-center gap-2">
-                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24">
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    fill="none"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    fill="currentColor"
+                  />
                 </svg>
                 Evaluating...
               </span>
             ) : (
-              'Submit Answer'
+              "Submit Answer"
             )}
           </Button>
 
           {/* Skip Button - Left aligned below submit */}
-          {!isFromHistory && !hasSubmitted && (
+          {!(isFromHistory || hasSubmitted) && (
             <button
-              onClick={handleSkip}
+              className="mt-2 flex items-center gap-1 text-gray-400 text-xs transition-colors hover:text-gray-600 disabled:cursor-not-allowed disabled:opacity-50"
               disabled={hasSkipped}
-              className="flex items-center gap-1 mt-2 text-xs text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              onClick={handleSkip}
             >
               {hasSkipped ? (
                 <>
-                  <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  <svg className="h-3 w-3 animate-spin" viewBox="0 0 24 24">
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      fill="none"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      fill="currentColor"
+                    />
                   </svg>
                   <span>Skipping...</span>
                 </>
               ) : (
                 <>
                   <span>Skip this question</span>
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  <svg
+                    className="h-3 w-3"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      d="M9 5l7 7-7 7"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                    />
                   </svg>
                 </>
               )}
@@ -187,74 +244,123 @@ export function AssessmentQuestion({
 
       {/* Text Input Section - Card Style */}
       {isTextInput && (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 space-y-3">
+        <div className="space-y-3 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
           {/* Text Input Field */}
-          {answerType === 'long_answer' ? (
+          {answerType === "long_answer" ? (
             <Textarea
-              value={textAnswer}
+              className="min-h-[100px] w-full resize-none rounded-xl border-2 border-transparent bg-gray-50 px-4 py-3.5 text-sm focus:border-transparent focus:bg-white focus:ring-2 focus:ring-blue-500 disabled:opacity-75"
+              disabled={hasSubmitted || hasSkipped || isFromHistory}
               onChange={(e) => setTextAnswer(e.target.value)}
               placeholder={placeholder || "Type your answer here..."}
-              disabled={hasSubmitted || hasSkipped || isFromHistory}
-              className="w-full min-h-[100px] px-4 py-3.5 bg-gray-50 border-2 border-transparent rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white resize-none text-sm disabled:opacity-75"
               rows={4}
+              value={textAnswer}
             />
           ) : (
             <Input
-              type={answerType === 'numerical' ? 'number' : 'text'}
-              value={textAnswer}
-              onChange={(e) => setTextAnswer(e.target.value)}
-              placeholder={placeholder || (answerType === 'numerical' ? "Enter a number..." : "Type your answer here...")}
+              className="w-full rounded-xl border-2 border-transparent bg-gray-50 px-4 py-3.5 text-sm focus:border-transparent focus:bg-white focus:ring-2 focus:ring-blue-500 disabled:opacity-75"
               disabled={hasSubmitted || hasSkipped || isFromHistory}
-              className="w-full px-4 py-3.5 bg-gray-50 border-2 border-transparent rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white text-sm disabled:opacity-75"
+              onChange={(e) => setTextAnswer(e.target.value)}
+              placeholder={
+                placeholder ||
+                (answerType === "numerical"
+                  ? "Enter a number..."
+                  : "Type your answer here...")
+              }
+              type={answerType === "numerical" ? "number" : "text"}
+              value={textAnswer}
             />
           )}
 
           {/* Submit Button */}
           <Button
+            className="w-full transform rounded-xl bg-gradient-to-r from-blue-500 to-indigo-400 px-6 py-3 font-medium text-sm text-white shadow-md transition-all duration-200 hover:scale-[1.02] hover:from-blue-600 hover:to-indigo-500 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={
+              !textAnswer.trim() || hasSubmitted || hasSkipped || isFromHistory
+            }
             onClick={handleSubmit}
-            disabled={!textAnswer.trim() || hasSubmitted || hasSkipped || isFromHistory}
-            className="w-full bg-gradient-to-r from-blue-500 to-indigo-400 hover:from-blue-600 hover:to-indigo-500 text-white px-6 py-3 rounded-xl text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed shadow-md transform transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
           >
             {isFromHistory ? (
               <span className="flex items-center justify-center gap-2">
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                <svg
+                  className="h-4 w-4"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    clipRule="evenodd"
+                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                    fillRule="evenodd"
+                  />
                 </svg>
                 Attempted
               </span>
             ) : hasSubmitted ? (
               <span className="flex items-center justify-center gap-2">
-                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24">
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    fill="none"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    fill="currentColor"
+                  />
                 </svg>
                 Evaluating...
               </span>
             ) : (
-              'Submit Answer'
+              "Submit Answer"
             )}
           </Button>
 
           {/* Skip Button - Left aligned below submit */}
-          {!isFromHistory && !hasSubmitted && (
+          {!(isFromHistory || hasSubmitted) && (
             <button
-              onClick={handleSkip}
+              className="mt-2 flex items-center gap-1 text-gray-400 text-xs transition-colors hover:text-gray-600 disabled:cursor-not-allowed disabled:opacity-50"
               disabled={hasSkipped}
-              className="flex items-center gap-1 mt-2 text-xs text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              onClick={handleSkip}
             >
               {hasSkipped ? (
                 <>
-                  <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  <svg className="h-3 w-3 animate-spin" viewBox="0 0 24 24">
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      fill="none"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      fill="currentColor"
+                    />
                   </svg>
                   <span>Skipping...</span>
                 </>
               ) : (
                 <>
                   <span>Skip this question</span>
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  <svg
+                    className="h-3 w-3"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      d="M9 5l7 7-7 7"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                    />
                   </svg>
                 </>
               )}
@@ -262,7 +368,6 @@ export function AssessmentQuestion({
           )}
         </div>
       )}
-
     </div>
   );
 }

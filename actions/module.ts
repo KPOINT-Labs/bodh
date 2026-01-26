@@ -1,7 +1,7 @@
 "use server";
 
-import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { prisma } from "@/lib/prisma";
 
 function generateSlug(title: string) {
   return title
@@ -14,7 +14,7 @@ export async function createModule(courseId: string, title: string) {
   try {
     const lastModule = await prisma.module.findFirst({
       where: {
-        courseId: courseId,
+        courseId,
       },
       orderBy: {
         orderIndex: "desc",
@@ -41,16 +41,26 @@ export async function createModule(courseId: string, title: string) {
   }
 }
 
-export async function updateModule(moduleId: string, courseId: string, values: { title?: string; description?: string; isPublished?: boolean; orderIndex?: number; slug?: string }) {
+export async function updateModule(
+  moduleId: string,
+  courseId: string,
+  values: {
+    title?: string;
+    description?: string;
+    isPublished?: boolean;
+    orderIndex?: number;
+    slug?: string;
+  }
+) {
   try {
     // If title is updated, we might want to update slug too, but usually slugs are permanent.
     // We'll let slug be updated explicitly or not at all.
     // If user provides slug in values, use it.
-    
+
     const updatedModule = await prisma.module.update({
       where: {
         id: moduleId,
-        courseId: courseId,
+        courseId,
       },
       data: {
         ...values,
@@ -70,7 +80,7 @@ export async function deleteModule(moduleId: string, courseId: string) {
     const deletedModule = await prisma.module.delete({
       where: {
         id: moduleId,
-        courseId: courseId,
+        courseId,
       },
     });
 
@@ -82,7 +92,10 @@ export async function deleteModule(moduleId: string, courseId: string) {
   }
 }
 
-export async function reorderModules(courseId: string, updateData: { id: string; orderIndex: number }[]) {
+export async function reorderModules(
+  courseId: string,
+  updateData: { id: string; orderIndex: number }[]
+) {
   try {
     for (const item of updateData) {
       await prisma.module.update({

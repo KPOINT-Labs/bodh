@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -27,9 +27,13 @@ export async function GET(request: NextRequest) {
     const lessonId = searchParams.get("lessonId");
 
     console.log("[SESSION_TYPE] ========== START ==========");
-    console.log("[SESSION_TYPE] Request params:", { userId, courseId, lessonId });
+    console.log("[SESSION_TYPE] Request params:", {
+      userId,
+      courseId,
+      lessonId,
+    });
 
-    if (!userId || !courseId) {
+    if (!(userId && courseId)) {
       return NextResponse.json(
         { success: false, error: "userId and courseId are required" },
         { status: 400 }
@@ -59,7 +63,7 @@ export async function GET(request: NextRequest) {
     console.log("[SESSION_TYPE] Step 1 - Enrollment check:", {
       hasEnrollment: !!enrollment,
       existingProgressCount,
-      isFirstCourseVisit
+      isFirstCourseVisit,
     });
 
     // Create enrollment if it doesn't exist
@@ -74,40 +78,41 @@ export async function GET(request: NextRequest) {
     }
 
     // 2. Get course progress
-    const [totalLessons, completedLessons, allLessonProgress] = await Promise.all([
-      // Total lessons in course
-      prisma.lesson.count({
-        where: { courseId, isPublished: true },
-      }),
-      // Completed lessons
-      prisma.lessonProgress.count({
-        where: {
-          userId,
-          lesson: { courseId },
-          status: "completed",
-        },
-      }),
-      // All lesson progress for this user in this course (to find last accessed)
-      prisma.lessonProgress.findMany({
-        where: {
-          userId,
-          lesson: { courseId },
-        },
-        include: {
-          lesson: {
-            select: { title: true, orderIndex: true },
+    const [totalLessons, completedLessons, allLessonProgress] =
+      await Promise.all([
+        // Total lessons in course
+        prisma.lesson.count({
+          where: { courseId, isPublished: true },
+        }),
+        // Completed lessons
+        prisma.lessonProgress.count({
+          where: {
+            userId,
+            lesson: { courseId },
+            status: "completed",
           },
-        },
-        orderBy: { lastAccessedAt: "desc" },
-        take: 1,
-      }),
-    ]);
+        }),
+        // All lesson progress for this user in this course (to find last accessed)
+        prisma.lessonProgress.findMany({
+          where: {
+            userId,
+            lesson: { courseId },
+          },
+          include: {
+            lesson: {
+              select: { title: true, orderIndex: true },
+            },
+          },
+          orderBy: { lastAccessedAt: "desc" },
+          take: 1,
+        }),
+      ]);
 
     const lastLessonTitle = allLessonProgress[0]?.lesson?.title || null;
     console.log("[SESSION_TYPE] Step 2 - Course progress:", {
       totalLessons,
       completedLessons,
-      lastLessonTitle
+      lastLessonTitle,
     });
 
     // 3. Check if current lesson is the intro (first lesson)
@@ -132,7 +137,7 @@ export async function GET(request: NextRequest) {
         });
 
         // Get current module to determine global lesson position
-        const currentModule = await prisma.module.findUnique({
+        const _currentModule = await prisma.module.findUnique({
           where: { id: currentLesson.moduleId },
           select: { orderIndex: true },
         });
@@ -169,14 +174,13 @@ export async function GET(request: NextRequest) {
             select: { orderIndex: true },
           },
         },
-        orderBy: [
-          { module: { orderIndex: "asc" } },
-          { orderIndex: "asc" },
-        ],
+        orderBy: [{ module: { orderIndex: "asc" } }, { orderIndex: "asc" }],
       });
 
       // Find current lesson's global position and the previous lesson
-      const currentIndex = allLessonsInCourse.findIndex(l => l.id === lessonId);
+      const currentIndex = allLessonsInCourse.findIndex(
+        (l) => l.id === lessonId
+      );
       // Guard against -1 (lesson not found in published list)
       lessonNumber = currentIndex >= 0 ? currentIndex + 1 : 1; // 1-based lesson number, default to 1 if not found
 
@@ -203,14 +207,18 @@ export async function GET(request: NextRequest) {
         },
       });
 
-      console.log("[SESSION_TYPE] Step 4a - Existing lesson progress:", lessonProgress);
+      console.log(
+        "[SESSION_TYPE] Step 4a - Existing lesson progress:",
+        lessonProgress
+      );
 
-      isFirstLessonVisit = !lessonProgress || lessonProgress.status === "not_started";
+      isFirstLessonVisit =
+        !lessonProgress || lessonProgress.status === "not_started";
 
       console.log("[SESSION_TYPE] Step 4b - isFirstLessonVisit:", {
         hasLessonProgress: !!lessonProgress,
         progressStatus: lessonProgress?.status,
-        isFirstLessonVisit
+        isFirstLessonVisit,
       });
 
       // Create lesson progress if first visit
@@ -233,26 +241,34 @@ export async function GET(request: NextRequest) {
     console.log("[SESSION_TYPE] Step 5 - Decision inputs:", {
       isFirstCourseVisit,
       isIntroLesson,
-      isFirstLessonVisit
+      isFirstLessonVisit,
     });
 
     if (isIntroLesson) {
       // On intro lesson → always use course-level welcome
       if (isFirstCourseVisit) {
         sessionType = "course_welcome";
-        console.log("[SESSION_TYPE] Step 5 - Decision: course_welcome (first course visit + intro lesson)");
+        console.log(
+          "[SESSION_TYPE] Step 5 - Decision: course_welcome (first course visit + intro lesson)"
+        );
       } else {
         sessionType = "course_welcome_back";
-        console.log("[SESSION_TYPE] Step 5 - Decision: course_welcome_back (returning user + intro lesson)");
+        console.log(
+          "[SESSION_TYPE] Step 5 - Decision: course_welcome_back (returning user + intro lesson)"
+        );
       }
     } else {
       // On lesson 2+ → use lesson-level welcome
       if (isFirstLessonVisit) {
         sessionType = "lesson_welcome";
-        console.log("[SESSION_TYPE] Step 5 - Decision: lesson_welcome (first time on this lesson)");
+        console.log(
+          "[SESSION_TYPE] Step 5 - Decision: lesson_welcome (first time on this lesson)"
+        );
       } else {
         sessionType = "lesson_welcome_back";
-        console.log("[SESSION_TYPE] Step 5 - Decision: lesson_welcome_back (returning to same lesson)");
+        console.log(
+          "[SESSION_TYPE] Step 5 - Decision: lesson_welcome_back (returning to same lesson)"
+        );
       }
     }
 
@@ -265,7 +281,10 @@ export async function GET(request: NextRequest) {
         where: { id: lessonProgress.id },
         data: {
           lastAccessedAt: new Date(),
-          status: lessonProgress.status === "not_started" ? "in_progress" : lessonProgress.status,
+          status:
+            lessonProgress.status === "not_started"
+              ? "in_progress"
+              : lessonProgress.status,
         },
       });
     }
@@ -283,11 +302,13 @@ export async function GET(request: NextRequest) {
         totalLessons,
         lastLessonTitle,
       },
-      lessonProgress: lessonProgress ? {
-        completionPercentage: lessonProgress.completionPercentage,
-        lastPosition: lessonProgress.lastPosition,
-        status: lessonProgress.status,
-      } : null,
+      lessonProgress: lessonProgress
+        ? {
+            completionPercentage: lessonProgress.completionPercentage,
+            lastPosition: lessonProgress.lastPosition,
+            status: lessonProgress.status,
+          }
+        : null,
     };
 
     console.log("[SESSION_TYPE] Response:", JSON.stringify(response, null, 2));

@@ -1,0 +1,15 @@
+pre-commit:
+  jobs:
+    - name: lint
+      run: npx ultracite fix
+      glob: 
+        - "*.js"
+        - "*.jsx"
+        - "*.ts"
+        - "*.tsx"
+        - "*.json"
+        - "*.jsonc"
+        - "*.css"
+      stage_fixed: true
+    - name: typecheck
+      run: npm run typecheck

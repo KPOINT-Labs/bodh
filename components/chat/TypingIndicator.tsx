@@ -10,17 +10,17 @@ export function TypingIndicator() {
       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-500">
         <Sparkles className="h-4 w-4 text-white" />
       </div>
-      <div className="bg-gray-50 rounded-2xl rounded-tl-sm px-4 py-3 flex items-center gap-1.5">
+      <div className="flex items-center gap-1.5 rounded-2xl rounded-tl-sm bg-gray-50 px-4 py-3">
         <span
-          className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+          className="h-2 w-2 animate-bounce rounded-full bg-gray-400"
           style={{ animationDelay: "0ms" }}
         />
         <span
-          className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+          className="h-2 w-2 animate-bounce rounded-full bg-gray-400"
           style={{ animationDelay: "150ms" }}
         />
         <span
-          className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+          className="h-2 w-2 animate-bounce rounded-full bg-gray-400"
           style={{ animationDelay: "300ms" }}
         />
       </div>

@@ -1,18 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import {
   DragDropContext,
-  Droppable,
   Draggable,
-  DropResult,
+  Droppable,
+  type DropResult,
 } from "@hello-pangea/dnd";
+import type { Lesson } from "@prisma/client";
 import { Grip, Pencil, Trash } from "lucide-react";
-
-import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
-import { Lesson } from "@prisma/client";
+import { useEffect, useState } from "react";
 import { ConfirmModal } from "@/components/modals/confirm-modal";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 interface LessonsListProps {
   items: Lesson[];
@@ -25,7 +24,7 @@ export const LessonsList = ({
   items,
   onReorder,
   onEdit,
-  onDelete
+  onDelete,
 }: LessonsListProps) => {
   const [isMounted, setIsMounted] = useState(false);
   const [lessons, setLessons] = useState(items);
@@ -39,7 +38,9 @@ export const LessonsList = ({
   }, [items]);
 
   const onDragEnd = (result: DropResult) => {
-    if (!result.destination) return;
+    if (!result.destination) {
+      return;
+    }
 
     const items = Array.from(lessons);
     const [reorderedItem] = items.splice(result.source.index, 1);
@@ -58,7 +59,7 @@ export const LessonsList = ({
     }));
 
     onReorder(bulkUpdateData);
-  }
+  };
 
   if (!isMounted) {
     return null;
@@ -70,47 +71,45 @@ export const LessonsList = ({
         {(provided) => (
           <div {...provided.droppableProps} ref={provided.innerRef}>
             {lessons.map((lesson, index) => (
-              <Draggable
-                key={lesson.id}
-                draggableId={lesson.id}
-                index={index}
-              >
+              <Draggable draggableId={lesson.id} index={index} key={lesson.id}>
                 {(provided) => (
                   <div
                     className={cn(
-                      "flex items-center gap-x-2 bg-slate-200 border-slate-200 border text-slate-700 rounded-md mb-4 text-sm",
-                      lesson.isPublished && "bg-sky-100 border-sky-200 text-sky-700"
+                      "mb-4 flex items-center gap-x-2 rounded-md border border-slate-200 bg-slate-200 text-slate-700 text-sm",
+                      lesson.isPublished &&
+                        "border-sky-200 bg-sky-100 text-sky-700"
                     )}
                     ref={provided.innerRef}
                     {...provided.draggableProps}
                   >
                     <div
                       className={cn(
-                        "px-2 py-3 border-r border-r-slate-200 hover:bg-slate-300 rounded-l-md transition",
-                        lesson.isPublished && "border-r-sky-200 hover:bg-sky-200"
+                        "rounded-l-md border-r border-r-slate-200 px-2 py-3 transition hover:bg-slate-300",
+                        lesson.isPublished &&
+                          "border-r-sky-200 hover:bg-sky-200"
                       )}
                       {...provided.dragHandleProps}
                     >
                       <Grip className="h-5 w-5" />
                     </div>
-                    <span 
+                    <span
+                      className="cursor-pointer transition hover:text-sky-700"
                       onClick={() => onEdit(lesson.slug || lesson.id)}
-                      className="cursor-pointer hover:text-sky-700 transition"
                     >
                       {lesson.title}
                     </span>
-                    <div className="ml-auto pr-2 flex items-center gap-x-2">
+                    <div className="ml-auto flex items-center gap-x-2 pr-2">
                       {lesson.isPublished ? (
                         <Badge className="bg-sky-700">Published</Badge>
                       ) : (
                         <Badge className="bg-slate-500">Draft</Badge>
                       )}
                       <Pencil
+                        className="h-4 w-4 cursor-pointer transition hover:opacity-75"
                         onClick={() => onEdit(lesson.slug || lesson.id)}
-                        className="w-4 h-4 cursor-pointer hover:opacity-75 transition"
                       />
                       <ConfirmModal onConfirm={() => onDelete(lesson.id)}>
-                        <Trash className="w-4 h-4 cursor-pointer hover:opacity-75 transition text-red-500" />
+                        <Trash className="h-4 w-4 cursor-pointer text-red-500 transition hover:opacity-75" />
                       </ConfirmModal>
                     </div>
                   </div>
@@ -122,5 +121,5 @@ export const LessonsList = ({
         )}
       </Droppable>
     </DragDropContext>
-  )
-}
+  );
+};

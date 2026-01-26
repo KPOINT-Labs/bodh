@@ -1,10 +1,16 @@
 "use client";
 
-import { ReactNode, useMemo } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
+import Script from "next/script";
+import { NuqsAdapter } from "nuqs/adapters/next/app";
+import { type ReactNode, useMemo } from "react";
 import { PeerLearningPanel } from "@/components/learning/PeerLearningPanel";
-import { LearningPanelProvider, useLearningPanel } from "@/contexts/LearningPanelContext";
+import { AnimatedBackground } from "@/components/ui/animated-background";
 import { CourseProgressProvider } from "@/contexts/CourseProgressContext";
+import {
+  LearningPanelProvider,
+  useLearningPanel,
+} from "@/contexts/LearningPanelContext";
 
 function LearningLayoutContent({ children }: { children: ReactNode }) {
   const { isCollapsed, toggleCollapse } = useLearningPanel();
@@ -24,31 +30,39 @@ function LearningLayoutContent({ children }: { children: ReactNode }) {
     <div className="flex h-screen overflow-hidden">
       {/* Left Panel - Course Navigation */}
       <div
-        className={`tour-lesson-sidebar shrink-0 border-r border-gray-200 bg-white hidden lg:block overflow-hidden transition-all duration-300 ${
+        className={`tour-lesson-sidebar hidden shrink-0 overflow-hidden border-gray-200 border-r bg-white transition-all duration-300 lg:block ${
           isCollapsed ? "w-16" : "w-80"
         }`}
       >
         <PeerLearningPanel
+          activeLessonId={activeLessonId}
+          activeModuleId={activeModuleId}
           isCollapsed={isCollapsed}
           onToggleCollapse={toggleCollapse}
-          activeModuleId={activeModuleId}
-          activeLessonId={activeLessonId}
         />
       </div>
       {/* Main Content */}
-      <div className="flex flex-1 flex-col overflow-hidden">
-        {children}
-      </div>
+      <div className="flex flex-1 flex-col overflow-hidden">{children}</div>
     </div>
   );
 }
 
 export default function LearningLayout({ children }: { children: ReactNode }) {
   return (
-    <LearningPanelProvider>
-      <CourseProgressProvider>
-        <LearningLayoutContent>{children}</LearningLayoutContent>
-      </CourseProgressProvider>
-    </LearningPanelProvider>
+    <>
+      <Script
+        id="kpoint-player-sdk"
+        src="https://assets.zencite.in/orca/media/embed/videofront-vega.js"
+        strategy="afterInteractive"
+      />
+      <AnimatedBackground intensity="medium" theme="learning" variant="full" />
+      <NuqsAdapter>
+        <LearningPanelProvider>
+          <CourseProgressProvider>
+            <LearningLayoutContent>{children}</LearningLayoutContent>
+          </CourseProgressProvider>
+        </LearningPanelProvider>
+      </NuqsAdapter>
+    </>
   );
 }

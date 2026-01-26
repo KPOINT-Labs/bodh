@@ -28,18 +28,18 @@ export function KPointVideoPlayer({
     // The KPoint script looks for data-init-dynamic-internal elements
     if (containerRef.current && typeof window !== "undefined") {
       // Trigger re-initialization if the KPoint player script is already loaded
-      const kpointPlayer = (window as unknown as { kpointPlayer?: { init?: () => void } }).kpointPlayer;
+      const kpointPlayer = (
+        window as unknown as { kpointPlayer?: { init?: () => void } }
+      ).kpointPlayer;
       if (kpointPlayer?.init) {
         kpointPlayer.init();
       }
     }
-  }, [kpointVideoId, startOffset]);
+  }, []);
 
   return (
-    <div
-      className={`w-full overflow-hidden ${className}`}
-    >
-      <style jsx global>{`
+    <div className={`w-full overflow-hidden ${className}`}>
+      <style global jsx>{`
         .player-wrapper,
         .player-wrapper > div,
         .kpoint-player,
@@ -49,13 +49,13 @@ export function KPointVideoPlayer({
         }
       `}</style>
       <div
-        ref={containerRef}
-        key={kpointVideoId}
         data-init-dynamic-internal=""
-        data-video-host={serviceDomain}
         data-kvideo-id={kpointVideoId}
         data-player={kpointVideoId}
+        data-video-host={serviceDomain}
         data-video-params={videoParams}
+        key={kpointVideoId}
+        ref={containerRef}
         style={{ width: "100%", overflow: "hidden" }}
       />
     </div>

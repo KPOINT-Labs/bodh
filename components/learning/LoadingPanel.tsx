@@ -9,9 +9,11 @@ interface LoadingPanelProps {
  */
 export function LoadingPanel({ className = "" }: LoadingPanelProps) {
   return (
-    <div className={`flex h-full flex-col bg-white items-center justify-center ${className}`}>
+    <div
+      className={`flex h-full flex-col items-center justify-center bg-white ${className}`}
+    >
       <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-      <p className="mt-2 text-sm text-gray-500">Loading courses...</p>
+      <p className="mt-2 text-gray-500 text-sm">Loading courses...</p>
     </div>
   );
 }

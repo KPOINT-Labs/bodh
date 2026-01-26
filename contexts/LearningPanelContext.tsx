@@ -1,60 +1,150 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
+import { parseAsBoolean, parseAsString, useQueryState } from "nuqs";
+import {
+  createContext,
+  type ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
 interface LearningPanelContextType {
-  isCollapsed: boolean;
-  toggleCollapse: () => void;
-  collapsePanel: () => void;
-  expandPanel: () => void;
+  // Sidebar (local state - not in URL)
+  isSidebarCollapsed: boolean;
+  toggleSidebar: () => void;
+  collapseSidebar: () => void;
+  expandSidebar: () => void;
+
+  // Right Panel (nuqs URL state)
+  isRightPanelOpen: boolean;
+  openRightPanel: () => void;
+  closeRightPanel: () => void;
+  toggleRightPanel: () => void;
+
+  // Lesson Selection (nuqs URL state)
+  selectedLessonId: string | null;
+  setSelectedLessonId: (id: string | null) => void;
+
+  // Highlight Animation
   highlightRightPanel: boolean;
   triggerRightPanelHighlight: () => void;
+
+  // Deprecated (backward compat)
+  /** @deprecated Use isSidebarCollapsed */
+  isCollapsed: boolean;
+  /** @deprecated Use toggleSidebar */
+  toggleCollapse: () => void;
+  /** @deprecated Use collapseSidebar */
+  collapsePanel: () => void;
+  /** @deprecated Use expandSidebar */
+  expandPanel: () => void;
 }
 
-const LearningPanelContext = createContext<LearningPanelContextType | null>(null);
+const LearningPanelContext = createContext<LearningPanelContextType | null>(
+  null
+);
 
 export function LearningPanelProvider({ children }: { children: ReactNode }) {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  // Sidebar - local state
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
+  // Right Panel - nuqs URL state
+  const [isRightPanelOpen, setIsRightPanelOpen] = useQueryState(
+    "panel",
+    parseAsBoolean.withDefault(false).withOptions({ shallow: true })
+  );
+
+  // Lesson Selection - nuqs URL state
+  const [selectedLessonId, setSelectedLessonId] = useQueryState(
+    "lesson",
+    parseAsString.withOptions({ shallow: true })
+  );
+
+  // Highlight animation - local state
   const [highlightRightPanel, setHighlightRightPanel] = useState(false);
 
-  const toggleCollapse = useCallback(() => {
-    setIsCollapsed((prev) => !prev);
-  }, []);
+  // Auto-open panel when lesson is selected
+  useEffect(() => {
+    if (selectedLessonId && !isRightPanelOpen) {
+      setIsRightPanelOpen(true);
+    }
+  }, [selectedLessonId, isRightPanelOpen, setIsRightPanelOpen]);
 
-  const collapsePanel = useCallback(() => {
-    setIsCollapsed(true);
-  }, []);
+  // Sidebar actions
+  const toggleSidebar = useCallback(
+    () => setIsSidebarCollapsed((prev) => !prev),
+    []
+  );
+  const collapseSidebar = useCallback(() => setIsSidebarCollapsed(true), []);
+  const expandSidebar = useCallback(() => setIsSidebarCollapsed(false), []);
 
-  const expandPanel = useCallback(() => {
-    setIsCollapsed(false);
-  }, []);
+  // Right Panel actions
+  const openRightPanel = useCallback(
+    () => setIsRightPanelOpen(true),
+    [setIsRightPanelOpen]
+  );
+  const closeRightPanel = useCallback(() => {
+    setIsRightPanelOpen(false);
+    setSelectedLessonId(null);
+  }, [setIsRightPanelOpen, setSelectedLessonId]);
+  const toggleRightPanel = useCallback(
+    () => setIsRightPanelOpen((prev) => !prev),
+    [setIsRightPanelOpen]
+  );
 
-  // Trigger a brief highlight on the right panel
-  const triggerRightPanelHighlight = useCallback(() => {
-    setHighlightRightPanel(true);
-  }, []);
-
-  // Auto-clear highlight after animation completes
+  // Highlight actions
+  const triggerRightPanelHighlight = useCallback(
+    () => setHighlightRightPanel(true),
+    []
+  );
   useEffect(() => {
     if (highlightRightPanel) {
-      const timer = setTimeout(() => {
-        setHighlightRightPanel(false);
-      }, 1000); // 1 second highlight duration
+      const timer = setTimeout(() => setHighlightRightPanel(false), 1000);
       return () => clearTimeout(timer);
     }
   }, [highlightRightPanel]);
 
+  const value = useMemo<LearningPanelContextType>(
+    () => ({
+      isSidebarCollapsed,
+      toggleSidebar,
+      collapseSidebar,
+      expandSidebar,
+      isRightPanelOpen: isRightPanelOpen ?? false,
+      openRightPanel,
+      closeRightPanel,
+      toggleRightPanel,
+      selectedLessonId,
+      setSelectedLessonId,
+      highlightRightPanel,
+      triggerRightPanelHighlight,
+      // Deprecated aliases
+      isCollapsed: isSidebarCollapsed,
+      toggleCollapse: toggleSidebar,
+      collapsePanel: collapseSidebar,
+      expandPanel: expandSidebar,
+    }),
+    [
+      isSidebarCollapsed,
+      toggleSidebar,
+      collapseSidebar,
+      expandSidebar,
+      isRightPanelOpen,
+      openRightPanel,
+      closeRightPanel,
+      toggleRightPanel,
+      selectedLessonId,
+      setSelectedLessonId,
+      highlightRightPanel,
+      triggerRightPanelHighlight,
+    ]
+  );
+
   return (
-    <LearningPanelContext.Provider
-      value={{
-        isCollapsed,
-        toggleCollapse,
-        collapsePanel,
-        expandPanel,
-        highlightRightPanel,
-        triggerRightPanelHighlight,
-      }}
-    >
+    <LearningPanelContext.Provider value={value}>
       {children}
     </LearningPanelContext.Provider>
   );
@@ -63,7 +153,9 @@ export function LearningPanelProvider({ children }: { children: ReactNode }) {
 export function useLearningPanel() {
   const context = useContext(LearningPanelContext);
   if (!context) {
-    throw new Error("useLearningPanel must be used within a LearningPanelProvider");
+    throw new Error(
+      "useLearningPanel must be used within a LearningPanelProvider"
+    );
   }
   return context;
 }

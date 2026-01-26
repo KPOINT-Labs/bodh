@@ -1,7 +1,7 @@
-import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, it, expect, vi } from "vitest";
-import { TitleForm } from "./_components/title-form";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import { DescriptionForm } from "./_components/description-form";
+import { TitleForm } from "./_components/title-form";
 
 // Mock router
 const refreshMock = vi.fn();
@@ -13,12 +13,12 @@ vi.mock("next/navigation", () => ({
 
 describe("TitleForm", () => {
   it("displays initial title", () => {
-    render(<TitleForm initialData={{ title: "Initial Title" }} courseId="1" />);
+    render(<TitleForm courseId="1" initialData={{ title: "Initial Title" }} />);
     expect(screen.getByText("Initial Title")).toBeDefined();
   });
 
   it("switches to edit mode", () => {
-    render(<TitleForm initialData={{ title: "Initial Title" }} courseId="1" />);
+    render(<TitleForm courseId="1" initialData={{ title: "Initial Title" }} />);
     const editBtn = screen.getByRole("button", { name: /Edit/i });
     fireEvent.click(editBtn);
     expect(screen.getByRole("textbox")).toBeDefined();
@@ -27,12 +27,16 @@ describe("TitleForm", () => {
 
 describe("DescriptionForm", () => {
   it("displays initial description", () => {
-    render(<DescriptionForm initialData={{ description: "Desc" }} courseId="1" />);
+    render(
+      <DescriptionForm courseId="1" initialData={{ description: "Desc" }} />
+    );
     expect(screen.getByText("Desc")).toBeDefined();
   });
 
   it("displays fallback when empty", () => {
-    render(<DescriptionForm initialData={{ description: null }} courseId="1" />);
+    render(
+      <DescriptionForm courseId="1" initialData={{ description: null }} />
+    );
     expect(screen.getByText("No description")).toBeDefined();
   });
 });

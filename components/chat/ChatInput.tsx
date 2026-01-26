@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef, useState, useEffect } from "react";
-import { Loader2, Send, Mic, MicOff } from "lucide-react";
+import { Loader2, Mic, MicOff, Send } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useLiveKit } from "@/hooks/useLiveKit";
 
@@ -14,7 +14,14 @@ interface LiveKitState {
   audioLevel: number;
   error: string | null;
   agentTranscript: string;
-  transcriptSegments: { id: string; text: string; participantIdentity: string; isAgent: boolean; isFinal: boolean; timestamp: number }[];
+  transcriptSegments: {
+    id: string;
+    text: string;
+    participantIdentity: string;
+    isAgent: boolean;
+    isFinal: boolean;
+    timestamp: number;
+  }[];
   isAgentSpeaking: boolean;
   isAudioBlocked: boolean;
   isWaitingForAgentResponse: boolean;
@@ -39,7 +46,11 @@ interface ChatInputProps {
   placeholder?: string;
   disabled?: boolean;
   /** Add user message to chat UI and store in DB (for LiveKit flow) */
-  onAddUserMessage?: (message: string, messageType?: string, inputType?: string) => void | Promise<void>;
+  onAddUserMessage?: (
+    message: string,
+    messageType?: string,
+    inputType?: string
+  ) => void | Promise<void>;
   isLoading?: boolean;
   conversationId?: string;
   courseId?: string;
@@ -66,8 +77,8 @@ export function ChatInput({
   // LiveKit voice hook - only used if no state passed from parent
   // When liveKitState is provided, we skip creating our own hook to avoid interference
   const ownLiveKit = useLiveKit({
-    conversationId: liveKitState ? "" : (conversationId || ""),
-    courseId: liveKitState ? "" : (courseId || ""),
+    conversationId: liveKitState ? "" : conversationId || "",
+    courseId: liveKitState ? "" : courseId || "",
     userId: liveKitState ? undefined : userId,
     videoIds: liveKitState ? undefined : videoIds,
     autoConnect: false, // Never auto-connect from ChatInput
@@ -92,7 +103,7 @@ export function ChatInput({
       console.error("[Voice] Error:", voiceError);
       toast.error("Voice connection failed", {
         description: voiceError,
-        duration: 2000
+        duration: 2000,
       });
     }
   }, [voiceError, liveKitState]);
@@ -100,13 +111,15 @@ export function ChatInput({
   // Track previous connection state to detect changes (only for own hook)
   const prevConnectedRef = useRef(false);
   useEffect(() => {
-    if (liveKitState) return; // Parent handles its own toast notifications
+    if (liveKitState) {
+      return; // Parent handles its own toast notifications
+    }
 
     if (isConnected && !prevConnectedRef.current) {
       // Just connected
       toast.success("Voice session started", {
         description: "You can now speak to the AI assistant",
-        duration: 2000
+        duration: 2000,
       });
     } else if (!isConnected && prevConnectedRef.current) {
       // Just disconnected
@@ -118,7 +131,9 @@ export function ChatInput({
   // Handle text message submit - all messages go through LiveKit
   const handleSubmit = async () => {
     const message = inputValue.trim();
-    if (!message) return;
+    if (!message) {
+      return;
+    }
 
     setInputValue("");
 
@@ -142,7 +157,11 @@ export function ChatInput({
 
   // Handle voice button click - toggle voice mode (enables/disables STT on agent)
   const handleVoiceClick = async () => {
-    console.log("[Voice] Button clicked", { isConnected, isMuted, isVoiceModeEnabled });
+    console.log("[Voice] Button clicked", {
+      isConnected,
+      isMuted,
+      isVoiceModeEnabled,
+    });
 
     if (!isConnected) {
       console.log("[Voice] Session not connected yet, waiting...");
@@ -188,28 +207,35 @@ export function ChatInput({
 
   // Determine placeholder text
   const getPlaceholder = () => {
-    if (isLoading) return "Thinking...";
-    if (isConnected) return isVoiceModeEnabled ? "Listening..." : "Type your question here";
+    if (isLoading) {
+      return "Thinking...";
+    }
+    if (isConnected) {
+      return isVoiceModeEnabled ? "Listening..." : "Type your question here";
+    }
     return placeholder;
   };
 
   return (
     <div className="flex items-center justify-center px-6 py-4">
-      <div className="bg-white border border-gray-200 flex h-[58px] items-center justify-between pl-[25px] pr-[8px] py-[7px] relative rounded-full shadow-sm w-full">
+      <div className="relative flex h-[58px] w-full items-center justify-between rounded-full border border-gray-200 bg-white py-[7px] pr-[8px] pl-[25px] shadow-sm">
         {/* Show animated listening indicator when voice mode is enabled */}
         {isConnected && isVoiceModeEnabled ? (
-          <div className="flex-1 flex items-center justify-center h-full relative overflow-hidden">
+          <div className="relative flex h-full flex-1 items-center justify-center overflow-hidden">
             {/* Full width audio visualization - bars respond to audio level */}
             <div className="absolute inset-0 flex items-end justify-center gap-1 px-4 py-2">
               {Array.from({ length: 24 }).map((_, i) => {
                 // Create wave pattern with different multipliers for each bar
-                const offset = [0.3, 0.7, 1.0, 0.8, 0.5, 0.9, 0.4, 0.6, 1.0, 0.7, 0.5, 0.8, 0.6, 0.9, 0.4, 1.0, 0.7, 0.5, 0.8, 0.3, 0.9, 0.6, 0.4, 0.7][i];
+                const offset = [
+                  0.3, 0.7, 1.0, 0.8, 0.5, 0.9, 0.4, 0.6, 1.0, 0.7, 0.5, 0.8,
+                  0.6, 0.9, 0.4, 1.0, 0.7, 0.5, 0.8, 0.3, 0.9, 0.6, 0.4, 0.7,
+                ][i];
                 // Bars height based on audio level (always visible, grows with voice)
                 const baseHeight = Math.max(4, audioLevel * 40 * offset);
                 return (
                   <span
+                    className="sound-wave-bar max-w-1.5 flex-1 rounded-full transition-all duration-75"
                     key={i}
-                    className="flex-1 max-w-1.5 rounded-full sound-wave-bar transition-all duration-75"
                     style={{
                       height: `${baseHeight}px`,
                       opacity: audioLevel > 0.1 ? 0.85 : 0.4,
@@ -218,28 +244,28 @@ export function ChatInput({
                 );
               })}
             </div>
-            <span className="text-[#C27AFF] font-medium text-[15px] tracking-[-0.3px] z-10 bg-white/90 px-3 py-1 rounded-full shadow-sm">
+            <span className="z-10 rounded-full bg-white/90 px-3 py-1 font-medium text-[#C27AFF] text-[15px] tracking-[-0.3px] shadow-sm">
               Listening...
             </span>
           </div>
         ) : (
           <input
+            className="tour-text-input flex-1 border-none bg-transparent font-normal text-[16px] text-gray-900 leading-[24px] tracking-[-0.3125px] placeholder-[#99a1af] outline-none disabled:opacity-50"
+            disabled={isDisabled || (isConnected && isVoiceModeEnabled)}
+            onChange={(e) => setInputValue(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={getPlaceholder()}
             ref={inputRef}
             type="text"
             value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            placeholder={getPlaceholder()}
-            disabled={isDisabled || (isConnected && isVoiceModeEnabled)}
-            onKeyDown={handleKeyDown}
-            className="tour-text-input flex-1 bg-transparent border-none outline-none font-normal text-[16px] text-gray-900 placeholder-[#99a1af] tracking-[-0.3125px] leading-[24px] disabled:opacity-50"
           />
         )}
         <div className="flex items-center gap-2">
           {/* Main action button - toggles voice mode or sends text */}
           <button
-            onClick={inputValue.trim() ? handleSubmit : handleVoiceClick}
+            className="tour-mic-button flex h-[44px] w-[44px] items-center justify-center rounded-full shadow-md transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-50"
             disabled={isDisabled || isConnecting}
-            className="tour-mic-button flex items-center justify-center w-[44px] h-[44px] rounded-full shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+            onClick={inputValue.trim() ? handleSubmit : handleVoiceClick}
             style={{
               background: isConnected
                 ? isVoiceModeEnabled
@@ -247,10 +273,16 @@ export function ChatInput({
                   : "linear-gradient(135deg, #6B7280 0%, #4B5563 100%)" // Gray when voice mode off
                 : "linear-gradient(135deg, #FB64B6 0%, #C27AFF 50%, #51A2FF 100%)", // Default gradient
             }}
-            title={isConnected ? (isVoiceModeEnabled ? "Disable voice mode" : "Enable voice mode") : "Connecting..."}
+            title={
+              isConnected
+                ? isVoiceModeEnabled
+                  ? "Disable voice mode"
+                  : "Enable voice mode"
+                : "Connecting..."
+            }
           >
             {isLoading || isConnecting ? (
-              <Loader2 className="h-5 w-5 text-white animate-spin" />
+              <Loader2 className="h-5 w-5 animate-spin text-white" />
             ) : inputValue.trim() ? (
               <Send className="h-5 w-5 text-white" />
             ) : isConnected && !isVoiceModeEnabled ? (

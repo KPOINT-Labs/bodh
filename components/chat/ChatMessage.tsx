@@ -1,7 +1,7 @@
 import { Sparkles, User } from "lucide-react";
-import { MessageContent } from "./MessageContent";
-import { AssessmentSummary } from "./AssessmentSummary";
 import type { MessageData } from "@/types/chat";
+import { AssessmentSummary } from "./AssessmentSummary";
+import { MessageContent } from "./MessageContent";
 
 interface ChatMessageProps {
   message: MessageData;
@@ -35,17 +35,16 @@ export function ChatMessage({
 }: ChatMessageProps) {
   const isUser = message.role === "user";
   // Check if this is an assessment summary (second part of a split FA message)
-  const isAssessmentSummary = message.id.endsWith('-part2') && message.messageType === 'fa';
+  const isAssessmentSummary =
+    message.id.endsWith("-part2") && message.messageType === "fa";
 
   // For warmup messages, use warmup handlers; for inlesson, use inlesson handlers
-  const isWarmupMessage = message.messageType === 'warmup_mcq';
+  const isWarmupMessage = message.messageType === "warmup_mcq";
   const effectiveOnAnswer = isWarmupMessage ? onWarmupAnswer : onInlessonAnswer;
   const effectiveOnSkip = isWarmupMessage ? onWarmupSkip : onInlessonSkip;
 
   return (
-    <div
-      className={`flex items-start gap-3 ${isUser ? "justify-end" : ""}`}
-    >
+    <div className={`flex items-start gap-3 ${isUser ? "justify-end" : ""}`}>
       {/* Assistant Avatar */}
       {!isUser && (
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-500">
@@ -57,8 +56,8 @@ export function ChatMessage({
       <div
         className={
           isUser
-            ? "bg-gray-100 text-gray-900 rounded-2xl rounded-tr-sm px-4 py-2 max-w-[75%]"
-            : "bg-gray-50 rounded-2xl rounded-tl-sm px-4 py-3 max-w-[85%] text-gray-800"
+            ? "max-w-[75%] rounded-2xl rounded-tr-sm bg-gray-100 px-4 py-2 text-gray-900"
+            : "max-w-[85%] rounded-2xl rounded-tl-sm bg-gray-50 px-4 py-3 text-gray-800"
         }
       >
         {isAssessmentSummary ? (
@@ -69,15 +68,15 @@ export function ChatMessage({
         ) : (
           <MessageContent
             content={message.content}
+            inlessonMetadata={message.metadata}
+            isFromHistory={isFromHistory}
             messageType={message.messageType}
-            role={message.role}
+            onInlessonAnswer={effectiveOnAnswer}
+            onInlessonSkip={effectiveOnSkip}
             onQuestionAnswer={onQuestionAnswer}
             onQuestionSkip={onQuestionSkip}
             onTimestampClick={onTimestampClick}
-            isFromHistory={isFromHistory}
-            inlessonMetadata={message.metadata}
-            onInlessonAnswer={effectiveOnAnswer}
-            onInlessonSkip={effectiveOnSkip}
+            role={message.role}
           />
         )}
       </div>

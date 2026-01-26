@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { BookOpen, Lock, Mail, Ticket, User } from "lucide-react";
 import Link from "next/link";
-import { Mail, Lock, User, BookOpen, Ticket } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
+import { useState } from "react";
 import { signup } from "@/actions/auth";
 
 export default function SignupPage() {
@@ -71,50 +71,50 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl p-8 animate-scale-in">
+    <div className="relative w-full max-w-md animate-scale-in rounded-3xl bg-white p-8 shadow-2xl">
       {/* Icon */}
-      <div className="flex justify-center mb-6">
-        <div className="w-16 h-16 bg-gradient-to-br from-violet-500 to-fuchsia-500 rounded-2xl flex items-center justify-center shadow-lg">
-          <BookOpen className="w-8 h-8 text-white" />
+      <div className="mb-6 flex justify-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-500 shadow-lg">
+          <BookOpen className="h-8 w-8 text-white" />
         </div>
       </div>
 
       {/* Heading */}
-      <h1 className="text-2xl font-semibold text-center text-gray-900 mb-2">
+      <h1 className="mb-2 text-center font-semibold text-2xl text-gray-900">
         Create Account
       </h1>
-      <p className="text-center text-gray-500 mb-6">
+      <p className="mb-6 text-center text-gray-500">
         Start your learning journey today
       </p>
 
       {/* Beta Notice */}
-      <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl">
-        <p className="text-amber-800 text-sm font-medium text-center">
+      <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4">
+        <p className="text-center font-medium text-amber-800 text-sm">
           Beta Access - KPOINT Employees Only
         </p>
-        <p className="text-amber-600 text-xs text-center mt-1">
+        <p className="mt-1 text-center text-amber-600 text-xs">
           Need access? Contact KPOINT support
         </p>
       </div>
 
       {/* Error Message */}
       {error && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm text-center">
+        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-center text-red-600 text-sm">
           {error}
         </div>
       )}
 
       {/* Google Sign Up - @kpoint.com only */}
       <button
-        onClick={handleGoogleSignup}
+        className="mb-2 flex w-full items-center justify-center gap-3 rounded-xl border-2 border-gray-200 bg-white px-6 py-3 font-medium text-gray-700 transition-all hover:border-gray-300 hover:bg-gray-50 disabled:opacity-50"
         disabled={isLoading}
-        className="w-full px-6 py-3 bg-white border-2 border-gray-200 rounded-xl text-gray-700 font-medium hover:bg-gray-50 hover:border-gray-300 transition-all flex items-center justify-center gap-3 mb-2 disabled:opacity-50"
+        onClick={handleGoogleSignup}
       >
         <svg
-          width="20"
+          fill="none"
           height="20"
           viewBox="0 0 20 20"
-          fill="none"
+          width="20"
           xmlns="http://www.w3.org/2000/svg"
         >
           <path
@@ -138,35 +138,35 @@ export default function SignupPage() {
       </button>
 
       {/* Divider */}
-      <div className="flex items-center gap-4 mb-6">
-        <div className="flex-1 h-px bg-gray-200" />
-        <span className="text-sm text-gray-500 uppercase tracking-wide">
+      <div className="mb-6 flex items-center gap-4">
+        <div className="h-px flex-1 bg-gray-200" />
+        <span className="text-gray-500 text-sm uppercase tracking-wide">
           Or with invite code
         </span>
-        <div className="flex-1 h-px bg-gray-200" />
+        <div className="h-px flex-1 bg-gray-200" />
       </div>
 
       {/* Signup Form */}
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form className="space-y-4" onSubmit={handleSubmit}>
         {/* Invite Code Input */}
         <div className="relative">
-          <Ticket className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <Ticket className="absolute top-1/2 left-4 h-5 w-5 -translate-y-1/2 text-gray-400" />
           <input
-            type="text"
-            name="inviteCode"
-            value={formData.inviteCode}
-            onChange={handleChange}
-            placeholder="Invite code (6 digits)"
-            maxLength={6}
-            inputMode="numeric"
-            pattern="\d{6}"
-            required
-            className={`w-full pl-12 pr-4 py-3 bg-gray-50 border-2 rounded-xl text-gray-900 placeholder:text-gray-500 focus:bg-white focus:border-violet-400 outline-none transition-all ${
+            className={`w-full rounded-xl border-2 bg-gray-50 py-3 pr-4 pl-12 text-gray-900 outline-none transition-all placeholder:text-gray-500 focus:border-violet-400 focus:bg-white ${
               fieldErrors.inviteCode ? "border-red-400" : "border-gray-200"
             }`}
+            inputMode="numeric"
+            maxLength={6}
+            name="inviteCode"
+            onChange={handleChange}
+            pattern="\d{6}"
+            placeholder="Invite code (6 digits)"
+            required
+            type="text"
+            value={formData.inviteCode}
           />
           {fieldErrors.inviteCode && (
-            <p className="mt-1 text-xs text-red-500">
+            <p className="mt-1 text-red-500 text-xs">
               {fieldErrors.inviteCode[0]}
             </p>
           )}
@@ -174,58 +174,58 @@ export default function SignupPage() {
 
         {/* Name Input */}
         <div className="relative">
-          <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <User className="absolute top-1/2 left-4 h-5 w-5 -translate-y-1/2 text-gray-400" />
           <input
-            type="text"
+            className={`w-full rounded-xl border-2 bg-gray-50 py-3 pr-4 pl-12 text-gray-900 outline-none transition-all placeholder:text-gray-500 focus:border-violet-400 focus:bg-white ${
+              fieldErrors.name ? "border-red-400" : "border-gray-200"
+            }`}
             name="name"
-            value={formData.name}
             onChange={handleChange}
             placeholder="Full name"
             required
-            className={`w-full pl-12 pr-4 py-3 bg-gray-50 border-2 rounded-xl text-gray-900 placeholder:text-gray-500 focus:bg-white focus:border-violet-400 outline-none transition-all ${
-              fieldErrors.name ? "border-red-400" : "border-gray-200"
-            }`}
+            type="text"
+            value={formData.name}
           />
           {fieldErrors.name && (
-            <p className="mt-1 text-xs text-red-500">{fieldErrors.name[0]}</p>
+            <p className="mt-1 text-red-500 text-xs">{fieldErrors.name[0]}</p>
           )}
         </div>
 
         {/* Email Input */}
         <div className="relative">
-          <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <Mail className="absolute top-1/2 left-4 h-5 w-5 -translate-y-1/2 text-gray-400" />
           <input
-            type="email"
+            className={`w-full rounded-xl border-2 bg-gray-50 py-3 pr-4 pl-12 text-gray-900 outline-none transition-all placeholder:text-gray-500 focus:border-violet-400 focus:bg-white ${
+              fieldErrors.email ? "border-red-400" : "border-gray-200"
+            }`}
             name="email"
-            value={formData.email}
             onChange={handleChange}
             placeholder="Email address"
             required
-            className={`w-full pl-12 pr-4 py-3 bg-gray-50 border-2 rounded-xl text-gray-900 placeholder:text-gray-500 focus:bg-white focus:border-violet-400 outline-none transition-all ${
-              fieldErrors.email ? "border-red-400" : "border-gray-200"
-            }`}
+            type="email"
+            value={formData.email}
           />
           {fieldErrors.email && (
-            <p className="mt-1 text-xs text-red-500">{fieldErrors.email[0]}</p>
+            <p className="mt-1 text-red-500 text-xs">{fieldErrors.email[0]}</p>
           )}
         </div>
 
         {/* Password Input */}
         <div className="relative">
-          <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <Lock className="absolute top-1/2 left-4 h-5 w-5 -translate-y-1/2 text-gray-400" />
           <input
-            type="password"
+            className={`w-full rounded-xl border-2 bg-gray-50 py-3 pr-4 pl-12 text-gray-900 outline-none transition-all placeholder:text-gray-500 focus:border-violet-400 focus:bg-white ${
+              fieldErrors.password ? "border-red-400" : "border-gray-200"
+            }`}
             name="password"
-            value={formData.password}
             onChange={handleChange}
             placeholder="Password"
             required
-            className={`w-full pl-12 pr-4 py-3 bg-gray-50 border-2 rounded-xl text-gray-900 placeholder:text-gray-500 focus:bg-white focus:border-violet-400 outline-none transition-all ${
-              fieldErrors.password ? "border-red-400" : "border-gray-200"
-            }`}
+            type="password"
+            value={formData.password}
           />
           {fieldErrors.password && (
-            <p className="mt-1 text-xs text-red-500">
+            <p className="mt-1 text-red-500 text-xs">
               {fieldErrors.password[0]}
             </p>
           )}
@@ -233,20 +233,20 @@ export default function SignupPage() {
 
         {/* Confirm Password Input */}
         <div className="relative">
-          <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <Lock className="absolute top-1/2 left-4 h-5 w-5 -translate-y-1/2 text-gray-400" />
           <input
-            type="password"
+            className={`w-full rounded-xl border-2 bg-gray-50 py-3 pr-4 pl-12 text-gray-900 outline-none transition-all placeholder:text-gray-500 focus:border-violet-400 focus:bg-white ${
+              fieldErrors.confirmPassword ? "border-red-400" : "border-gray-200"
+            }`}
             name="confirmPassword"
-            value={formData.confirmPassword}
             onChange={handleChange}
             placeholder="Confirm password"
             required
-            className={`w-full pl-12 pr-4 py-3 bg-gray-50 border-2 rounded-xl text-gray-900 placeholder:text-gray-500 focus:bg-white focus:border-violet-400 outline-none transition-all ${
-              fieldErrors.confirmPassword ? "border-red-400" : "border-gray-200"
-            }`}
+            type="password"
+            value={formData.confirmPassword}
           />
           {fieldErrors.confirmPassword && (
-            <p className="mt-1 text-xs text-red-500">
+            <p className="mt-1 text-red-500 text-xs">
               {fieldErrors.confirmPassword[0]}
             </p>
           )}
@@ -254,9 +254,9 @@ export default function SignupPage() {
 
         {/* Sign Up Button */}
         <button
-          type="submit"
+          className="w-full rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-6 py-3 font-medium text-white shadow-lg transition-all hover:from-violet-600 hover:to-fuchsia-600 hover:shadow-xl disabled:opacity-50"
           disabled={isLoading}
-          className="w-full px-6 py-3 bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white rounded-xl font-medium hover:from-violet-600 hover:to-fuchsia-600 transition-all shadow-lg hover:shadow-xl disabled:opacity-50"
+          type="submit"
         >
           {isLoading ? "Creating account..." : "Create Account"}
         </button>
@@ -264,11 +264,11 @@ export default function SignupPage() {
 
       {/* Sign In Link */}
       <div className="mt-6 text-center">
-        <p className="text-sm text-gray-500">
+        <p className="text-gray-500 text-sm">
           Already have an account?{" "}
           <Link
+            className="font-medium text-violet-600 hover:text-violet-700"
             href="/login"
-            className="text-violet-600 hover:text-violet-700 font-medium"
           >
             Sign in
           </Link>

@@ -1,7 +1,7 @@
+import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { WelcomeContent } from "./WelcomeContent";
-import { redirect } from "next/navigation";
 
 // Render at request time (database required)
 export const dynamic = "force-dynamic";
@@ -130,9 +130,9 @@ export default async function CoursesPage() {
 
   return (
     <WelcomeContent
+      allCourses={allCourses}
       firstCourse={firstCourse}
       lastCourse={lastCourse}
-      allCourses={allCourses}
     />
   );
 }

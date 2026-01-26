@@ -20,7 +20,9 @@ async function debugSarvam() {
   });
 
   if (taskGraphs.length === 0) {
-    console.log("   ⚠️  NO TaskGraph entries found! This is why sessions aren't being created.");
+    console.log(
+      "   ⚠️  NO TaskGraph entries found! This is why sessions aren't being created."
+    );
     console.log("   You need to add TaskGraph entries for your courses.\n");
   } else {
     console.log(`   Found ${taskGraphs.length} TaskGraph entries:`);
@@ -51,7 +53,9 @@ async function debugSarvam() {
   if (sessions.length === 0) {
     console.log("   No SarvamSession entries found.\n");
   } else {
-    console.log(`   Found ${sessions.length} SarvamSession entries (showing latest 10):`);
+    console.log(
+      `   Found ${sessions.length} SarvamSession entries (showing latest 10):`
+    );
     sessions.forEach((s) => {
       console.log(`   - id: ${s.id}`);
       console.log(`     sessionId: ${s.sessionId}`);

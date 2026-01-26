@@ -1,6 +1,14 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, useRef, useCallback, ReactNode } from "react";
+import {
+  createContext,
+  type ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 type MuteCallback = (muted: boolean) => void;
 
@@ -58,10 +66,13 @@ export function AudioContextProvider({ children }: { children: ReactNode }) {
     });
   }, [notifyCallbacks]);
 
-  const setMutedWithNotify = useCallback((muted: boolean) => {
-    setIsMuted(muted);
-    notifyCallbacks(muted);
-  }, [notifyCallbacks]);
+  const setMutedWithNotify = useCallback(
+    (muted: boolean) => {
+      setIsMuted(muted);
+      notifyCallbacks(muted);
+    },
+    [notifyCallbacks]
+  );
 
   const registerMuteCallback = useCallback((callback: MuteCallback) => {
     muteCallbacksRef.current.add(callback);

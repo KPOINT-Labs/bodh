@@ -1,7 +1,7 @@
 "use server";
 
-import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { prisma } from "@/lib/prisma";
 
 export async function deleteCourse(courseId: string) {
   try {
@@ -11,7 +11,7 @@ export async function deleteCourse(courseId: string) {
       },
     });
 
-    revalidatePath(`/teacher/courses`);
+    revalidatePath("/teacher/courses");
     return course;
   } catch (error) {
     console.log("[COURSE_DELETE]", error);

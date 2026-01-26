@@ -1,6 +1,12 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback, ReactNode } from "react";
+import {
+  createContext,
+  type ReactNode,
+  useCallback,
+  useContext,
+  useState,
+} from "react";
 import type { Course, LessonStatus } from "@/types/learning";
 
 interface CourseProgressContextValue {
@@ -20,7 +26,9 @@ interface CourseProgressContextValue {
   ) => void;
 }
 
-const CourseProgressContext = createContext<CourseProgressContextValue | null>(null);
+const CourseProgressContext = createContext<CourseProgressContextValue | null>(
+  null
+);
 
 export function CourseProgressProvider({ children }: { children: ReactNode }) {
   const [courses, setCourses] = useState<Course[]>([]);
@@ -40,7 +48,9 @@ export function CourseProgressProvider({ children }: { children: ReactNode }) {
           modules: course.modules.map((module) => ({
             ...module,
             lessons: module.lessons.map((lesson) => {
-              if (lesson.id !== lessonId) return lesson;
+              if (lesson.id !== lessonId) {
+                return lesson;
+              }
 
               // Calculate new status (mirrors server logic in lib/actions/lesson-progress.ts)
               let newStatus: LessonStatus;
@@ -83,7 +93,9 @@ export function CourseProgressProvider({ children }: { children: ReactNode }) {
 export function useCourseProgress() {
   const context = useContext(CourseProgressContext);
   if (!context) {
-    throw new Error("useCourseProgress must be used within CourseProgressProvider");
+    throw new Error(
+      "useCourseProgress must be used within CourseProgressProvider"
+    );
   }
   return context;
 }

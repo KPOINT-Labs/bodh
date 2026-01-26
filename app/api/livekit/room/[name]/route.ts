@@ -3,7 +3,7 @@
  * DELETE /api/livekit/room/[name] - Delete room
  */
 
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { roomService } from "@/lib/livekit";
 import type { DeleteRoomResponse } from "@/types/livekit";
 
@@ -15,7 +15,7 @@ interface RouteParams {
  * Delete a LiveKit room
  * DELETE /api/livekit/room/[name]
  */
-export async function DELETE(request: NextRequest, { params }: RouteParams) {
+export async function DELETE(_request: NextRequest, { params }: RouteParams) {
   try {
     const { name: roomName } = await params;
 

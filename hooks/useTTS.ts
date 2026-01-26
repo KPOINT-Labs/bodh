@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { useAudioContext } from "@/contexts/AudioContext";
+import { useEffect, useRef, useState } from "react";
 import { generateTTS } from "@/actions/tts";
-import { TTSOptions } from "@/lib/tts";
+import { useAudioContext } from "@/contexts/AudioContext";
+import type { TTSOptions } from "@/lib/tts";
 
 export function useTTS() {
   const [isLoading, setIsLoading] = useState(false);
@@ -12,7 +12,21 @@ export function useTTS() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const pendingAudioRef = useRef<HTMLAudioElement | null>(null);
   const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const { isMuted, setIsPlaying: setGlobalPlaying, setMuted } = useAudioContext();
+  const {
+    isMuted,
+    setIsPlaying: setGlobalPlaying,
+    setMuted,
+  } = useAudioContext();
+
+  const stop = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      audioRef.current = null;
+    }
+    setIsPlaying(false);
+    setGlobalPlaying(false);
+  };
 
   // Auto-stop when muted
   useEffect(() => {
@@ -35,49 +49,56 @@ export function useTTS() {
   useEffect(() => {
     const handleUserInteraction = () => {
       if (pendingAudioRef.current) {
-        console.log("[useTTS] User interaction detected, retrying audio playback");
+        console.log(
+          "[useTTS] User interaction detected, retrying audio playback"
+        );
         const audio = pendingAudioRef.current;
         pendingAudioRef.current = null;
 
-        audio.play().then(() => {
-          setMuted(false); // Unmute on successful playback
-        }).catch(err => {
-          console.error("[useTTS] Retry failed:", err);
-        });
+        audio
+          .play()
+          .then(() => {
+            setMuted(false); // Unmute on successful playback
+          })
+          .catch((err) => {
+            console.error("[useTTS] Retry failed:", err);
+          });
 
         // Remove listeners after first interaction
-        document.removeEventListener('click', handleUserInteraction);
-        document.removeEventListener('touchstart', handleUserInteraction);
-        document.removeEventListener('keydown', handleUserInteraction);
+        document.removeEventListener("click", handleUserInteraction);
+        document.removeEventListener("touchstart", handleUserInteraction);
+        document.removeEventListener("keydown", handleUserInteraction);
       }
     };
 
     if (pendingAudioRef.current) {
-      document.addEventListener('click', handleUserInteraction);
-      document.addEventListener('touchstart', handleUserInteraction);
-      document.addEventListener('keydown', handleUserInteraction);
+      document.addEventListener("click", handleUserInteraction);
+      document.addEventListener("touchstart", handleUserInteraction);
+      document.addEventListener("keydown", handleUserInteraction);
     }
 
     return () => {
-      document.removeEventListener('click', handleUserInteraction);
-      document.removeEventListener('touchstart', handleUserInteraction);
-      document.removeEventListener('keydown', handleUserInteraction);
+      document.removeEventListener("click", handleUserInteraction);
+      document.removeEventListener("touchstart", handleUserInteraction);
+      document.removeEventListener("keydown", handleUserInteraction);
     };
-  }, [pendingAudioRef.current]);
-
-  const stop = () => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-      audioRef.current = null;
-    }
-    setIsPlaying(false);
-    setGlobalPlaying(false);
-  };
+  }, [setMuted]);
 
   const speak = async (text: string, options?: TTSOptions) => {
-    console.log("[useTTS] speak() called with text:", text.substring(0, 50), "options:", options);
-    console.log("[useTTS] Current state - isMuted:", isMuted, "isLoading:", isLoading, "isPlaying:", isPlaying);
+    console.log(
+      "[useTTS] speak() called with text:",
+      text.substring(0, 50),
+      "options:",
+      options
+    );
+    console.log(
+      "[useTTS] Current state - isMuted:",
+      isMuted,
+      "isLoading:",
+      isLoading,
+      "isPlaying:",
+      isPlaying
+    );
 
     // Early return if muted (check before interrupt logic)
     if (isMuted) {
@@ -93,7 +114,9 @@ export function useTTS() {
     } else {
       // Safety check: prevent duplicate playback unless interrupting
       if (isLoading || isPlaying) {
-        console.log("[useTTS] Already loading or playing, skipping duplicate request");
+        console.log(
+          "[useTTS] Already loading or playing, skipping duplicate request"
+        );
         return;
       }
     }
@@ -110,7 +133,7 @@ export function useTTS() {
       // Call server action
       const result = await generateTTS(text, options);
 
-      if (!result.success || !result.audioData) {
+      if (!(result.success && result.audioData)) {
         setError(result.error || "Failed to generate audio");
         console.error("[useTTS] Generation failed:", result.error);
         return;
@@ -147,8 +170,13 @@ export function useTTS() {
         console.error("[useTTS] Autoplay failed:", playError);
 
         // If autoplay failed due to user interaction requirement
-        if (playError.name === 'NotAllowedError' || playError.message.includes('user gesture')) {
-          console.log("[useTTS] Autoplay blocked, setting muted state and waiting for user interaction");
+        if (
+          playError.name === "NotAllowedError" ||
+          playError.message.includes("user gesture")
+        ) {
+          console.log(
+            "[useTTS] Autoplay blocked, setting muted state and waiting for user interaction"
+          );
 
           // Set muted state
           setMuted(true);

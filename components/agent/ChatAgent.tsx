@@ -1,15 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { Sparkles } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Card } from "@/components/ui/card";
-
-// Types
-import type { Course, Module, Lesson, MessageData } from "@/types/chat";
-
 // Utils
 import { detectAnswerFeedback } from "@/lib/chat/assessment";
 import { initializeChatSession } from "@/lib/chat/message-store";
+// Types
+import type { Course, Lesson, MessageData, Module } from "@/types/chat";
 
 /**
  * Hook for typing effect on agent transcript
@@ -18,7 +16,7 @@ import { initializeChatSession } from "@/lib/chat/message-store";
 function useTypingEffect(
   fullText: string,
   isActive: boolean,
-  typingSpeed: number = 20 // ms per character
+  typingSpeed = 20 // ms per character
 ): string {
   const [displayedText, setDisplayedText] = useState("");
   const lastFullTextRef = useRef("");
@@ -38,7 +36,7 @@ function useTypingEffect(
       }
     }
 
-    if (!isActive || !fullText) {
+    if (!(isActive && fullText)) {
       // Show full text immediately when not active or no text
       if (fullText && !isActive) {
         setDisplayedText(fullText);
@@ -79,12 +77,25 @@ function useTypingEffect(
 function looksLikeSummary(content: string): boolean {
   const lowerContent = content.toLowerCase();
   const summaryIndicators = [
-    'summary', 'overall', 'score', 'scored', 'out of',
-    'correct answer', 'you got', 'total', 'assessment complete',
-    'great job', 'well done', 'keep practicing', 'final score',
-    'your performance', 'you answered'
+    "summary",
+    "overall",
+    "score",
+    "scored",
+    "out of",
+    "correct answer",
+    "you got",
+    "total",
+    "assessment complete",
+    "great job",
+    "well done",
+    "keep practicing",
+    "final score",
+    "your performance",
+    "you answered",
   ];
-  return summaryIndicators.some(indicator => lowerContent.includes(indicator));
+  return summaryIndicators.some((indicator) =>
+    lowerContent.includes(indicator)
+  );
 }
 
 /**
@@ -98,9 +109,13 @@ function expandMessagesWithSeparator(messages: MessageData[]): MessageData[] {
 
   for (const msg of messages) {
     // Only split FA assistant messages with "---" separator
-    if (msg.messageType === "fa" && msg.role === "assistant" && msg.content.includes('\n---')) {
+    if (
+      msg.messageType === "fa" &&
+      msg.role === "assistant" &&
+      msg.content.includes("\n---")
+    ) {
       const [firstPart, ...restParts] = msg.content.split(/\n---+\n?/);
-      const secondPart = restParts.join('\n').trim();
+      const secondPart = restParts.join("\n").trim();
 
       // Only split if the second part actually looks like a summary
       if (secondPart && looksLikeSummary(secondPart)) {
@@ -129,13 +144,16 @@ function expandMessagesWithSeparator(messages: MessageData[]): MessageData[] {
   return expanded;
 }
 
+// Components
+import {
+  ChatMessage,
+  MessageContent,
+  TypingIndicator,
+} from "@/components/chat";
 // Hooks
 import { useAutoScroll } from "@/hooks/useAutoScroll";
-
-// Components
-import { ChatMessage, MessageContent, TypingIndicator } from "@/components/chat";
-import { ChatHeader } from "./ChatHeader";
 import { ActionButtons } from "./ActionButtons";
+import { ChatHeader } from "./ChatHeader";
 import { LoadingState } from "./LoadingState";
 
 interface ChatAgentProps {
@@ -161,7 +179,11 @@ interface ChatAgentProps {
   /** Send text to LiveKit agent */
   sendTextToAgent?: (text: string) => Promise<void>;
   /** Add user message to chat UI and DB */
-  onAddUserMessage?: (message: string, messageType?: string, inputType?: string) => Promise<void>;
+  onAddUserMessage?: (
+    message: string,
+    messageType?: string,
+    inputType?: string
+  ) => Promise<void>;
   /** Whether voice mode is enabled (user can speak to agent) */
   isVoiceModeEnabled?: boolean;
   /** Current user transcript from voice input (live transcription) */
@@ -228,50 +250,63 @@ export function ChatAgent({
   const welcomeCapturedRef = useRef(false);
 
   // Handler for assessment question answers - routes through LiveKit
-  const handleQuestionAnswer = useCallback(async (questionNumber: number, answer: string) => {
-    console.log(`Question ${questionNumber} answered:`, answer);
+  const handleQuestionAnswer = useCallback(
+    async (questionNumber: number, answer: string) => {
+      console.log(`Question ${questionNumber} answered:`, answer);
 
-    if (!isLiveKitConnected || !sendTextToAgent) {
-      console.warn("[ChatAgent] LiveKit not connected, cannot send FA answer");
-      return;
-    }
+      if (!(isLiveKitConnected && sendTextToAgent)) {
+        console.warn(
+          "[ChatAgent] LiveKit not connected, cannot send FA answer"
+        );
+        return;
+      }
 
-    // Add user message to chat and DB
-    if (onAddUserMessage) {
-      await onAddUserMessage(answer, "fa", "text");
-    }
+      // Add user message to chat and DB
+      if (onAddUserMessage) {
+        await onAddUserMessage(answer, "fa", "text");
+      }
 
-    // Send to LiveKit agent (prism handles Sarvam API)
-    try {
-      await sendTextToAgent(answer);
-    } catch (err) {
-      console.error("[ChatAgent] Failed to send FA answer via LiveKit:", err);
-    }
-  }, [isLiveKitConnected, sendTextToAgent, onAddUserMessage]);
+      // Send to LiveKit agent (prism handles Sarvam API)
+      try {
+        await sendTextToAgent(answer);
+      } catch (err) {
+        console.error("[ChatAgent] Failed to send FA answer via LiveKit:", err);
+      }
+    },
+    [isLiveKitConnected, sendTextToAgent, onAddUserMessage]
+  );
 
   // Handler for skipping assessment questions - routes through LiveKit
-  const handleQuestionSkip = useCallback(async (questionNumber: number) => {
-    console.log(`Question ${questionNumber} skipped`);
+  const handleQuestionSkip = useCallback(
+    async (questionNumber: number) => {
+      console.log(`Question ${questionNumber} skipped`);
 
-    if (!isLiveKitConnected || !sendTextToAgent) {
-      console.warn("[ChatAgent] LiveKit not connected, cannot send skip request");
-      return;
-    }
+      if (!(isLiveKitConnected && sendTextToAgent)) {
+        console.warn(
+          "[ChatAgent] LiveKit not connected, cannot send skip request"
+        );
+        return;
+      }
 
-    const skipMessage = "I'd like to skip this question, give next question.";
+      const skipMessage = "I'd like to skip this question, give next question.";
 
-    // Add skip message to chat and DB
-    if (onAddUserMessage) {
-      await onAddUserMessage(skipMessage, "fa", "text");
-    }
+      // Add skip message to chat and DB
+      if (onAddUserMessage) {
+        await onAddUserMessage(skipMessage, "fa", "text");
+      }
 
-    // Send to LiveKit agent
-    try {
-      await sendTextToAgent(skipMessage);
-    } catch (err) {
-      console.error("[ChatAgent] Failed to send skip request via LiveKit:", err);
-    }
-  }, [isLiveKitConnected, sendTextToAgent, onAddUserMessage]);
+      // Send to LiveKit agent
+      try {
+        await sendTextToAgent(skipMessage);
+      } catch (err) {
+        console.error(
+          "[ChatAgent] Failed to send skip request via LiveKit:",
+          err
+        );
+      }
+    },
+    [isLiveKitConnected, sendTextToAgent, onAddUserMessage]
+  );
 
   // Get the first lesson from the module
   const firstLesson = module.lessons.sort(
@@ -281,7 +316,9 @@ export function ChatAgent({
   // Initialize chat session (create/get thread and conversation, load history)
   // Welcome messages are NOT stored - LiveKit agent handles welcome display
   useEffect(() => {
-    if (hasInitialized.current) return;
+    if (hasInitialized.current) {
+      return;
+    }
     hasInitialized.current = true;
 
     async function initSession() {
@@ -335,30 +372,49 @@ export function ChatAgent({
     const seen = new Set<string>();
     const filtered = chatMessages.filter((msg) => {
       // Skip if already in history
-      if (historyMessageIds.has(msg.id)) return false;
+      if (historyMessageIds.has(msg.id)) {
+        return false;
+      }
       // Skip if already seen in this array (deduplication)
-      if (seen.has(msg.id)) return false;
+      if (seen.has(msg.id)) {
+        return false;
+      }
       seen.add(msg.id);
       return true;
     });
     // Debug: log what's in chatMessages and filtered
-    console.log("[ChatAgent] chatMessages:", chatMessages.length, "filtered:", filtered.length,
-      "messages:", filtered.map(m => ({ id: m.id.substring(0, 20), role: m.role, content: m.content.substring(0, 30) })));
+    console.log(
+      "[ChatAgent] chatMessages:",
+      chatMessages.length,
+      "filtered:",
+      filtered.length,
+      "messages:",
+      filtered.map((m) => ({
+        id: m.id.substring(0, 20),
+        role: m.role,
+        content: m.content.substring(0, 30),
+      }))
+    );
     return filtered;
   }, [chatMessages, historyMessageIds]);
 
   const hasAnchorMatch = useMemo(() => {
     const anchor = pendingAction?.anchorMessageId;
-    if (!anchor) return true;
+    if (!anchor) {
+      return true;
+    }
     return filteredChatMessages.some((message) => message.id === anchor);
   }, [pendingAction?.anchorMessageId, filteredChatMessages]);
 
   // Get the last user message type to determine how to render the live agent transcript
   // This ensures FA responses are rendered with assessment UI during live streaming
   const lastUserMessageType = useMemo(() => {
-    const userMessages = filteredChatMessages.filter(msg => msg.role === "user");
-    if (userMessages.length > 0) {
-      return userMessages[userMessages.length - 1].messageType || "general";
+    const userMessages = filteredChatMessages.filter(
+      (msg) => msg.role === "user"
+    );
+    const lastUserMsg = userMessages.at(-1);
+    if (lastUserMsg) {
+      return lastUserMsg.messageType || "general";
     }
     return "general";
   }, [filteredChatMessages]);
@@ -396,9 +452,10 @@ export function ChatAgent({
 
   // Auto-scroll when chat messages change
   useEffect(() => {
-    if (filteredChatMessages.length > 0) {
-      const latestMsg = filteredChatMessages[filteredChatMessages.length - 1];
-      const isNewMessage = filteredChatMessages.length > prevChatMessagesLengthRef.current;
+    const latestMsg = filteredChatMessages.at(-1);
+    if (latestMsg) {
+      const isNewMessage =
+        filteredChatMessages.length > prevChatMessagesLengthRef.current;
       prevChatMessagesLengthRef.current = filteredChatMessages.length;
 
       // Force scroll when USER sends a new message (they expect to see the response)
@@ -440,7 +497,7 @@ export function ChatAgent({
   }
 
   return (
-    <Card className="bg-transparent border-none shadow-none p-6">
+    <Card className="border-none bg-transparent p-6 shadow-none">
       <ChatHeader />
 
       <div className="space-y-4">
@@ -448,88 +505,96 @@ export function ChatAgent({
         {historyMessages.length > 0 && (
           <div className="space-y-4">
             {expandMessagesWithSeparator(historyMessages).map((msg) => (
-              <ChatMessage key={msg.id} message={msg} onQuestionAnswer={handleQuestionAnswer} onQuestionSkip={handleQuestionSkip} onTimestampClick={onTimestampClick} isFromHistory={true} onInlessonAnswer={_onInlessonAnswer} onInlessonSkip={_onInlessonSkip} onWarmupAnswer={_onWarmupAnswer} onWarmupSkip={_onWarmupSkip} />
+              <ChatMessage
+                isFromHistory={true}
+                key={msg.id}
+                message={msg}
+                onInlessonAnswer={_onInlessonAnswer}
+                onInlessonSkip={_onInlessonSkip}
+                onQuestionAnswer={handleQuestionAnswer}
+                onQuestionSkip={handleQuestionSkip}
+                onTimestampClick={onTimestampClick}
+                onWarmupAnswer={_onWarmupAnswer}
+                onWarmupSkip={_onWarmupSkip}
+              />
             ))}
           </div>
         )}
 
         {/* Welcome message - show captured welcome or live transcript */}
         {/* Case 1: No chat messages yet - show live transcript or connecting state */}
-        {filteredChatMessages.length === 0 && !welcomeMessage && (
-          <>
-            {isLiveKitConnected && agentTranscript ? (
-              <div className="flex items-start gap-3">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-500">
-                  <Sparkles className="h-4 w-4 text-white" />
-                </div>
-                <div className="bg-gray-50 rounded-2xl rounded-tl-sm px-4 py-3 max-w-[85%]">
-                  <div className="text-sm leading-relaxed text-gray-800">
-                    <MessageContent
-                      content={typedAgentTranscript}
-                      onTimestampClick={onTimestampClick}
-                    />
-                    {/* Show cursor when agent speaking or typing effect in progress */}
-                    {(isAgentSpeaking || typedAgentTranscript.length < agentTranscript.length) && (
-                      <span className="inline-block w-2 h-4 bg-blue-500 animate-pulse ml-0.5" />
-                    )}
-                  </div>
+        {filteredChatMessages.length === 0 &&
+          !welcomeMessage &&
+          (isLiveKitConnected && agentTranscript ? (
+            <div className="flex items-start gap-3">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-500">
+                <Sparkles className="h-4 w-4 text-white" />
+              </div>
+              <div className="max-w-[85%] rounded-2xl rounded-tl-sm bg-gray-50 px-4 py-3">
+                <div className="text-gray-800 text-sm leading-relaxed">
+                  <MessageContent
+                    content={typedAgentTranscript}
+                    onTimestampClick={onTimestampClick}
+                  />
+                  {/* Show cursor when agent speaking or typing effect in progress */}
+                  {(isAgentSpeaking ||
+                    typedAgentTranscript.length < agentTranscript.length) && (
+                    <span className="ml-0.5 inline-block h-4 w-2 animate-pulse bg-blue-500" />
+                  )}
                 </div>
               </div>
-            ) : isLiveKitConnected ? (
-              /* Waiting for agent to speak when LiveKit is connected but no transcript yet */
-              <div className="flex items-start gap-3">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-500">
-                  <Sparkles className="h-4 w-4 text-white" />
-                </div>
-                <div className="bg-gray-50 rounded-2xl rounded-tl-sm px-4 py-3 max-w-[85%]">
-                  <div className="text-sm leading-relaxed text-gray-500 italic flex items-center gap-2">
-                    <span className="inline-block w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
-                    Connecting to your AI assistant...
-                  </div>
+            </div>
+          ) : isLiveKitConnected ? (
+            /* Waiting for agent to speak when LiveKit is connected but no transcript yet */
+            <div className="flex items-start gap-3">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-500">
+                <Sparkles className="h-4 w-4 text-white" />
+              </div>
+              <div className="max-w-[85%] rounded-2xl rounded-tl-sm bg-gray-50 px-4 py-3">
+                <div className="flex items-center gap-2 text-gray-500 text-sm italic leading-relaxed">
+                  <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-blue-500" />
+                  Connecting to your AI assistant...
                 </div>
               </div>
-            ) : null}
-          </>
+            </div>
+          ) : null)}
+
+        {/* Case 2: Welcome captured - show it persistently (even when chat messages exist) */}
+        {welcomeMessage && (
+          <div>
+            <div className="flex items-start gap-3">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-500">
+                <Sparkles className="h-4 w-4 text-white" />
+              </div>
+              <div className="max-w-[85%] rounded-2xl rounded-tl-sm bg-gray-50 px-4 py-3">
+                <div className="text-gray-800 text-sm leading-relaxed">
+                  <MessageContent
+                    content={welcomeMessage}
+                    onTimestampClick={onTimestampClick}
+                  />
+                </div>
+              </div>
+            </div>
+            {!(isAgentSpeaking || filteredChatMessages.length) &&
+              pendingAction &&
+              isLiveKitConnected &&
+              pendingAction.anchorMessageId === "welcome" &&
+              onActionButtonClick && (
+                <ActionButtons
+                  disabled={isActionDisabled}
+                  onButtonClick={onActionButtonClick}
+                  pendingAction={pendingAction}
+                />
+              )}
+          </div>
         )}
 
-         {/* Case 2: Welcome captured - show it persistently (even when chat messages exist) */}
-         {welcomeMessage && (
-           <div>
-             <div className="flex items-start gap-3">
-               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-500">
-                 <Sparkles className="h-4 w-4 text-white" />
-               </div>
-               <div className="bg-gray-50 rounded-2xl rounded-tl-sm px-4 py-3 max-w-[85%]">
-                 <div className="text-sm leading-relaxed text-gray-800">
-                   <MessageContent
-                     content={welcomeMessage}
-                     onTimestampClick={onTimestampClick}
-                   />
-                 </div>
-               </div>
-             </div>
-              {!isAgentSpeaking &&
-                !filteredChatMessages.length &&
-                pendingAction &&
-                isLiveKitConnected &&
-                pendingAction.anchorMessageId === "welcome" &&
-                onActionButtonClick && (
-                 <ActionButtons
-                   pendingAction={pendingAction}
-                   onButtonClick={onActionButtonClick}
-                   disabled={isActionDisabled}
-                 />
-               )}
-            </div>
-         )}
-
-
-
-         {/* Chat Messages (from current session) - flows naturally after history */}
-         {filteredChatMessages.length > 0 && (
-           <div className="space-y-4">
-             {expandMessagesWithSeparator(filteredChatMessages).map((msg, index, all) => {
-               const isLast = index === all.length - 1;
+        {/* Chat Messages (from current session) - flows naturally after history */}
+        {filteredChatMessages.length > 0 && (
+          <div className="space-y-4">
+            {expandMessagesWithSeparator(filteredChatMessages).map(
+              (msg, index, all) => {
+                const isLast = index === all.length - 1;
                 const anchor = pendingAction?.anchorMessageId;
                 const matchesAnchor = anchor
                   ? anchor === msg.id || (!hasAnchorMatch && isLast)
@@ -541,52 +606,56 @@ export function ChatAgent({
                   isLiveKitConnected &&
                   onActionButtonClick;
 
-               return (
-                 <div key={msg.id}>
-                   <ChatMessage
-                     message={msg}
-                     onQuestionAnswer={handleQuestionAnswer}
-                     onQuestionSkip={handleQuestionSkip}
-                     onTimestampClick={onTimestampClick}
-                     isFromHistory={false}
-                     onInlessonAnswer={_onInlessonAnswer}
-                     onInlessonSkip={_onInlessonSkip}
-                     onWarmupAnswer={_onWarmupAnswer}
-                     onWarmupSkip={_onWarmupSkip}
-                   />
-                   {shouldShowActionButtons && (
-                     <ActionButtons
-                       pendingAction={pendingAction}
-                       onButtonClick={onActionButtonClick}
-                       disabled={isActionDisabled}
-                     />
-                   )}
-                 </div>
-               );
-             })}
-           </div>
-         )}
-
+                return (
+                  <div key={msg.id}>
+                    <ChatMessage
+                      isFromHistory={false}
+                      message={msg}
+                      onInlessonAnswer={_onInlessonAnswer}
+                      onInlessonSkip={_onInlessonSkip}
+                      onQuestionAnswer={handleQuestionAnswer}
+                      onQuestionSkip={handleQuestionSkip}
+                      onTimestampClick={onTimestampClick}
+                      onWarmupAnswer={_onWarmupAnswer}
+                      onWarmupSkip={_onWarmupSkip}
+                    />
+                    {shouldShowActionButtons && (
+                      <ActionButtons
+                        disabled={isActionDisabled}
+                        onButtonClick={onActionButtonClick}
+                        pendingAction={pendingAction}
+                      />
+                    )}
+                  </div>
+                );
+              }
+            )}
+          </div>
+        )}
 
         {/* User voice transcript - shows when user is speaking in voice mode */}
         {isVoiceModeEnabled && userTranscript && (
-          <div className="flex items-start gap-3 justify-end">
-            <div className="bg-blue-500 text-white rounded-2xl rounded-tr-sm px-4 py-3 max-w-[85%]">
+          <div className="flex items-start justify-end gap-3">
+            <div className="max-w-[85%] rounded-2xl rounded-tr-sm bg-blue-500 px-4 py-3 text-white">
               <div className="text-sm leading-relaxed">
                 {userTranscript}
                 {/* Show pulsing microphone indicator when user is speaking */}
                 {isUserSpeaking && (
-                  <span className="inline-flex items-center ml-2">
-                    <span className="inline-block w-2 h-2 bg-white rounded-full animate-pulse" />
-                    <span className="inline-block w-2 h-2 bg-white rounded-full animate-pulse ml-0.5 animation-delay-150" />
-                    <span className="inline-block w-2 h-2 bg-white rounded-full animate-pulse ml-0.5 animation-delay-300" />
+                  <span className="ml-2 inline-flex items-center">
+                    <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-white" />
+                    <span className="animation-delay-150 ml-0.5 inline-block h-2 w-2 animate-pulse rounded-full bg-white" />
+                    <span className="animation-delay-300 ml-0.5 inline-block h-2 w-2 animate-pulse rounded-full bg-white" />
                   </span>
                 )}
               </div>
             </div>
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-green-500">
-              <svg className="h-4 w-4 text-white" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/>
+              <svg
+                className="h-4 w-4 text-white"
+                fill="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z" />
               </svg>
             </div>
           </div>
@@ -594,36 +663,40 @@ export function ChatAgent({
 
         {/* Live agent transcript (shows at bottom when agent is responding to user) */}
         {/* Only show when there are chat messages (conversation has started) */}
-        {filteredChatMessages.length > 0 && isLiveKitConnected && agentTranscript && (
-          <div className="flex items-start gap-3">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-500">
-              <Sparkles className="h-4 w-4 text-white" />
-            </div>
-            <div className="bg-gray-50 rounded-2xl rounded-tl-sm px-4 py-3 max-w-[85%]">
-              <div className="text-sm leading-relaxed text-gray-800">
-                <MessageContent
-                  content={typedAgentTranscript}
-                  messageType={lastUserMessageType}
-                  role="assistant"
-                  onQuestionAnswer={handleQuestionAnswer}
-                  onQuestionSkip={handleQuestionSkip}
-                  onTimestampClick={onTimestampClick}
-                />
-                {/* Show cursor when agent is speaking or typing effect in progress */}
-                {(isAgentSpeaking || typedAgentTranscript.length < agentTranscript.length) && (
-                  <span className="inline-block w-2 h-4 bg-blue-500 animate-pulse ml-0.5" />
-                )}
+        {filteredChatMessages.length > 0 &&
+          isLiveKitConnected &&
+          agentTranscript && (
+            <div className="flex items-start gap-3">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-500">
+                <Sparkles className="h-4 w-4 text-white" />
+              </div>
+              <div className="max-w-[85%] rounded-2xl rounded-tl-sm bg-gray-50 px-4 py-3">
+                <div className="text-gray-800 text-sm leading-relaxed">
+                  <MessageContent
+                    content={typedAgentTranscript}
+                    messageType={lastUserMessageType}
+                    onQuestionAnswer={handleQuestionAnswer}
+                    onQuestionSkip={handleQuestionSkip}
+                    onTimestampClick={onTimestampClick}
+                  />
+                  {/* Show cursor when agent is speaking or typing effect in progress */}
+                  {(isAgentSpeaking ||
+                    typedAgentTranscript.length < agentTranscript.length) && (
+                    <span className="ml-0.5 inline-block h-4 w-2 animate-pulse bg-blue-500" />
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
         {/* Typing Indicator - show when waiting but agent hasn't started responding yet */}
-        {isWaitingForResponse && !agentTranscript && !pendingAction && <TypingIndicator />}
+        {isWaitingForResponse && !agentTranscript && !pendingAction && (
+          <TypingIndicator />
+        )}
 
         {/* No lessons message */}
         {!firstLesson && (
-          <p className="text-sm text-gray-500 ml-11">
+          <p className="ml-11 text-gray-500 text-sm">
             No lessons available in this module yet. Please check back later.
           </p>
         )}

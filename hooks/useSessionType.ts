@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export type SessionType =
-  | "course_welcome"      // First time in course (on intro lesson)
+  | "course_welcome" // First time in course (on intro lesson)
   | "course_welcome_back" // Returning to course
-  | "lesson_welcome"      // First time in lesson 2+ (offer warm-up)
+  | "lesson_welcome" // First time in lesson 2+ (offer warm-up)
   | "lesson_welcome_back"; // Returning to same lesson
 
 interface CourseProgress {
@@ -68,8 +68,11 @@ export function useSessionType(
   const [isFirstLessonVisit, setIsFirstLessonVisit] = useState(true);
   const [lessonNumber, setLessonNumber] = useState(1);
   const [prevLessonTitle, setPrevLessonTitle] = useState<string | null>(null);
-  const [courseProgress, setCourseProgress] = useState<CourseProgress | null>(null);
-  const [lessonProgress, setLessonProgress] = useState<LessonProgressData | null>(null);
+  const [courseProgress, setCourseProgress] = useState<CourseProgress | null>(
+    null
+  );
+  const [lessonProgress, setLessonProgress] =
+    useState<LessonProgressData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isReturningUser, setIsReturningUser] = useState(false);
 
@@ -84,7 +87,9 @@ export function useSessionType(
     }
 
     // Prevent double check in React Strict Mode
-    if (hasChecked.current) return;
+    if (hasChecked.current) {
+      return;
+    }
     hasChecked.current = true;
 
     async function checkSessionType() {

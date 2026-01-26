@@ -27,7 +27,8 @@ export const mockTourData = {
         orderIndex: 0,
         kpointVideoId: null,
         youtubeVideoId: null,
-        description: "Learn the basics of how plants convert sunlight into energy",
+        description:
+          "Learn the basics of how plants convert sunlight into energy",
         duration: 330, // 5:30
       },
       {
@@ -36,7 +37,8 @@ export const mockTourData = {
         orderIndex: 1,
         kpointVideoId: null,
         youtubeVideoId: null,
-        description: "Understanding chloroplasts and the light-dependent reactions",
+        description:
+          "Understanding chloroplasts and the light-dependent reactions",
         duration: 420, // 7:00
       },
       {

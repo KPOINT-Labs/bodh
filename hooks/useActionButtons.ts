@@ -5,15 +5,26 @@
  * action button clicks across all action types.
  */
 
-import { useState, useCallback, useRef } from "react";
-import { ACTION_REGISTRY, type ActionType, type PendingAction } from "@/lib/actions/actionRegistry";
-import { ACTION_HANDLERS, ActionDependencies } from "@/lib/actions/actionHandlers";
+import { useCallback, useRef, useState } from "react";
+import {
+  ACTION_HANDLERS,
+  type ActionDependencies,
+} from "@/lib/actions/actionHandlers";
+import {
+  ACTION_REGISTRY,
+  type ActionType,
+  type PendingAction,
+} from "@/lib/actions/actionRegistry";
 
 interface UseActionButtonsReturn {
   /** Currently pending action, or null if none */
   pendingAction: PendingAction | null;
   /** Show an action with optional metadata */
-  showAction: (type: ActionType, metadata?: Record<string, unknown>, anchorMessageId?: string) => void;
+  showAction: (
+    type: ActionType,
+    metadata?: Record<string, unknown>,
+    anchorMessageId?: string
+  ) => void;
   /** Dismiss the current action without clicking a button */
   dismissAction: () => void;
   /** Handle a button click - executes handler and dismisses */
@@ -26,8 +37,12 @@ interface UseActionButtonsReturn {
   resetHandledActions: () => void;
 }
 
-export function useActionButtons(deps: ActionDependencies): UseActionButtonsReturn {
-  const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
+export function useActionButtons(
+  deps: ActionDependencies
+): UseActionButtonsReturn {
+  const [pendingAction, setPendingAction] = useState<PendingAction | null>(
+    null
+  );
   const [isActioned, setIsActioned] = useState(false);
   const handledActionsRef = useRef<Set<ActionType>>(new Set());
 
@@ -39,20 +54,28 @@ export function useActionButtons(deps: ActionDependencies): UseActionButtonsRetu
     handledActionsRef.current.clear();
   }, []);
 
-  const showAction = useCallback((type: ActionType, metadata?: Record<string, unknown>, anchorMessageId?: string) => {
-    if (handledActionsRef.current.has(type)) {
-      return;
-    }
-    const resolvedAnchor = anchorMessageId ?? deps.getLastAssistantMessageId?.();
-    console.log("[useActionButtons] showAction", {
-      type,
-      anchorMessageId,
-      resolvedAnchor,
-      hasLastAssistant: !!deps.getLastAssistantMessageId,
-    });
-    setPendingAction({ type, metadata, anchorMessageId: resolvedAnchor });
-    setIsActioned(false);
-  }, [deps]);
+  const showAction = useCallback(
+    (
+      type: ActionType,
+      metadata?: Record<string, unknown>,
+      anchorMessageId?: string
+    ) => {
+      if (handledActionsRef.current.has(type)) {
+        return;
+      }
+      const resolvedAnchor =
+        anchorMessageId ?? deps.getLastAssistantMessageId?.();
+      console.log("[useActionButtons] showAction", {
+        type,
+        anchorMessageId,
+        resolvedAnchor,
+        hasLastAssistant: !!deps.getLastAssistantMessageId,
+      });
+      setPendingAction({ type, metadata, anchorMessageId: resolvedAnchor });
+      setIsActioned(false);
+    },
+    [deps]
+  );
 
   const dismissAction = useCallback(() => {
     // Mark the current action as handled so it won't be re-shown
@@ -69,7 +92,9 @@ export function useActionButtons(deps: ActionDependencies): UseActionButtonsRetu
 
   const handleButtonClick = useCallback(
     async (buttonId: string) => {
-      if (!pendingAction || isActioned) return;
+      if (!pendingAction || isActioned) {
+        return;
+      }
 
       setIsActioned(true); // Disable buttons immediately
 
@@ -85,7 +110,10 @@ export function useActionButtons(deps: ActionDependencies): UseActionButtonsRetu
         try {
           await handler(buttonId, pendingAction.metadata || {}, deps);
         } catch (error) {
-          console.error(`[useActionButtons] Handler error for ${pendingAction.type}:`, error);
+          console.error(
+            `[useActionButtons] Handler error for ${pendingAction.type}:`,
+            error
+          );
         }
       }
 

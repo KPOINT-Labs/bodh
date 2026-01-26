@@ -8,19 +8,19 @@ export function AudioToggleButton() {
 
   return (
     <button
-      onClick={toggleMute}
-      className={`tour-audio-toggle p-2 rounded-lg transition-all hover:scale-110 ${
+      aria-label={isMuted ? "Unmute voice" : "Mute voice"}
+      className={`tour-audio-toggle rounded-lg p-2 transition-all hover:scale-110 ${
         isMuted
           ? "bg-gray-300 text-gray-600 hover:bg-gray-400"
           : "bg-blue-500 text-white hover:bg-blue-600"
       }`}
+      onClick={toggleMute}
       title={isMuted ? "Unmute voice" : "Mute voice"}
-      aria-label={isMuted ? "Unmute voice" : "Mute voice"}
     >
       {isMuted ? (
-        <VolumeX className="w-5 h-5" />
+        <VolumeX className="h-5 w-5" />
       ) : (
-        <Volume2 className="w-5 h-5" />
+        <Volume2 className="h-5 w-5" />
       )}
     </button>
   );

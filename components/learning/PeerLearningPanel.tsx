@@ -2,16 +2,16 @@
 
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import type { PeerLearningPanelProps, Lesson } from "@/types/learning";
-import { usePeerLearning } from "@/hooks/usePeerLearning";
 import { useLearningPanel } from "@/contexts/LearningPanelContext";
+import { usePeerLearning } from "@/hooks/usePeerLearning";
+import type { Lesson, PeerLearningPanelProps } from "@/types/learning";
 
 // Sub-components
 import { CollapsedPanel } from "./CollapsedPanel";
-import { LoadingPanel } from "./LoadingPanel";
-import { ErrorPanel } from "./ErrorPanel";
-import { EmptyPanel } from "./EmptyPanel";
 import { CourseList } from "./CourseList";
+import { EmptyPanel } from "./EmptyPanel";
+import { ErrorPanel } from "./ErrorPanel";
+import { LoadingPanel } from "./LoadingPanel";
 
 /**
  * PeerLearningPanel - Sidebar for course navigation
@@ -49,7 +49,11 @@ export function PeerLearningPanel({
     activeModuleId,
   });
 
-  const handleLessonClick = (courseId: string, moduleId: string, lesson: Lesson) => {
+  const handleLessonClick = (
+    courseId: string,
+    moduleId: string,
+    lesson: Lesson
+  ) => {
     // If this lesson is already active, highlight the right panel to show it's already displayed
     if (moduleId === activeModuleId && lesson.id === activeLessonId) {
       triggerRightPanelHighlight();
@@ -60,7 +64,9 @@ export function PeerLearningPanel({
     // Use course_id (e.g. "BSCCS1001") for URL, fallback to slug, then id
     const courseUrlId = course?.course_id || course?.slug || courseId;
     // Include lessonId in URL to auto-select the lesson
-    router.push(`/course/${courseUrlId}/module/${moduleId}?lesson=${lesson.id}`);
+    router.push(
+      `/course/${courseUrlId}/module/${moduleId}?lesson=${lesson.id}`
+    );
   };
 
   const handleDeleteThread = async (moduleId: string) => {
@@ -70,9 +76,12 @@ export function PeerLearningPanel({
     }
 
     try {
-      const response = await fetch(`/api/thread?userId=${userId}&moduleId=${moduleId}`, {
-        method: "DELETE",
-      });
+      const response = await fetch(
+        `/api/thread?userId=${userId}&moduleId=${moduleId}`,
+        {
+          method: "DELETE",
+        }
+      );
 
       const data = await response.json();
 
@@ -91,7 +100,12 @@ export function PeerLearningPanel({
 
   // Collapsed view
   if (isCollapsed) {
-    return <CollapsedPanel className={className} onToggleCollapse={onToggleCollapse} />;
+    return (
+      <CollapsedPanel
+        className={className}
+        onToggleCollapse={onToggleCollapse}
+      />
+    );
   }
 
   // Loading state
@@ -106,23 +120,25 @@ export function PeerLearningPanel({
 
   // Empty state
   if (courses.length === 0) {
-    return <EmptyPanel className={className} onToggleCollapse={onToggleCollapse} />;
+    return (
+      <EmptyPanel className={className} onToggleCollapse={onToggleCollapse} />
+    );
   }
 
   // Course list with accordion for modules
   return (
     <CourseList
+      activeLessonId={activeLessonId}
+      activeModuleId={activeModuleId}
       className={className}
       courses={courses}
-      selectedCourse={selectedCourse}
       expandedModules={expandedModules}
-      activeModuleId={activeModuleId}
-      activeLessonId={activeLessonId}
-      onSelectCourse={selectCourse}
-      onToggleModule={toggleModule}
-      onLessonClick={handleLessonClick}
-      onToggleCollapse={onToggleCollapse}
       onDeleteThread={handleDeleteThread}
+      onLessonClick={handleLessonClick}
+      onSelectCourse={selectCourse}
+      onToggleCollapse={onToggleCollapse}
+      onToggleModule={toggleModule}
+      selectedCourse={selectedCourse}
     />
   );
 }

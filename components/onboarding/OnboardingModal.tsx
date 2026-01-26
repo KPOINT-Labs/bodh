@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { Sparkles, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { X, Sparkles } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { useTTS } from "@/hooks/useTTS";
 
 interface OnboardingModalProps {
@@ -15,11 +15,16 @@ const STORAGE_KEY = "bodh-onboarding-v1";
 const welcomeContent = {
   icon: Sparkles,
   title: "Hi! I'm Aditi",
-  description: "Your personal learning companion. I'll be right here with you as you watch your lessons — asking questions, clearing doubts, and cheering you on.",
-  ttsMessage: "Hi! I'm Aditi, your personal learning companion. I'll be right here with you as you watch your lessons — asking questions, clearing doubts, and cheering you on. Click on Let's Start to take a quick tour and see how I can help you learn!",
+  description:
+    "Your personal learning companion. I'll be right here with you as you watch your lessons — asking questions, clearing doubts, and cheering you on.",
+  ttsMessage:
+    "Hi! I'm Aditi, your personal learning companion. I'll be right here with you as you watch your lessons — asking questions, clearing doubts, and cheering you on. Click on Let's Start to take a quick tour and see how I can help you learn!",
 };
 
-export function OnboardingModal({ isReturningUser = false, onComplete }: OnboardingModalProps) {
+export function OnboardingModal({
+  isReturningUser = false,
+  onComplete,
+}: OnboardingModalProps) {
   const [isVisible, setIsVisible] = useState(false);
   const router = useRouter();
   const { speak } = useTTS();
@@ -28,7 +33,7 @@ export function OnboardingModal({ isReturningUser = false, onComplete }: Onboard
   useEffect(() => {
     // Check if tour query parameter is present
     const urlParams = new URLSearchParams(window.location.search);
-    const forceTour = urlParams.get('tour') === 'true';
+    const forceTour = urlParams.get("tour") === "true";
 
     if (forceTour) {
       // Force show tour if tour=true in URL
@@ -83,48 +88,48 @@ export function OnboardingModal({ isReturningUser = false, onComplete }: Onboard
   return (
     <>
       {/* Overlay */}
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9998] animate-fade-in" />
+      <div className="fixed inset-0 z-[9998] animate-fade-in bg-black/60 backdrop-blur-sm" />
 
       {/* Centered Modal */}
-      <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 animate-fade-in">
-        <div className="relative max-w-lg w-full backdrop-blur-xl bg-gradient-to-br from-white/95 to-white/90 border-2 border-violet-300 rounded-3xl p-8 shadow-2xl shadow-violet-500/20 animate-scale-in">
+      <div className="fixed inset-0 z-[9999] flex animate-fade-in items-center justify-center p-4">
+        <div className="relative w-full max-w-lg animate-scale-in rounded-3xl border-2 border-violet-300 bg-gradient-to-br from-white/95 to-white/90 p-8 shadow-2xl shadow-violet-500/20 backdrop-blur-xl">
           {/* Close Button */}
           <button
-            onClick={handleSkip}
-            className="absolute top-4 right-4 p-2 rounded-full hover:bg-gray-100 transition-colors"
             aria-label="Skip onboarding"
+            className="absolute top-4 right-4 rounded-full p-2 transition-colors hover:bg-gray-100"
+            onClick={handleSkip}
           >
-            <X className="w-5 h-5 text-gray-500" />
+            <X className="h-5 w-5 text-gray-500" />
           </button>
 
           {/* Icon */}
-          <div className="flex justify-center mb-6">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center shadow-lg animate-bounce-slow">
-              <Icon className="w-8 h-8 text-white" />
+          <div className="mb-6 flex justify-center">
+            <div className="flex h-16 w-16 animate-bounce-slow items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-500 shadow-lg">
+              <Icon className="h-8 w-8 text-white" />
             </div>
           </div>
 
           {/* Content */}
-          <h3 className="text-2xl text-center mb-4 bg-gradient-to-r from-violet-600 to-fuchsia-600 bg-clip-text text-transparent">
+          <h3 className="mb-4 bg-gradient-to-r from-violet-600 to-fuchsia-600 bg-clip-text text-center text-2xl text-transparent">
             {welcomeContent.title}
           </h3>
 
-          <p className="text-gray-700 text-center mb-8 leading-relaxed">
+          <p className="mb-8 text-center text-gray-700 leading-relaxed">
             {welcomeContent.description}
           </p>
 
           {/* Action Buttons */}
           <div className="flex flex-col gap-3">
             <button
+              className="w-full rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-6 py-3 font-medium text-white shadow-lg transition-all duration-200 hover:from-violet-600 hover:to-fuchsia-600 hover:shadow-xl"
               onClick={handleStartTour}
-              className="w-full px-6 py-3 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white hover:from-violet-600 hover:to-fuchsia-600 transition-all duration-200 shadow-lg hover:shadow-xl font-medium"
             >
               Let&apos;s Start!
             </button>
 
             <button
+              className="w-full py-2 text-gray-500 text-sm transition-colors hover:text-gray-700"
               onClick={handleSkip}
-              className="w-full text-sm text-gray-500 hover:text-gray-700 transition-colors py-2"
             >
               Skip Tutorial
             </button>

@@ -49,7 +49,11 @@ export const ACTION_REGISTRY: Record<ActionType, ActionDefinition> = {
   course_welcome: {
     buttons: [
       { id: "see_intro", label: "See the intro", variant: "primary" },
-      { id: "skip_to_lesson", label: "Continue to Lesson 1", variant: "secondary" },
+      {
+        id: "skip_to_lesson",
+        label: "Continue to Lesson 1",
+        variant: "secondary",
+      },
       { id: "take_tour", label: "Take a tour", variant: "secondary" },
     ],
   },
@@ -101,7 +105,11 @@ export const ACTION_REGISTRY: Record<ActionType, ActionDefinition> = {
   lesson_complete: {
     buttons: [
       { id: "assessment", label: "Take assessment", variant: "primary" },
-      { id: "warmup_next", label: "Warm-up for next lesson", variant: "secondary" },
+      {
+        id: "warmup_next",
+        label: "Warm-up for next lesson",
+        variant: "secondary",
+      },
       { id: "next_lesson", label: "Jump to next lesson", variant: "secondary" },
     ],
   },
@@ -113,7 +121,11 @@ export const ACTION_REGISTRY: Record<ActionType, ActionDefinition> = {
   feedback_complete: {
     buttons: [
       { id: "review", label: "Review now", variant: "primary" },
-      { id: "next_lesson", label: "Continue to next lesson", variant: "secondary" },
+      {
+        id: "next_lesson",
+        label: "Continue to next lesson",
+        variant: "secondary",
+      },
     ],
   },
 };
