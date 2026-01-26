@@ -1026,12 +1026,14 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
 
       if (nextLesson) {
         // V2: Add AI message with action attached
+        // V3: tts: true for automatic text-to-speech
         const completionMessage = "Great job on completing the Introduction! Before we move ahead, would you like to warm up your thinking muscles?";
         if (addAssistantMessageRef.current) {
           await addAssistantMessageRef.current(completionMessage, {
             messageType: "general",
             action: "intro_complete",
             actionMetadata: { nextLesson, courseId: course.id },
+            tts: true,
           });
         }
 
@@ -1048,6 +1050,7 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
     console.log("[ModuleContent] Regular lesson video ended - showing completion options");
 
     // V2: Create celebratory message with action attached
+    // V3: tts: true for automatic text-to-speech
     const lessonTitle = activeLesson.title || "this lesson";
     const completionMessage = `Well done — you've completed ${lessonTitle} 👏\n\nWhat would you like to do next?`;
 
@@ -1055,12 +1058,13 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
       await addAssistantMessageRef.current(completionMessage, {
         messageType: "general",
         action: "lesson_complete",
-        actionMetadata: { 
-          nextLesson, 
+        actionMetadata: {
+          nextLesson,
           courseId: course.id,
           lessonTitle: activeLesson.title,
           lessonDescription: activeLesson.description,
         }, // nextLesson may be null if last lesson
+        tts: true,
       });
       console.log("[ModuleContent] V2: lesson_complete action added to message");
     } else {
@@ -1077,14 +1081,6 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
   // Calculate effective start offset (manual timestamp OR saved position for in_progress lessons)
   const effectiveStartOffset = videoStartOffset ??
     (lessonProgress?.status === "in_progress" ? lessonProgress.lastPosition : null);
-
-  // DEBUG: Log progress tracking parameters
-  console.log("[ModuleContent] Progress tracking params:", {
-    userId,
-    lessonId: activeLesson?.id,
-    videoDuration,
-    hasKpointVideoId: !!activeLesson?.kpointVideoId,
-  });
 
   // KPoint player hook with FA trigger integration
   const { seekTo, getCurrentTime, isPlayerReady, isPlaying, playerRef } = useKPointPlayer({

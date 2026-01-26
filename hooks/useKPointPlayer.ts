@@ -90,15 +90,6 @@ export function useKPointPlayer({ kpointVideoId, userId, lessonId, videoDuration
   const MIN_WATCH_TIME_SECONDS = 5; // Minimum watch time before saving progress
   const actualVideoDurationRef = useRef<number>(videoDuration || 0); // Actual duration in seconds, updated from player
 
-  // DEBUG: Log when hook is initialized with progress tracking params
-  console.log("[useKPointPlayer] Initialized with params:", {
-    kpointVideoId,
-    userId,
-    lessonId,
-    videoDuration,
-    hasProgressTracking: !!(userId && lessonId), // Duration will be fetched from player if not provided
-  });
-  
   // Store callbacks in refs to avoid effect re-runs
   const onBookmarksReadyRef = useRef(onBookmarksReady);
   const onPlayerReadyRef = useRef(onPlayerReady);
