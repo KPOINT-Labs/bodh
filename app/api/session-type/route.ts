@@ -45,16 +45,17 @@ export async function GET(request: NextRequest) {
           userId_courseId: { userId, courseId },
         },
       }),
-      // Count lesson progress entries for this user in this course
+      // Count lesson progress entries with actual watch progress (> 0%)
       prisma.lessonProgress.count({
         where: {
           userId,
           lesson: { courseId },
+          completionPercentage: { gt: 0 },
         },
       }),
     ]);
 
-    // First visit = no lesson progress exists (enrollment may exist due to auto-enroll)
+    // First visit = no lesson progress with actual watch time (enrollment may exist due to auto-enroll)
     const isFirstCourseVisit = existingProgressCount === 0;
     console.log("[SESSION_TYPE] Step 1 - Enrollment check:", {
       hasEnrollment: !!enrollment,
@@ -205,7 +206,7 @@ export async function GET(request: NextRequest) {
 
       console.log("[SESSION_TYPE] Step 4a - Existing lesson progress:", lessonProgress);
 
-      isFirstLessonVisit = !lessonProgress || lessonProgress.status === "not_started";
+      isFirstLessonVisit = !lessonProgress || lessonProgress.completionPercentage === 0;
 
       console.log("[SESSION_TYPE] Step 4b - isFirstLessonVisit:", {
         hasLessonProgress: !!lessonProgress,
