@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { type MessageData, storeMessage } from "@/lib/chat/message-store";
 import type { QuizOption } from "@/types/assessment";
+import type { ActionType } from "@/lib/actions/actionRegistry";
 
 // Counter for generating unique temp IDs (prevents duplicates when called in same millisecond)
 let tempIdCounter = 0;
@@ -17,6 +18,18 @@ export interface ExtendedMessageData extends MessageData {
     isAnswered?: boolean;
     isSkipped?: boolean;
   };
+  // V2 Action fields - actions stored directly on messages
+  action?: ActionType;
+  actionMetadata?: Record<string, unknown>;
+  actionStatus?: "pending" | "handled" | "dismissed";
+  actionHandledButtonId?: string;
+}
+
+// Options for addAssistantMessage
+export interface AddAssistantMessageOptions {
+  messageType?: string;
+  action?: ActionType;
+  actionMetadata?: Record<string, unknown>;
 }
 
 interface Lesson {
@@ -252,8 +265,16 @@ export function useChatSession({
   );
 
   // Add assistant message to chat and store in DB (for LiveKit agent transcript)
+  // V2: Now accepts options object with optional action fields
   const addAssistantMessage = useCallback(
-    async (message: string, messageType: string = "general") => {
+    async (
+      message: string,
+      options: AddAssistantMessageOptions | string = "general"
+    ): Promise<string | undefined> => {
+      // Handle legacy string parameter for backward compatibility
+      const opts: AddAssistantMessageOptions =
+        typeof options === "string" ? { messageType: options } : options;
+
       const convId = conversationIdRef.current;
       if (!convId) {
         console.error("Conversation not ready");
@@ -269,22 +290,31 @@ export function useChatSession({
         role: "assistant",
         content: message,
         inputType: "text",
-        messageType: messageType,
+        messageType: opts.messageType || "general",
         createdAt: new Date().toISOString(),
+        // V2: Add action fields if provided
+        action: opts.action,
+        actionMetadata: opts.actionMetadata,
+        actionStatus: opts.action ? "pending" : undefined,
       };
 
       setChatMessages((prev) => [...prev, assistantMessage]);
 
       console.log("[ChatSession] addAssistantMessage", {
         tempId,
-        messageType,
+        messageType: opts.messageType,
+        action: opts.action,
       });
 
       // Store in database
       try {
         const savedMessage = await storeMessage(convId, "assistant", message, {
           inputType: "text",
-          messageType,
+          messageType: opts.messageType || "general",
+          // V2: Store action fields
+          action: opts.action,
+          actionMetadata: opts.actionMetadata,
+          actionStatus: opts.action ? "pending" : undefined,
         });
         console.log("[ChatSession] Assistant message stored in DB:", savedMessage.id);
         lastAssistantMessageIdRef.current = savedMessage.id;
@@ -373,8 +403,9 @@ export function useChatSession({
   }, []);
 
   // Add feedback message for in-lesson answer
+  // V2: Now supports optional action fields
   const addInlessonFeedback = useCallback(
-    (isCorrect: boolean, feedback: string) => {
+    (isCorrect: boolean, feedback: string, actionOptions?: { action?: ActionType; actionMetadata?: Record<string, unknown> }) => {
       const convId = conversationIdRef.current;
       if (!convId) {
         console.error("Conversation not ready");
@@ -390,6 +421,10 @@ export function useChatSession({
         inputType: "text",
         messageType: "inlesson_feedback",
         createdAt: new Date().toISOString(),
+        // V2: Add action fields if provided
+        action: actionOptions?.action,
+        actionMetadata: actionOptions?.actionMetadata,
+        actionStatus: actionOptions?.action ? "pending" : undefined,
       };
 
       setChatMessages((prev) => [...prev, feedbackMessage]);
@@ -489,6 +524,39 @@ export function useChatSession({
     []
   );
 
+  // V2: Update action status on a message (local state + DB)
+  const updateMessageAction = useCallback(
+    async (
+      messageId: string,
+      status: "handled" | "dismissed",
+      buttonId?: string
+    ) => {
+      // Update local state immediately (optimistic)
+      setChatMessages((prev) =>
+        prev.map((m) =>
+          m.id === messageId
+            ? {
+                ...m,
+                actionStatus: status,
+                actionHandledButtonId: buttonId,
+              }
+            : m
+        )
+      );
+      console.log("[ChatSession] updateMessageAction", { messageId, status, buttonId });
+
+      // Persist to DB (skip temp IDs that haven't been saved yet)
+      if (!messageId.startsWith("temp-") && !messageId.startsWith("assistant-")) {
+        const { updateMessageActionStatus } = await import("@/lib/actions/message");
+        const result = await updateMessageActionStatus(messageId, status, buttonId);
+        if (!result.success) {
+          console.error("[ChatSession] Failed to persist action status:", result.error);
+        }
+      }
+    },
+    []
+  );
+
   return {
     chatMessages,
     setChatMessages,
@@ -507,5 +575,7 @@ export function useChatSession({
     markWarmupAnswered,
     markWarmupSkipped,
     addWarmupFeedback,
+    // V2: Action support
+    updateMessageAction,
   };
 }

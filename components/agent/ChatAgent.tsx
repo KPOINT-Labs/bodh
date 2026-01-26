@@ -347,12 +347,6 @@ export function ChatAgent({
     return filtered;
   }, [chatMessages, historyMessageIds]);
 
-  const hasAnchorMatch = useMemo(() => {
-    const anchor = pendingAction?.anchorMessageId;
-    if (!anchor) return true;
-    return filteredChatMessages.some((message) => message.id === anchor);
-  }, [pendingAction?.anchorMessageId, filteredChatMessages]);
-
   // Get the last user message type to determine how to render the live agent transcript
   // This ensures FA responses are rendered with assessment UI during live streaming
   const lastUserMessageType = useMemo(() => {
@@ -526,44 +520,23 @@ export function ChatAgent({
 
 
          {/* Chat Messages (from current session) - flows naturally after history */}
+         {/* V2: ChatMessage now handles its own action buttons via the action field */}
          {filteredChatMessages.length > 0 && (
            <div className="space-y-4">
-             {expandMessagesWithSeparator(filteredChatMessages).map((msg, index, all) => {
-               const isLast = index === all.length - 1;
-                const anchor = pendingAction?.anchorMessageId;
-                const matchesAnchor = anchor
-                  ? anchor === msg.id || (!hasAnchorMatch && isLast)
-                  : isLast;
-                const shouldShowActionButtons =
-                  matchesAnchor &&
-                  !isAgentSpeaking &&
-                  pendingAction &&
-                  isLiveKitConnected &&
-                  onActionButtonClick;
-
-               return (
-                 <div key={msg.id}>
-                   <ChatMessage
-                     message={msg}
-                     onQuestionAnswer={handleQuestionAnswer}
-                     onQuestionSkip={handleQuestionSkip}
-                     onTimestampClick={onTimestampClick}
-                     isFromHistory={false}
-                     onInlessonAnswer={_onInlessonAnswer}
-                     onInlessonSkip={_onInlessonSkip}
-                     onWarmupAnswer={_onWarmupAnswer}
-                     onWarmupSkip={_onWarmupSkip}
-                   />
-                   {shouldShowActionButtons && (
-                     <ActionButtons
-                       pendingAction={pendingAction}
-                       onButtonClick={onActionButtonClick}
-                       disabled={isActionDisabled}
-                     />
-                   )}
-                 </div>
-               );
-             })}
+             {expandMessagesWithSeparator(filteredChatMessages).map((msg) => (
+               <ChatMessage
+                 key={msg.id}
+                 message={msg}
+                 onQuestionAnswer={handleQuestionAnswer}
+                 onQuestionSkip={handleQuestionSkip}
+                 onTimestampClick={onTimestampClick}
+                 isFromHistory={false}
+                 onInlessonAnswer={_onInlessonAnswer}
+                 onInlessonSkip={_onInlessonSkip}
+                 onWarmupAnswer={_onWarmupAnswer}
+                 onWarmupSkip={_onWarmupSkip}
+               />
+             ))}
            </div>
          )}
 

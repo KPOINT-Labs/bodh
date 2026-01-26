@@ -35,6 +35,7 @@ export interface ChatAgentProps {
 }
 
 import type { QuizOption } from "./assessment";
+import type { ActionType } from "@/lib/actions/actionRegistry";
 
 export interface MessageData {
   id: string;
@@ -54,4 +55,9 @@ export interface MessageData {
     isAnswered?: boolean;
     isSkipped?: boolean;
   };
+  // V2 Action fields - actions stored directly on messages
+  action?: ActionType;
+  actionMetadata?: Record<string, unknown>;
+  actionStatus?: "pending" | "handled" | "dismissed";
+  actionHandledButtonId?: string;
 }

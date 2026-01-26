@@ -121,16 +121,6 @@ function ActionHandlerRegistry({
       startWarmup();
     });
 
-    registerHandler("lesson_complete", "warmup_next", () => {
-      const nextLesson = findNextLesson() as (Lesson & { moduleId?: string }) | undefined;
-      if (nextLesson) {
-        const targetModuleId = nextLesson.moduleId || module.id;
-        setSelectedLesson(nextLesson);
-        router.push(`/course/${courseId}/module/${targetModuleId}?lesson=${nextLesson.id}`);
-        // Will trigger warmup flow on next lesson
-      }
-    });
-
     // Cleanup
     return () => {
       const handlers: Array<[ActionType, string]> = [
@@ -142,7 +132,6 @@ function ActionHandlerRegistry({
         ["intro_complete", "continue_to_lesson1"],
         ["lesson_complete", "next_lesson"],
         ["lesson_welcome", "start_warmup"],
-        ["lesson_complete", "warmup_next"],
       ];
       for (const [actionType, buttonId] of handlers) {
         unregisterHandler(actionType, buttonId);

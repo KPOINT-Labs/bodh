@@ -25,35 +25,74 @@ export async function GET(request: NextRequest) {
     }
 
     // Find or create thread for this user + module combination
-    // Use upsert to avoid race conditions when prism agent creates thread simultaneously
+    // Handle race conditions: if upsert fails with P2002, retry with findUnique
     console.log("Finding thread for:", { userId, moduleId });
-    const thread = await prisma.thread.upsert({
-      where: {
-        userId_moduleId: {
+
+    let thread;
+    try {
+      thread = await prisma.thread.upsert({
+        where: {
+          userId_moduleId: {
+            userId,
+            moduleId,
+          },
+        },
+        update: {
+          // Just touch updatedAt if exists
+          updatedAt: new Date(),
+        },
+        create: {
           userId,
           moduleId,
         },
-      },
-      update: {
-        // Just touch updatedAt if exists
-        updatedAt: new Date(),
-      },
-      create: {
-        userId,
-        moduleId,
-      },
-      include: {
-        conversations: {
-          orderBy: { createdAt: "desc" },
-          include: {
-            messages: {
-              orderBy: { createdAt: "asc" },
-              take: 50, // Limit messages per conversation
+        include: {
+          conversations: {
+            orderBy: { createdAt: "desc" },
+            include: {
+              messages: {
+                orderBy: { createdAt: "asc" },
+                take: 50, // Limit messages per conversation
+              },
             },
           },
         },
-      },
-    });
+      });
+    } catch (upsertError: unknown) {
+      // Handle race condition: P2002 means another request created it first
+      if (
+        upsertError &&
+        typeof upsertError === "object" &&
+        "code" in upsertError &&
+        upsertError.code === "P2002"
+      ) {
+        console.log("Thread upsert race condition, fetching existing thread");
+        thread = await prisma.thread.findUnique({
+          where: {
+            userId_moduleId: {
+              userId,
+              moduleId,
+            },
+          },
+          include: {
+            conversations: {
+              orderBy: { createdAt: "desc" },
+              include: {
+                messages: {
+                  orderBy: { createdAt: "asc" },
+                  take: 50,
+                },
+              },
+            },
+          },
+        });
+
+        if (!thread) {
+          throw new Error("Thread not found after race condition");
+        }
+      } else {
+        throw upsertError;
+      }
+    }
 
     // Transform the response to use lowercase field names for frontend compatibility
     const transformedThread = {
@@ -153,25 +192,55 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Use upsert to handle race conditions
-    const thread = await prisma.thread.upsert({
-      where: {
-        userId_moduleId: {
+    // Use upsert to handle race conditions, with P2002 fallback
+    let thread;
+    try {
+      thread = await prisma.thread.upsert({
+        where: {
+          userId_moduleId: {
+            userId,
+            moduleId,
+          },
+        },
+        update: {
+          updatedAt: new Date(),
+        },
+        create: {
           userId,
           moduleId,
         },
-      },
-      update: {
-        updatedAt: new Date(),
-      },
-      create: {
-        userId,
-        moduleId,
-      },
-      include: {
-        conversations: true,
-      },
-    });
+        include: {
+          conversations: true,
+        },
+      });
+    } catch (upsertError: unknown) {
+      // Handle race condition: P2002 means another request created it first
+      if (
+        upsertError &&
+        typeof upsertError === "object" &&
+        "code" in upsertError &&
+        upsertError.code === "P2002"
+      ) {
+        console.log("Thread POST upsert race condition, fetching existing thread");
+        thread = await prisma.thread.findUnique({
+          where: {
+            userId_moduleId: {
+              userId,
+              moduleId,
+            },
+          },
+          include: {
+            conversations: true,
+          },
+        });
+
+        if (!thread) {
+          throw new Error("Thread not found after race condition");
+        }
+      } else {
+        throw upsertError;
+      }
+    }
 
     // Transform the response to use lowercase field names for frontend compatibility
     const transformedThread = {

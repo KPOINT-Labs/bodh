@@ -3,6 +3,8 @@
  * Handles the complete flow of storing messages in Thread -> Conversation -> Message hierarchy
  */
 
+import type { ActionType } from "@/lib/actions/actionRegistry";
+
 export interface ThreadData {
   id: string;
   userId: string;
@@ -26,6 +28,11 @@ export interface MessageData {
   inputType: string;
   messageType: string; // 'general' | 'qna' | 'fa'
   createdAt: string;
+  // V2 Action fields - actions stored directly on messages
+  action?: ActionType;
+  actionMetadata?: Record<string, unknown>;
+  actionStatus?: "pending" | "handled" | "dismissed";
+  actionHandledButtonId?: string;
 }
 
 /**
@@ -92,6 +99,10 @@ export async function storeMessage(
     videoTimestamp?: number;
     emotions?: Record<string, unknown>;
     references?: Record<string, unknown>;
+    // V2: Action fields
+    action?: ActionType;
+    actionMetadata?: Record<string, unknown>;
+    actionStatus?: "pending" | "handled" | "dismissed";
   }
 ): Promise<MessageData> {
   const response = await fetch("/api/message", {

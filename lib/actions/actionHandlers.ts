@@ -14,6 +14,7 @@ export interface ActionDependencies {
   playVideo: () => void;
   pauseVideo: () => void;
   selectLesson: (lesson: Lesson) => void;
+  navigateToLesson: (lesson: Lesson & { moduleId?: string }, courseId: string) => void; // Cross-module navigation
   sendTextToAgent: (message: string) => Promise<void>;
   addUserMessage: (message: string, messageType?: string, inputType?: string) => Promise<void>;
   startTour: () => void;
@@ -152,20 +153,28 @@ export const ACTION_HANDLERS: Record<ActionType, ActionHandler> = {
     }
   },
 
+  intro_complete: (buttonId, metadata, deps) => {
+    if (buttonId === "continue_to_lesson1") {
+      const nextLesson = metadata.nextLesson as Lesson & { moduleId?: string };
+      const courseId = metadata.courseId as string;
+      if (nextLesson) {
+        deps.navigateToLesson(nextLesson, courseId);
+      }
+    }
+  },
+
   lesson_complete: async (buttonId, metadata, deps) => {
     switch (buttonId) {
       case "assessment":
         await deps.addUserMessage("Take assessment on this lesson", "fa", "auto");
         await deps.sendTextToAgent("Start a lesson assessment. Ask 5 questions covering the main topics.");
         break;
-      case "warmup_next":
-        await deps.addUserMessage("Warm-up for next lesson", "warmup", "auto");
-        await deps.sendTextToAgent(
-          `Start a warm-up quiz to prepare for the next lesson. Ask 3 quick questions based on what we just learned.`
-        );
-        break;
       case "next_lesson":
-        deps.selectLesson(metadata.nextLesson as Lesson);
+        const nextLesson = metadata.nextLesson as Lesson & { moduleId?: string };
+        const courseId = metadata.courseId as string;
+        if (nextLesson) {
+          deps.navigateToLesson(nextLesson, courseId);
+        }
         break;
     }
   },

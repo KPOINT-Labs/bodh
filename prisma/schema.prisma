@@ -209,9 +209,14 @@ model Message {
   emotions       Json?
   references     Json?
   createdAt      DateTime         @default(now())
-  conversation   Conversation     @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  faAttempts     FAAttempt[]
-  feedback       MessageFeedback?
+  // V2 Action fields - actions stored directly on messages
+  action                String?  // ActionType (e.g., "lesson_complete", "warmup_complete")
+  actionMetadata        Json?    // Metadata for handler (e.g., { nextLesson, courseId })
+  actionStatus          String?  // "pending" | "handled" | "dismissed"
+  actionHandledButtonId String?  // Button ID that was clicked (e.g., "next_lesson")
+  conversation          Conversation     @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  faAttempts            FAAttempt[]
+  feedback              MessageFeedback?
 
   @@index([conversationId])
 }

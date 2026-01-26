@@ -32,6 +32,7 @@ export type ActionType =
   | "inlesson_complete" // After in-lesson question answered → "Continue watching"
   | "warmup_complete" // After warmup quiz finished → "Watch the lesson", "Skip"
   | "concept_check" // Concept completion → "Submit", "Skip"
+  | "intro_complete" // After intro lesson video ends → "Continue to Lesson 1"
   | "lesson_complete" // After lesson ends → "Take assessment", "Warm-up", "Next lesson"
   | "assessment_complete" // After FA done → "View feedback"
   | "feedback_complete"; // After feedback → "Review now", "Continue to next"
@@ -98,10 +99,14 @@ export const ACTION_REGISTRY: Record<ActionType, ActionDefinition> = {
   },
 
   // Post-lesson actions
+  intro_complete: {
+    buttons: [
+      { id: "continue_to_lesson1", label: "▶️ Continue to Lesson 1", variant: "primary" },
+    ],
+  },
   lesson_complete: {
     buttons: [
       { id: "assessment", label: "Take assessment", variant: "primary" },
-      { id: "warmup_next", label: "Warm-up for next lesson", variant: "secondary" },
       { id: "next_lesson", label: "Jump to next lesson", variant: "secondary" },
     ],
   },
