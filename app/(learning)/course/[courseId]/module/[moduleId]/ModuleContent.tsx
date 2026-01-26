@@ -47,6 +47,7 @@ interface ActionHandlerRegistryProps {
   router: ReturnType<typeof useRouter>;
   courseId: string;
   startWarmup: () => void;
+  startTour: () => void;
   // For FA intro handlers
   addUserMessage: (message: string, messageType?: string, inputType?: string) => Promise<void>;
   sendTextToAgent: (text: string) => Promise<void>;
@@ -61,6 +62,7 @@ function ActionHandlerRegistry({
   router,
   courseId,
   startWarmup,
+  startTour,
   addUserMessage,
   sendTextToAgent,
 }: ActionHandlerRegistryProps) {
@@ -76,6 +78,36 @@ function ActionHandlerRegistry({
         ? sortedLessons[currentIndex + 1]
         : null;
     };
+
+    // Course welcome handlers
+    registerHandler("course_welcome", "see_intro", (meta) => {
+      const introLesson = meta.introLesson as Lesson;
+      if (introLesson) setSelectedLesson(introLesson);
+    });
+
+    registerHandler("course_welcome", "skip_to_lesson", (meta) => {
+      const firstLesson = meta.firstLesson as Lesson;
+      if (firstLesson) setSelectedLesson(firstLesson);
+    });
+
+    registerHandler("course_welcome", "take_tour", () => {
+      startTour();
+    });
+
+    // Course welcome back handlers
+    registerHandler("course_welcome_back", "continue", (meta) => {
+      const lastLesson = meta.lastLesson as Lesson;
+      if (lastLesson) setSelectedLesson(lastLesson);
+      setTimeout(() => {
+        const pos = meta.lastPosition as number;
+        if (pos) seekTo(pos);
+        playerRef.current?.playVideo?.();
+      }, 500);
+    });
+
+    registerHandler("course_welcome_back", "take_tour", () => {
+      startTour();
+    });
 
     // Video control handlers
     registerHandler("inlesson_complete", "continue_video", () => {
@@ -166,6 +198,11 @@ function ActionHandlerRegistry({
     // Cleanup
     return () => {
       const handlers: Array<[ActionType, string]> = [
+        ["course_welcome", "see_intro"],
+        ["course_welcome", "skip_to_lesson"],
+        ["course_welcome", "take_tour"],
+        ["course_welcome_back", "continue"],
+        ["course_welcome_back", "take_tour"],
         ["inlesson_complete", "continue_video"],
         ["warmup_complete", "watch_lesson"],
         ["lesson_welcome", "skip"],
@@ -193,6 +230,7 @@ function ActionHandlerRegistry({
     router,
     courseId,
     startWarmup,
+    startTour,
     addUserMessage,
     sendTextToAgent,
   ]);
@@ -1878,6 +1916,7 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
         router={router}
         courseId={course.id}
         startWarmup={handleInlineWarmup}
+        startTour={startTour}
         addUserMessage={handleAddUserMessage}
         sendTextToAgent={liveKit.sendTextToAgent}
       />
