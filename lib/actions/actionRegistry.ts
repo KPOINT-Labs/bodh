@@ -55,25 +55,28 @@ export const ACTION_REGISTRY: Record<ActionType, ActionDefinition> = {
       { id: "skip_to_lesson", label: "Continue to Lesson 1", variant: "secondary" },
       { id: "take_tour", label: "Take a tour", variant: "secondary" },
     ],
+    disableAfterClick: false,
   },
   course_welcome_back: {
     buttons: [
       { id: "continue", label: "Continue learning", variant: "primary" },
       { id: "take_tour", label: "Take a tour", variant: "secondary" },
     ],
+    disableAfterClick: false,
   },
   lesson_welcome: {
     buttons: [
       { id: "start_warmup", label: "Start warm-up", variant: "primary" },
       { id: "skip", label: "Skip", variant: "secondary" },
     ],
+    disableAfterClick: false,
   },
   lesson_welcome_back: {
     buttons: [
       { id: "continue", label: "Continue where you left", variant: "primary" },
       { id: "restart", label: "Start from beginning", variant: "secondary" },
     ],
-    dismissAfterClick: false, // Keep visible - user may want to use again
+    disableAfterClick: false, // Keep visible - user may want to use again
   },
 
   // Mid-lesson actions
@@ -87,11 +90,13 @@ export const ACTION_REGISTRY: Record<ActionType, ActionDefinition> = {
     buttons: [
       { id: "continue_video", label: "Continue watching", variant: "primary" },
     ],
+    disableAfterClick: false,
   },
   warmup_complete: {
     buttons: [
       { id: "watch_lesson", label: "Start the video", variant: "primary" },
     ],
+    disableAfterClick: false,
   },
   concept_check: {
     buttons: [
@@ -105,12 +110,16 @@ export const ACTION_REGISTRY: Record<ActionType, ActionDefinition> = {
     buttons: [
       { id: "continue_to_lesson1", label: "▶️ Continue to Lesson 1", variant: "primary" },
     ],
+    disableAfterClick: false,
+
   },
   lesson_complete: {
     buttons: [
       { id: "assessment", label: "Take assessment", variant: "primary" },
       { id: "next_lesson", label: "Jump to next lesson", variant: "secondary" },
     ],
+    disableAfterClick: false,
+
   },
   assessment_complete: {
     buttons: [
@@ -122,5 +131,6 @@ export const ACTION_REGISTRY: Record<ActionType, ActionDefinition> = {
       { id: "review", label: "Review now", variant: "primary" },
       { id: "next_lesson", label: "Continue to next lesson", variant: "secondary" },
     ],
+    disableAfterClick: false,
   },
 };

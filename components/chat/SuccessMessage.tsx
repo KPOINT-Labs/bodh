@@ -24,6 +24,8 @@ export function SuccessMessage({ show, message = "Great job!" }: SuccessMessageP
         setIsVisible(false);
       }, 2000);
       return () => clearTimeout(timer);
+    } else {
+      setIsVisible(false);
     }
   }, [show]);
 
