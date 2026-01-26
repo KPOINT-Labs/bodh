@@ -54,6 +54,7 @@ interface UseWarmupFlowProps {
   ) => string | undefined;
   showActionRef: React.MutableRefObject<ShowActionFn | null>;
   addAssistantMessageRef: React.MutableRefObject<AddAssistantMessageFn | null>;
+  speak?: (text: string, options?: { interrupt?: boolean }) => void;
 }
 
 export function useWarmupFlow({
@@ -66,6 +67,7 @@ export function useWarmupFlow({
   addWarmupFeedback,
   showActionRef,
   addAssistantMessageRef,
+  speak,
 }: UseWarmupFlowProps) {
   const [warmupState, setWarmupState] = useState<WarmupState>(INITIAL_STATE);
 
@@ -93,6 +95,8 @@ export function useWarmupFlow({
     });
 
     if (messageId) {
+      // Speak the question immediately
+      speak?.(firstQuestion.question);
       const messageIds = new Map<string, string>();
       messageIds.set(firstQuestion.id, messageId);
 
@@ -106,7 +110,7 @@ export function useWarmupFlow({
         skippedCount: 0,
       });
     }
-  }, [quiz, lessonId, addWarmupQuestion, showActionRef]);
+  }, [quiz, lessonId, addWarmupQuestion, showActionRef, speak]);
 
   const handleAnswer = useCallback(
     async (questionId: string, answer: string) => {
@@ -156,6 +160,8 @@ export function useWarmupFlow({
       );
 
       addWarmupFeedback(isCorrect, feedback);
+      // Speak the feedback
+      speak?.(feedback, { interrupt: true });
 
       const nextIndex = warmupState.currentIndex + 1;
       if (nextIndex < warmupState.questions.length) {
@@ -170,6 +176,8 @@ export function useWarmupFlow({
         });
 
         if (nextMessageId) {
+          // Speak the next question
+          speak?.(nextQuestion.question, { interrupt: true });
           setWarmupState((prev) => {
             const newMessageIds = new Map(prev.messageIds);
             newMessageIds.set(nextQuestion.id, nextMessageId);
@@ -193,6 +201,7 @@ export function useWarmupFlow({
       markWarmupAnswered,
       addWarmupFeedback,
       addWarmupQuestion,
+      speak,
     ]
   );
 
@@ -234,6 +243,8 @@ export function useWarmupFlow({
         });
 
         if (nextMessageId) {
+          // Speak the next question (interrupt any playing audio)
+          speak?.(nextQuestion.question, { interrupt: true });
           setWarmupState((prev) => {
             const newMessageIds = new Map(prev.messageIds);
             newMessageIds.set(nextQuestion.id, nextMessageId);
@@ -249,7 +260,7 @@ export function useWarmupFlow({
         await completeWarmup(false, true);
       }
     },
-    [warmupState, lessonId, userId, markWarmupSkipped, addWarmupQuestion]
+    [warmupState, lessonId, userId, markWarmupSkipped, addWarmupQuestion, speak]
   );
 
   const completeWarmup = useCallback(

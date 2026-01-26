@@ -9,6 +9,7 @@ import { prisma } from "../lib/prisma";
  * - ConfidenceRating
  * - FAAttempt
  * - MessageFeedback
+ * - AssessmentAttempt
  * - Threads (cascades to Conversations -> Messages -> SarvamSessions)
  * - LearningProfile
  *
@@ -51,6 +52,12 @@ async function resetStudent(identifier: string) {
     where: { userId: user.id },
   });
   console.log(`Deleted ${feedbackResult.count} message feedbacks`);
+
+  // Delete assessment attempts
+  const assessmentResult = await prisma.assessmentAttempt.deleteMany({
+    where: { odataUserId: user.id },
+  });
+  console.log(`Deleted ${assessmentResult.count} assessment attempts`);
 
   // Delete confidence ratings
   const confidenceResult = await prisma.confidenceRating.deleteMany({

@@ -31,6 +31,7 @@ import { useWelcome } from "@/hooks/useWelcome";
 import { useLearningPanel } from "@/contexts/LearningPanelContext";
 import { useAudioContext } from "@/contexts/AudioContext";
 import { ActionsProvider, useActions } from "@/contexts/ActionsContext";
+import { useTTS } from "@/hooks/useTTS";
 import type { ActionType } from "@/lib/actions/actionRegistry";
 
 /**
@@ -397,6 +398,9 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
   // Get audio context for mute state and callback registration
   const { isMuted: isAudioMuted, registerMuteCallback, unregisterMuteCallback } = useAudioContext();
 
+  // TTS for warmup and in-lesson questions
+  const { speak: speakTTS } = useTTS();
+
   // Find initial lesson from URL parameter or default to null (will show first lesson)
   const getInitialLesson = (): Lesson | null => {
     if (initialLessonId) {
@@ -736,6 +740,7 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
               messageType: "fa",
               action: "fa_intro",
               actionMetadata: { topic, introMessage: text },
+              tts:true
             });
           }
 
@@ -826,6 +831,7 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
         messageType: "fa",
         action: "fa_intro",
         actionMetadata: { topic: data.topic, introMessage: data.introMessage },
+        tts:true
       });
     }
   }, []);
@@ -1132,6 +1138,9 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
           });
         }
 
+        // Speak the question immediately
+        speakTTS(question.question);
+
         console.log("[ModuleContent] In-lesson question added to chat:", {
           messageId,
           questionId: question.id,
@@ -1237,6 +1246,7 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
           messageType: "general",
           action: "warmup_complete",
           actionMetadata: {},
+          tts: true,
         });
       }
       return;
@@ -1254,6 +1264,9 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
     });
 
     if (messageId) {
+      // Speak the question immediately
+      speakTTS(firstQuestion.question);
+
       // Set up warmup state to track progress
       const messageIds = new Map<string, string>();
       messageIds.set(firstQuestion.id, messageId);
@@ -1268,7 +1281,7 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
         skippedCount: 0,
       });
     }
-  }, [activeLesson?.quiz, activeLesson?.id, userId, addWarmupQuestion]);
+  }, [activeLesson?.quiz, activeLesson?.id, userId, addWarmupQuestion, speakTTS]);
 
   // Handler for warmup MCQ answers
   const handleWarmupAnswer = useCallback(
@@ -1317,14 +1330,15 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
       // Wait for celebration animation
       await new Promise((resolve) => setTimeout(resolve, isCorrect ? 2500 : 2000));
 
-      // Add feedback message
+      // Add feedback message and speak it
       addWarmupFeedback(isCorrect, feedback);
+      speakTTS(feedback);
 
       // Check if there are more questions
       const nextIndex = warmupState.currentIndex + 1;
       if (nextIndex < warmupState.questions.length) {
-        // Add next question after a short delay
-        await new Promise((resolve) => setTimeout(resolve, 500));
+        // Wait for feedback TTS to complete before adding next question
+        await new Promise((resolve) => setTimeout(resolve, 3000));
 
         const nextQuestion = warmupState.questions[nextIndex];
         const nextMessageId = addWarmupQuestion({
@@ -1335,6 +1349,8 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
         });
 
         if (nextMessageId) {
+          // Speak the next question
+          speakTTS(nextQuestion.question, { interrupt: true });
           setWarmupState((prev) => {
             const newMessageIds = new Map(prev.messageIds);
             newMessageIds.set(nextQuestion.id, nextMessageId);
@@ -1379,11 +1395,12 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
             messageType: "general",
             action: "warmup_complete",
             actionMetadata: {},
+            tts: true,
           });
         }
       }
     },
-    [warmupState, activeLesson?.id, userId, markWarmupAnswered, addWarmupFeedback, addWarmupQuestion]
+    [warmupState, activeLesson?.id, userId, markWarmupAnswered, addWarmupFeedback, addWarmupQuestion, speakTTS]
   );
 
   // Handler for warmup question skip
@@ -1428,6 +1445,8 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
         });
 
         if (nextMessageId) {
+          // Speak the next question (interrupt any playing audio)
+          speakTTS(nextQuestion.question, { interrupt: true });
           setWarmupState((prev) => {
             const newMessageIds = new Map(prev.messageIds);
             newMessageIds.set(nextQuestion.id, nextMessageId);
@@ -1473,11 +1492,12 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
             messageType: "general",
             action: "warmup_complete",
             actionMetadata: {},
+            tts: true,
           });
         }
       }
     },
-    [warmupState, activeLesson?.id, userId, markWarmupSkipped, addWarmupQuestion]
+    [warmupState, activeLesson?.id, userId, markWarmupSkipped, addWarmupQuestion, speakTTS]
   );
 
   // Wrapper for addUserMessage that also sets the flag to track user interaction
@@ -1547,11 +1567,12 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
 
           await new Promise((resolve) => setTimeout(resolve, 900));
 
-          // V2: Add feedback message with action attached
+          // V2: Add feedback message with action attached and speak it
           addInlessonFeedback(isCorrect, feedback, {
             action: "inlesson_complete",
             actionMetadata: {},
           });
+          speakTTS(feedback, { interrupt: true });
 
           setActiveInlessonQuestion(null);
         } else {
@@ -1574,7 +1595,7 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
         setActiveInlessonQuestion(null);
       }
     },
-    [activeInlessonQuestion, activeLesson?.id, userId, markInlessonAnswered, addInlessonFeedback, liveKit.isConnected, liveKit.sendTextToAgent]
+    [activeInlessonQuestion, activeLesson?.id, userId, markInlessonAnswered, addInlessonFeedback, liveKit.isConnected, liveKit.sendTextToAgent, speakTTS]
   );
 
   // Handler for in-lesson question skip
@@ -1612,6 +1633,7 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
           messageType: "general",
           action: "inlesson_complete",
           actionMetadata: {},
+          tts: true,
         });
       }
 

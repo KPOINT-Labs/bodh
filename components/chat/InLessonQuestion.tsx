@@ -18,6 +18,7 @@ interface InLessonQuestionProps {
   userAnswer?: string;
   onAnswer: (optionId: string) => void;
   onSkip: () => void;
+  onInteraction?: () => void; // Called on option click or skip to stop TTS
 }
 
 export function InLessonQuestion({
@@ -29,6 +30,7 @@ export function InLessonQuestion({
   userAnswer,
   onAnswer,
   onSkip,
+  onInteraction,
 }: InLessonQuestionProps) {
   const [selected, setSelected] = useState<string | null>(userAnswer || null);
   const [submitting, setSubmitting] = useState(false);
@@ -69,6 +71,7 @@ export function InLessonQuestion({
 
   const handleOptionSelect = (id: string) => {
     if (!disabled) {
+      onInteraction?.(); // Stop TTS when user interacts
       setSelected(id);
       audioManager?.play("click");
     }
@@ -177,7 +180,10 @@ export function InLessonQuestion({
             </button>
             <button
               type="button"
-              onClick={onSkip}
+              onClick={() => {
+                onInteraction?.(); // Stop TTS when user skips
+                onSkip();
+              }}
               disabled={disabled}
               className="text-xs text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
             >

@@ -1,3 +1,5 @@
+"use client";
+
 import {
   parseInlineMarkdownWithTimestamps,
   parseListItem,
@@ -11,6 +13,7 @@ import { AssessmentQuestion } from "./AssessmentQuestion";
 import { FeedbackBadge } from "./FeedbackBadge";
 import { InLessonQuestion } from "./InLessonQuestion";
 import type { QuizOption } from "@/types/assessment";
+import { useTTS } from "@/hooks/useTTS";
 import {
   Heart,
   Award,
@@ -133,6 +136,7 @@ export function MessageContent({
   onInlessonAnswer,
   onInlessonSkip,
 }: MessageContentProps) {
+  const { stop: stopTTS } = useTTS();
   // Handle warmup MCQ messages (inline in chat)
   if (messageType === "warmup_mcq" && role === "assistant" && inlessonMetadata) {
     const { questionId, options, isAnswered, isSkipped, correctOption, userAnswer } = inlessonMetadata;
@@ -149,6 +153,7 @@ export function MessageContent({
             userAnswer={userAnswer}
             onAnswer={(optionId: string) => onInlessonAnswer?.(questionId, optionId)}
             onSkip={() => onInlessonSkip?.(questionId)}
+            onInteraction={stopTTS}
           />
         </div>
       );
@@ -176,6 +181,7 @@ export function MessageContent({
             correctOption={correctOption}
             onAnswer={(optionId: string) => onInlessonAnswer?.(questionId, optionId)}
             onSkip={() => onInlessonSkip?.(questionId)}
+            onInteraction={stopTTS}
           />
         </div>
       );
