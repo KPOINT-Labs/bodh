@@ -167,7 +167,11 @@ export const ACTION_HANDLERS: Record<ActionType, ActionHandler> = {
     switch (buttonId) {
       case "assessment":
         await deps.addUserMessage("Take assessment on this lesson", "fa", "auto");
-        await deps.sendTextToAgent("Start a lesson assessment. Ask 5 questions covering the main topics.");
+        const lessonTitle = metadata.lessonTitle as string || "this lesson";
+        const lessonDescription = metadata.lessonDescription as string || "the topics covered";
+        const assessmentPrompt = `Start a Formative assessment on "${lessonTitle}". Topics covered: ${lessonDescription}. Ask 5 questions covering the main topics.`;
+        console.log("[ActionHandler] Sending assessment prompt to agent:", assessmentPrompt);
+        await deps.sendTextToAgent(assessmentPrompt);
         break;
       case "next_lesson":
         const nextLesson = metadata.nextLesson as Lesson & { moduleId?: string };

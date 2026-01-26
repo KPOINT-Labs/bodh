@@ -222,10 +222,8 @@ export function ChatAgent({
   const [isLoading, setIsLoading] = useState(true);
   const hasInitialized = useRef(false);
 
-  // Store the welcome message locally (not in DB) so it persists in UI
-  // This captures the welcome/welcome_back transcript when agent finishes speaking
-  const [welcomeMessage, setWelcomeMessage] = useState<string | null>(null);
-  const welcomeCapturedRef = useRef(false);
+  // NOTE: Welcome messages are now handled by useWelcome hook in ModuleContent
+  // and stored directly in chatMessages via addAssistantMessage (V2 pattern)
 
   // Handler for assessment question answers - routes through LiveKit
   const handleQuestionAnswer = useCallback(async (questionNumber: number, answer: string) => {
@@ -360,25 +358,7 @@ export function ChatAgent({
   // Track previous chat messages length to detect new user messages
   const prevChatMessagesLengthRef = useRef(filteredChatMessages.length);
 
-  // Capture welcome message when agent finishes speaking (before any user interaction)
-  // This keeps the welcome visible in UI without storing in DB
-  useEffect(() => {
-    // Only capture if:
-    // 1. Agent has finished speaking (!isAgentSpeaking)
-    // 2. There's a transcript
-    // 3. No chat messages yet (this is the welcome, not a response)
-    // 4. Haven't captured yet
-    if (
-      !isAgentSpeaking &&
-      agentTranscript &&
-      filteredChatMessages.length === 0 &&
-      !welcomeCapturedRef.current
-    ) {
-      console.log("[ChatAgent] Capturing welcome message for UI persistence");
-      setWelcomeMessage(agentTranscript);
-      welcomeCapturedRef.current = true;
-    }
-  }, [isAgentSpeaking, agentTranscript, filteredChatMessages.length]);
+  // NOTE: Welcome capture removed - now handled by useWelcome in ModuleContent
 
   // Auto-scroll during agent transcript with typing effect
   // Uses smart scroll - only scrolls if user is already at bottom
@@ -447,79 +427,27 @@ export function ChatAgent({
           </div>
         )}
 
-        {/* Welcome message - show captured welcome or live transcript */}
-        {/* Case 1: No chat messages yet - show live transcript or connecting state */}
-        {filteredChatMessages.length === 0 && !welcomeMessage && (
-          <>
-            {isLiveKitConnected && agentTranscript ? (
-              <div className="flex items-start gap-3">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-500">
-                  <Sparkles className="h-4 w-4 text-white" />
-                </div>
-                <div className="bg-gray-50 rounded-2xl rounded-tl-sm px-4 py-3 max-w-[85%]">
-                  <div className="text-sm leading-relaxed text-gray-800">
-                    <MessageContent
-                      content={typedAgentTranscript}
-                      onTimestampClick={onTimestampClick}
-                    />
-                    {/* Show cursor when agent speaking or typing effect in progress */}
-                    {(isAgentSpeaking || typedAgentTranscript.length < agentTranscript.length) && (
-                      <span className="inline-block w-2 h-4 bg-blue-500 animate-pulse ml-0.5" />
-                    )}
-                  </div>
-                </div>
+        {/* Live agent transcript - show when agent is speaking mid-conversation */}
+        {agentTranscript && filteredChatMessages.length > 0 && (
+          <div className="flex items-start gap-3">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-500">
+              <Sparkles className="h-4 w-4 text-white" />
+            </div>
+            <div className="bg-gray-50 rounded-2xl rounded-tl-sm px-4 py-3 max-w-[85%]">
+              <div className="text-sm leading-relaxed text-gray-800">
+                <MessageContent
+                  content={typedAgentTranscript}
+                  onTimestampClick={onTimestampClick}
+                />
+                {(isAgentSpeaking || typedAgentTranscript.length < agentTranscript.length) && (
+                  <span className="inline-block w-2 h-4 bg-blue-500 animate-pulse ml-0.5" />
+                )}
               </div>
-            ) : isLiveKitConnected ? (
-              /* Waiting for agent to speak when LiveKit is connected but no transcript yet */
-              <div className="flex items-start gap-3">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-500">
-                  <Sparkles className="h-4 w-4 text-white" />
-                </div>
-                <div className="bg-gray-50 rounded-2xl rounded-tl-sm px-4 py-3 max-w-[85%]">
-                  <div className="text-sm leading-relaxed text-gray-500 italic flex items-center gap-2">
-                    <span className="inline-block w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
-                    Connecting to your AI assistant...
-                  </div>
-                </div>
-              </div>
-            ) : null}
-          </>
+            </div>
+          </div>
         )}
 
-         {/* Case 2: Welcome captured - show it persistently (even when chat messages exist) */}
-         {welcomeMessage && (
-           <div>
-             <div className="flex items-start gap-3">
-               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-500">
-                 <Sparkles className="h-4 w-4 text-white" />
-               </div>
-               <div className="bg-gray-50 rounded-2xl rounded-tl-sm px-4 py-3 max-w-[85%]">
-                 <div className="text-sm leading-relaxed text-gray-800">
-                   <MessageContent
-                     content={welcomeMessage}
-                     onTimestampClick={onTimestampClick}
-                   />
-                 </div>
-               </div>
-             </div>
-              {!isAgentSpeaking &&
-                !filteredChatMessages.length &&
-                pendingAction &&
-                isLiveKitConnected &&
-                pendingAction.anchorMessageId === "welcome" &&
-                onActionButtonClick && (
-                 <ActionButtons
-                   pendingAction={pendingAction}
-                   onButtonClick={onActionButtonClick}
-                   disabled={isActionDisabled}
-                 />
-               )}
-            </div>
-         )}
-
-
-
-         {/* Chat Messages (from current session) - flows naturally after history */}
+        {/* Chat Messages (from current session) - welcome messages flow through here via V2 pattern */}
          {/* V2: ChatMessage now handles its own action buttons via the action field */}
          {filteredChatMessages.length > 0 && (
            <div className="space-y-4">

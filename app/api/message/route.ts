@@ -13,6 +13,10 @@ export interface MessageRequest {
   videoTimestamp?: number;
   emotions?: Record<string, unknown>;
   references?: Record<string, unknown>;
+  // V2: Action fields for inline action buttons
+  action?: string;
+  actionMetadata?: Record<string, unknown>;
+  actionStatus?: "pending" | "handled" | "dismissed";
 }
 
 /**
@@ -87,6 +91,10 @@ export async function POST(request: NextRequest) {
       videoTimestamp,
       emotions,
       references,
+      // V2: Action fields
+      action,
+      actionMetadata,
+      actionStatus,
     } = body;
 
     if (!conversationId || !role || !content) {
@@ -154,6 +162,10 @@ export async function POST(request: NextRequest) {
         videoTimestamp,
         emotions: emotions as Prisma.InputJsonValue | undefined,
         references: references as Prisma.InputJsonValue | undefined,
+        // V2: Action fields
+        action,
+        actionMetadata: actionMetadata as Prisma.InputJsonValue | undefined,
+        actionStatus,
       },
     });
 
