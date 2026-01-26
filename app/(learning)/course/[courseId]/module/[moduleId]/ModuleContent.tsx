@@ -121,6 +121,15 @@ function ActionHandlerRegistry({
       }
     });
 
+    registerHandler("lesson_complete", "assessment", async (meta) => {
+      await addUserMessage("Take assessment on this lesson", "fa", "auto");
+      const lessonTitle = (meta.lessonTitle as string) || "this lesson";
+      const lessonDescription = (meta.lessonDescription as string) || "the topics covered";
+      const assessmentPrompt = `Start a Formative assessment on "${lessonTitle}". Topics covered: ${lessonDescription}. Ask 5 questions covering the main topics.`;
+      console.log("[ActionHandler] Sending assessment prompt to agent:", assessmentPrompt);
+      await sendTextToAgent(assessmentPrompt);
+    });
+
     // Warmup handlers
     registerHandler("lesson_welcome", "start_warmup", () => {
       startWarmup();
@@ -164,6 +173,7 @@ function ActionHandlerRegistry({
         ["lesson_welcome_back", "restart"],
         ["intro_complete", "continue_to_lesson1"],
         ["lesson_complete", "next_lesson"],
+        ["lesson_complete", "assessment"],
         ["lesson_welcome", "start_warmup"],
         ["fa_intro", "start"],
         ["fa_intro", "skip"],
