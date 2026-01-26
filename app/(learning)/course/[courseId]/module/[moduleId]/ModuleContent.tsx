@@ -24,14 +24,147 @@ import { fireConfetti } from "@/components/ui/confetti";
 // Hooks
 import { useKPointPlayer } from "@/hooks/useKPointPlayer";
 import { useAssessmentQuiz } from "@/hooks/useAssessmentQuiz";
-import { useChatSession } from "@/hooks/useChatSession";
+import { useChatSession, type AddAssistantMessageOptions } from "@/hooks/useChatSession";
 import { useLiveKit, TranscriptSegment, UserTranscription } from "@/hooks/useLiveKit";
 import { useSessionType } from "@/hooks/useSessionType";
+import { useWelcome } from "@/hooks/useWelcome";
 import { useLearningPanel } from "@/contexts/LearningPanelContext";
 import { useAudioContext } from "@/contexts/AudioContext";
+import { ActionsProvider, useActions } from "@/contexts/ActionsContext";
+import type { ActionType } from "@/lib/actions/actionRegistry";
+
+/**
+ * V2 Action Handler Registry
+ * Registers action handlers when mounted inside ActionsProvider
+ */
+interface ActionHandlerRegistryProps {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  playerRef: React.RefObject<{ playVideo?: () => void; pauseVideo?: () => void } | null>;
+  seekTo: (time: number) => void;
+  setSelectedLesson: (lesson: Lesson | null) => void;
+  activeLesson: Lesson | null;
+  sortedLessons: Lesson[];
+  router: ReturnType<typeof useRouter>;
+  courseId: string;
+  startWarmup: () => void;
+}
+
+function ActionHandlerRegistry({
+  playerRef,
+  seekTo,
+  setSelectedLesson,
+  activeLesson,
+  sortedLessons,
+  router,
+  courseId,
+  startWarmup,
+}: ActionHandlerRegistryProps) {
+  const { registerHandler, unregisterHandler } = useActions();
+
+  // Register all handlers on mount
+  useEffect(() => {
+    // Helper to find next lesson
+    const findNextLesson = () => {
+      if (!activeLesson) return null;
+      const currentIndex = sortedLessons.findIndex((l) => l.id === activeLesson.id);
+      return currentIndex >= 0 && currentIndex < sortedLessons.length - 1
+        ? sortedLessons[currentIndex + 1]
+        : null;
+    };
+
+    // Video control handlers
+    registerHandler("inlesson_complete", "continue_video", () => {
+      playerRef.current?.playVideo?.();
+    });
+
+    registerHandler("warmup_complete", "watch_lesson", () => {
+      playerRef.current?.playVideo?.();
+    });
+
+    registerHandler("lesson_welcome", "skip", () => {
+      playerRef.current?.playVideo?.();
+    });
+
+    registerHandler("lesson_welcome_back", "continue", (meta) => {
+      const pos = meta.lastPosition as number;
+      if (pos) seekTo(pos);
+      playerRef.current?.playVideo?.();
+    });
+
+    registerHandler("lesson_welcome_back", "restart", () => {
+      seekTo(0);
+      playerRef.current?.playVideo?.();
+    });
+
+    // Navigation handlers
+    registerHandler("intro_complete", "continue_to_lesson1", (meta) => {
+      const nextLesson = meta.nextLesson as Lesson & { moduleId?: string };
+      const metaCourseId = meta.courseId as string;
+      if (nextLesson && metaCourseId) {
+        const targetModuleId = nextLesson.moduleId || module.id;
+        setSelectedLesson(nextLesson);
+        router.push(`/course/${metaCourseId}/module/${targetModuleId}?lesson=${nextLesson.id}`);
+      }
+    });
+
+    registerHandler("lesson_complete", "next_lesson", (meta) => {
+      const nextLesson = meta.nextLesson as Lesson & { moduleId?: string };
+      if (nextLesson) {
+        const targetModuleId = nextLesson.moduleId || module.id;
+        setSelectedLesson(nextLesson);
+        router.push(`/course/${courseId}/module/${targetModuleId}?lesson=${nextLesson.id}`);
+      }
+    });
+
+    // Warmup handlers
+    registerHandler("lesson_welcome", "start_warmup", () => {
+      startWarmup();
+    });
+
+    registerHandler("lesson_complete", "warmup_next", () => {
+      const nextLesson = findNextLesson() as (Lesson & { moduleId?: string }) | undefined;
+      if (nextLesson) {
+        const targetModuleId = nextLesson.moduleId || module.id;
+        setSelectedLesson(nextLesson);
+        router.push(`/course/${courseId}/module/${targetModuleId}?lesson=${nextLesson.id}`);
+        // Will trigger warmup flow on next lesson
+      }
+    });
+
+    // Cleanup
+    return () => {
+      const handlers: Array<[ActionType, string]> = [
+        ["inlesson_complete", "continue_video"],
+        ["warmup_complete", "watch_lesson"],
+        ["lesson_welcome", "skip"],
+        ["lesson_welcome_back", "continue"],
+        ["lesson_welcome_back", "restart"],
+        ["intro_complete", "continue_to_lesson1"],
+        ["lesson_complete", "next_lesson"],
+        ["lesson_welcome", "start_warmup"],
+        ["lesson_complete", "warmup_next"],
+      ];
+      for (const [actionType, buttonId] of handlers) {
+        unregisterHandler(actionType, buttonId);
+      }
+    };
+  }, [
+    registerHandler,
+    unregisterHandler,
+    playerRef,
+    seekTo,
+    setSelectedLesson,
+    activeLesson,
+    sortedLessons,
+    router,
+    courseId,
+    startWarmup,
+  ]);
+
+  return null; // This component doesn't render anything
+}
 import { getLessonProgress } from "@/lib/actions/lesson-progress";
 import { useActionButtons } from "@/hooks/useActionButtons";
-import type { ActionType } from "@/lib/actions/actionRegistry";
 import type { ActionDependencies } from "@/lib/actions/actionHandlers";
 import type { LessonQuiz, WarmupQuestion } from "@/types/assessment";
 import { recordAttempt, getAnsweredQuestionIds } from "@/lib/actions/assessment";
@@ -285,6 +418,36 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
     lessonId: activeLesson?.id,
   });
 
+  // Direct welcome flow (without LiveKit dependency)
+  // Generates LLM welcome message and plays TTS directly
+  const {
+    welcomeMessage: directWelcomeMessage,
+    isPlaying: isWelcomePlaying,
+    isComplete: welcomeComplete,
+  } = useWelcome(
+    sessionType,
+    {
+      userName: undefined, // TODO: Get user name from session
+      courseTitle: course.title,
+      courseDescription: course.description ?? undefined,
+      learningObjectives: course.learningObjectives?.join(", "),
+      lessonTitle: activeLesson?.title,
+      lessonNumber,
+      prevLessonTitle: prevLessonTitle ?? undefined,
+      completedLessons: courseProgress?.completedLessons,
+      totalLessons: courseProgress?.totalLessons,
+      lastLessonTitle: courseProgress?.lastLessonTitle ?? undefined,
+      completionPercentage: sessionLessonProgress?.completionPercentage,
+      lastPosition: sessionLessonProgress?.lastPosition,
+    },
+    {
+      enabled: !isTourMode && !!sessionType && !isSessionTypeLoading,
+      onComplete: () => {
+        console.log("[ModuleContent] Direct welcome flow complete");
+      },
+    }
+  );
+
   // Ref for sendTextToAgent to use in assessment quiz (set after useLiveKit)
   const sendTextToAgentRef = useRef<((message: string) => Promise<void>) | null>(null);
 
@@ -327,15 +490,14 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
   // Ref for isReturningUser to use in callback
   const isReturningUserRef = useRef<boolean>(isReturningUser);
   // Ref for addAssistantMessage to use in callback (set after useChatSession)
-  const addAssistantMessageRef = useRef<((message: string, messageType?: string) => Promise<string | undefined>) | null>(null);
+  // V2: Updated type to support action options
+  const addAssistantMessageRef = useRef<((message: string, options?: AddAssistantMessageOptions | string) => Promise<string | undefined>) | null>(null);
   // Ref for clearAgentTranscript to use in callback (set after useLiveKit)
   const clearAgentTranscriptRef = useRef<(() => void) | null>(null);
   // Ref for handleAddUserMessage to use in onUserMessage callback (set after useChatSession)
   const handleAddUserMessageRef = useRef<((message: string, messageType?: string, inputType?: string) => Promise<void>) | null>(null);
   // Ref for clearUserTranscript to use after storing voice message
   const clearUserTranscriptRef = useRef<(() => void) | null>(null);
-  // Ref for showAction to use in callbacks (set after useActionButtons)
-  const showActionRef = useRef<((type: ActionType, metadata?: Record<string, unknown>, anchorMessageId?: string) => void) | null>(null);
   // Ref for dismissAction to use in handleAddUserMessage (set after useActionButtons)
   const dismissActionRef = useRef<(() => void) | null>(null);
   // Refs for in-lesson question functions (set after useChatSession)
@@ -459,23 +621,14 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
             const topic = match[1];
             console.log("[ModuleContent] FA intro transcript detected, showing buttons for topic:", topic);
 
-          let faMessageId: string | undefined;
+          // V2: Add message with action attached
           if (addAssistantMessageRef.current) {
-            faMessageId = await addAssistantMessageRef.current(text, "fa");
-          }
-
-          if (showActionRef.current) {
-            const lastAssistantId = getLastAssistantMessageId?.();
-            const anchorMessageId = faMessageId ?? lastAssistantId ?? `fa-intro-${segment.id}`;
-            console.log("[ModuleContent] FA intro showAction", {
-              topic,
-              hasAddAssistant: !!addAssistantMessageRef.current,
-              lastAssistantId,
-              faMessageId,
-              anchorMessageId,
-              segmentId: segment.id,
+            console.log("[ModuleContent] FA intro - adding message with action", { topic });
+            await addAssistantMessageRef.current(text, {
+              messageType: "fa",
+              action: "fa_intro",
+              actionMetadata: { topic, introMessage: text },
             });
-            showActionRef.current("fa_intro", { topic, introMessage: text }, anchorMessageId);
           }
 
             // Clear the transcript so it doesn't appear twice (already saved to DB above)
@@ -555,19 +708,17 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
   );
 
   // Handle FA intro complete - agent spoke intro, now show buttons
+  // V2: Add message with action attached
   const handleFAIntroComplete = useCallback(async (data: { topic: string; introMessage: string }) => {
     console.log("[ModuleContent] FA intro complete, showing buttons for topic:", data.topic);
 
-    // Save the FA intro message to DB and show in chat
-    let faMessageId: string | undefined;
+    // V2: Save the FA intro message with action attached
     if (data.introMessage && addAssistantMessageRef.current) {
-      faMessageId = await addAssistantMessageRef.current(data.introMessage, "fa");
-    }
-
-    if (showActionRef.current) {
-      const lastAssistantId = getLastAssistantMessageId?.();
-      const anchorMessageId = faMessageId ?? lastAssistantId;
-      showActionRef.current("fa_intro", { topic: data.topic, introMessage: data.introMessage }, anchorMessageId);
+      await addAssistantMessageRef.current(data.introMessage, {
+        messageType: "fa",
+        action: "fa_intro",
+        actionMetadata: { topic: data.topic, introMessage: data.introMessage },
+      });
     }
   }, []);
 
@@ -707,36 +858,25 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
       return;
     }
 
-    // Sort lessons by orderIndex to find the next one
+    // Sort lessons to find the next one
     const sortedLessonsList = [...module.lessons].sort((a, b) => a.orderIndex - b.orderIndex);
     const currentIndex = sortedLessonsList.findIndex((l) => l.id === activeLesson.id);
+    const hasNextLesson = currentIndex >= 0 && currentIndex < sortedLessonsList.length - 1;
+    let nextLesson = hasNextLesson ? sortedLessonsList[currentIndex + 1] : null;
 
-    // Check if there's a next lesson
-    if (currentIndex >= 0 && currentIndex < sortedLessonsList.length - 1) {
-      const nextLesson = sortedLessonsList[currentIndex + 1];
-      console.log(`[ModuleContent] Video ended, auto-playing next lesson: ${nextLesson.title}`);
+    console.log("[ModuleContent] Video end - lesson detection:", {
+      isIntroLesson,
+      currentIndex,
+      totalLessons: sortedLessonsList.length,
+      hasNextLesson,
+      activeTitle: activeLesson.title,
+      nextTitle: nextLesson?.title,
+      allLessons: sortedLessonsList.map(l => ({ title: l.title, orderIndex: l.orderIndex }))
+    });
 
-      // Select the next lesson (this will trigger the video player to load)
-      setSelectedLesson(nextLesson);
-
-      // Notify the agent about the new lesson to start a new conversation
-      if (liveKit.isConnected) {
-        try {
-          const message = `The user has started watching the next lesson: "${nextLesson.title}". Please greet them briefly and let them know you're here to help with any questions about this lesson.`;
-          await liveKit.sendTextToAgent(message);
-        } catch (err) {
-          console.error("[ModuleContent] Failed to notify agent about next lesson:", err);
-        }
-      }
-
-      toast.success("Playing next lesson", {
-        description: nextLesson.title,
-        duration: 2000,
-      });
-    } else {
-      // No more lessons in current module - try to get next module
-      console.log("[ModuleContent] Video ended, no more lessons in module. Checking for next module...");
-
+    // If no next lesson in current module, try to get next module's first lesson
+    if (!nextLesson) {
+      console.log("[ModuleContent] No next lesson in module, fetching next module...");
       try {
         const response = await fetch(
           `/api/courses/${course.id}/next-module?currentModuleId=${module.id}`
@@ -744,35 +884,64 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
         const data = await response.json();
 
         if (data.success && data.hasNextModule && data.nextModule?.firstLesson) {
-          const nextModule = data.nextModule;
-          console.log(`[ModuleContent] Found next module: ${nextModule.title}`);
-
-          toast.success("Moving to next module", {
-            description: nextModule.title,
-            duration: 2000,
-          });
-
-          // Navigate to the next module's first lesson
-          // The new page will auto-connect to LiveKit and start the conversation
-          router.push(
-            `${pathname.replace(module.id, nextModule.id)}?lesson=${nextModule.firstLesson.id}`
-          );
+          nextLesson = {
+            ...data.nextModule.firstLesson,
+            moduleId: data.nextModule.id, // Store module ID for navigation
+          };
+          console.log("[ModuleContent] Found next module's first lesson:", nextLesson?.title, "in module:", data.nextModule.id);
         } else {
-          console.log("[ModuleContent] No more modules in course");
-          toast.info("Course complete!", {
-            description: "Congratulations! You've finished all modules in this course",
-            duration: 5000,
-          });
+          console.log("[ModuleContent] No next module available");
         }
       } catch (err) {
         console.error("[ModuleContent] Failed to fetch next module:", err);
-        toast.info("Module complete!", {
-          description: "You've finished all lessons in this module",
-          duration: 3000,
-        });
       }
     }
-  }, [activeLesson, module.lessons, module.id, course.id, liveKit.isConnected, liveKit.sendTextToAgent, router, pathname]);
+
+    // INTRO LESSON COMPLETION
+    if (isIntroLesson) {
+      console.log("[ModuleContent] Intro lesson video ended - showing completion flow");
+
+      if (nextLesson) {
+        // V2: Add AI message with action attached
+        const completionMessage = "Great job on completing the Introduction! Before we move ahead, would you like to warm up your thinking muscles?";
+        if (addAssistantMessageRef.current) {
+          await addAssistantMessageRef.current(completionMessage, {
+            messageType: "general",
+            action: "intro_complete",
+            actionMetadata: { nextLesson, courseId: course.id },
+          });
+        }
+
+        console.log("[ModuleContent] Intro complete flow triggered, next lesson:", nextLesson.title);
+        return; // Prevent auto-advance
+      } else {
+        console.error("[ModuleContent] No next lesson found after intro");
+        toast.error("Unable to find next lesson");
+        return;
+      }
+    }
+
+    // ALL OTHER LESSONS COMPLETION
+    console.log("[ModuleContent] Regular lesson video ended - showing completion options");
+
+    // V2: Create celebratory message with action attached
+    const lessonTitle = activeLesson.title || "this lesson";
+    const completionMessage = `Well done — you've completed ${lessonTitle} 👏\n\nWhat would you like to do next?`;
+
+    if (addAssistantMessageRef.current) {
+      await addAssistantMessageRef.current(completionMessage, {
+        messageType: "general",
+        action: "lesson_complete",
+        actionMetadata: { nextLesson, courseId: course.id }, // nextLesson may be null if last lesson
+      });
+      console.log("[ModuleContent] V2: lesson_complete action added to message");
+    } else {
+      console.warn("[ModuleContent] addAssistantMessageRef.current is null - cannot add completion message");
+    }
+
+    console.log("[ModuleContent] Lesson complete flow triggered, has next:", !!nextLesson);
+    return; // Prevent auto-advance
+  }, [activeLesson, module.lessons, module.id, course.id, isIntroLesson]);
 
   // Get video duration from lesson (stored in seconds in database)
   const videoDuration = activeLesson?.duration || 0;
@@ -888,6 +1057,8 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
     markWarmupAnswered,
     markWarmupSkipped,
     addWarmupFeedback,
+    // V2: Action support
+    updateMessageAction,
   } = useChatSession({
     courseId: course.id,
     conversationId,
@@ -936,9 +1107,13 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
 
     if (unansweredQuestions.length === 0) {
       console.log("[ModuleContent] All warmup questions already answered");
-      // Show completion message and continue
-      if (showActionRef.current) {
-        showActionRef.current("warmup_complete", {});
+      // V2: Add completion message with action attached
+      if (addAssistantMessageRef.current) {
+        await addAssistantMessageRef.current("Great! You've already completed the warm-up. Ready to watch the lesson?", {
+          messageType: "general",
+          action: "warmup_complete",
+          actionMetadata: {},
+        });
       }
       return;
     }
@@ -1065,7 +1240,7 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
           skippedCount: 0,
         });
 
-        // Add completion feedback message
+        // V2: Add completion feedback message with action attached
         let completionMessage: string;
         if (finalCorrectCount === totalQuestions) {
           completionMessage = `Amazing! You got all ${totalQuestions} questions right! You're ready to dive into the lesson.`;
@@ -1075,14 +1250,12 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
           completionMessage = `No worries! The warmup helps identify areas to focus on. Let's watch the lesson together.`;
         }
 
-        let feedbackMessageId: string | undefined;
         if (addAssistantMessageRef.current) {
-          feedbackMessageId = await addAssistantMessageRef.current(completionMessage, "general");
-        }
-
-        // Show warmup complete action buttons anchored to feedback message
-        if (showActionRef.current) {
-          showActionRef.current("warmup_complete", {}, feedbackMessageId);
+          await addAssistantMessageRef.current(completionMessage, {
+            messageType: "general",
+            action: "warmup_complete",
+            actionMetadata: {},
+          });
         }
       }
     },
@@ -1159,7 +1332,7 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
           skippedCount: 0,
         });
 
-        // Add completion feedback message
+        // V2: Add completion feedback message with action attached
         let completionMessage: string;
         if (finalCorrectCount === totalQuestions) {
           completionMessage = `Amazing! You got all ${totalQuestions} questions right! You're ready to dive into the lesson.`;
@@ -1171,14 +1344,12 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
           completionMessage = `No worries! The warmup helps identify areas to focus on. Let's watch the lesson together.`;
         }
 
-        let feedbackMessageId: string | undefined;
         if (addAssistantMessageRef.current) {
-          feedbackMessageId = await addAssistantMessageRef.current(completionMessage, "general");
-        }
-
-        // Show warmup complete action buttons anchored to feedback message
-        if (showActionRef.current) {
-          showActionRef.current("warmup_complete", {}, feedbackMessageId);
+          await addAssistantMessageRef.current(completionMessage, {
+            messageType: "general",
+            action: "warmup_complete",
+            actionMetadata: {},
+          });
         }
       }
     },
@@ -1252,11 +1423,11 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
 
           await new Promise((resolve) => setTimeout(resolve, 900));
 
-          const feedbackMessageId = addInlessonFeedback(isCorrect, feedback);
-
-          if (showActionRef.current) {
-            showActionRef.current("inlesson_complete", {}, feedbackMessageId);
-          }
+          // V2: Add feedback message with action attached
+          addInlessonFeedback(isCorrect, feedback, {
+            action: "inlesson_complete",
+            actionMetadata: {},
+          });
 
           setActiveInlessonQuestion(null);
         } else {
@@ -1311,10 +1482,12 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
         });
       }
 
-      // Show "Continue watching" button
-      if (showActionRef.current) {
-        showActionRef.current("inlesson_complete", {
-          introMessage: "Question skipped. Let's continue with the video.",
+      // V2: Add message with action for "Continue watching" button
+      if (addAssistantMessageRef.current) {
+        await addAssistantMessageRef.current("Question skipped. Let's continue with the video.", {
+          messageType: "general",
+          action: "inlesson_complete",
+          actionMetadata: {},
         });
       }
 
@@ -1352,6 +1525,19 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
         setSelectedLesson(lesson);
       }
     },
+    navigateToLesson: (lesson, courseId) => {
+      const lessonModuleId = (lesson as { moduleId?: string }).moduleId;
+
+      // If lesson is in a different module, navigate to that module's page
+      if (lessonModuleId && lessonModuleId !== module.id) {
+        console.log("[ModuleContent] Navigating to different module:", lessonModuleId);
+        router.push(`/course/${courseId}/module/${lessonModuleId}?lesson=${lesson.id}`);
+      } else {
+        // Same module, just select the lesson
+        console.log("[ModuleContent] Selecting lesson in same module");
+        setSelectedLesson(lesson);
+      }
+    },
     sendTextToAgent: liveKit.sendTextToAgent,
     addUserMessage: handleAddUserMessage,
     startTour,
@@ -1360,11 +1546,6 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
   };
 
   const { pendingAction, showAction, dismissAction, handleButtonClick, isActioned, resetHandledActions } = useActionButtons(actionDeps);
-
-  // Keep showActionRef updated for use in callbacks
-  useEffect(() => {
-    showActionRef.current = showAction;
-  }, [showAction]);
 
   // Keep dismissActionRef updated for use in handleAddUserMessage
   useEffect(() => {
@@ -1375,25 +1556,19 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
     resetHandledActions();
   }, [activeLesson?.id, resetHandledActions]);
 
-  // Trigger session type action when agent finishes welcome message
+  // Trigger session type action when direct welcome flow completes
+  // (replaces LiveKit-dependent logic)
   useEffect(() => {
     // Debug logging
     console.log("[ModuleContent] Action trigger check:", {
-      isAgentSpeaking: liveKit.isAgentSpeaking,
-      isConnected: liveKit.isConnected,
+      welcomeComplete,
+      directWelcomeMessage: directWelcomeMessage?.substring(0, 30),
       sessionType,
       pendingAction: pendingAction?.type,
-      agentTranscript: liveKit.agentTranscript?.substring(0, 30),
-      welcomeStored: welcomeStoredRef.current,
     });
 
-    if (
-      !liveKit.isAgentSpeaking &&
-      liveKit.isConnected &&
-      sessionType &&
-      !pendingAction &&
-      (liveKit.agentTranscript || welcomeStoredRef.current)
-    ) {
+    // Show action buttons when direct welcome is complete
+    if (welcomeComplete && sessionType && !pendingAction && directWelcomeMessage) {
       const sessionTypeToAction: Record<string, ActionType> = {
         course_welcome: "course_welcome",
         course_welcome_back: "course_welcome_back",
@@ -1404,11 +1579,8 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
       const actionType = sessionTypeToAction[sessionType];
       console.log("[ModuleContent] Showing action buttons for:", actionType);
       if (actionType) {
-        const anchorMessageId = isReturningUserRef.current
-          ? "welcome"
-          : (welcomeMessageIdRef.current && !welcomeMessageIdRef.current.startsWith("assistant-")
-            ? welcomeMessageIdRef.current
-            : undefined);
+        // Always use "welcome" as anchor for welcome session types
+        const anchorMessageId = "welcome";
         showAction(
           actionType,
           {
@@ -1423,9 +1595,8 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
       }
     }
   }, [
-    liveKit.isAgentSpeaking,
-    liveKit.isConnected,
-    liveKit.agentTranscript,
+    welcomeComplete,
+    directWelcomeMessage,
     sessionType,
     pendingAction,
     showAction,
@@ -1480,6 +1651,14 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
     [module.lessons, activeLesson?.id, isPlayerReady, seekTo]
   );
 
+  // V2: Callback when action button is clicked - updates message action status
+  const handleActionHandled = useCallback(
+    (messageId: string, buttonId: string) => {
+      updateMessageAction(messageId, "handled", buttonId);
+    },
+    [updateMessageAction]
+  );
+
   // Layout sections
   const header = (
     <LessonHeader courseTitle={course.title} moduleTitle={module.title} />
@@ -1499,10 +1678,11 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
         isWaitingForResponse={isSending || liveKit.isWaitingForAgentResponse}
         isVideoPlaying={isPlaying}
         hasSelectedLesson={!!activeLesson}
-        // LiveKit agent transcript
-        agentTranscript={liveKit.agentTranscript}
-        isAgentSpeaking={liveKit.isAgentSpeaking}
-        isLiveKitConnected={liveKit.isConnected}
+        // Direct welcome message (without LiveKit) - takes precedence for welcome flow
+        // Falls back to LiveKit transcript for regular conversations
+        agentTranscript={directWelcomeMessage || liveKit.agentTranscript}
+        isAgentSpeaking={isWelcomePlaying || liveKit.isAgentSpeaking}
+        isLiveKitConnected={!!directWelcomeMessage || liveKit.isConnected}
         isReturningUser={isReturningUser}
         // LiveKit functions for FA answers
         sendTextToAgent={liveKit.sendTextToAgent}
@@ -1591,7 +1771,18 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
   ) : null;
 
   return (
-    <>
+    <ActionsProvider onActionHandled={handleActionHandled}>
+      {/* V2: Register action handlers for button clicks */}
+      <ActionHandlerRegistry
+        playerRef={playerRef}
+        seekTo={seekTo}
+        setSelectedLesson={setSelectedLesson}
+        activeLesson={activeLesson}
+        sortedLessons={sortedLessons}
+        router={router}
+        courseId={course.id}
+        startWarmup={handleInlineWarmup}
+      />
       <AnimatedBackground variant="full" intensity="medium" theme="learning" />
       <OnboardingModal isReturningUser={isReturningUser} />
       <Script
@@ -1619,6 +1810,6 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
       />
       <SuccessMessage show={showSuccessToast} onClose={() => setShowSuccessToast(false)} />
       <ErrorMessage show={showErrorToast} onClose={() => setShowErrorToast(false)} />
-    </>
+    </ActionsProvider>
   );
 }
