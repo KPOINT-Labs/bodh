@@ -505,7 +505,7 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
   };
 
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(getInitialLesson);
-  const [isPanelClosed, setIsPanelClosed] = useState(!initialPanelOpen); // Panel closed by default unless ?panel=true
+  const [isPanelClosed, setIsPanelClosed] = useState(true); // Panel closed by default unless ?panel=true
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [videoStartOffset, setVideoStartOffset] = useState<number | null>(null);
   const [lessonProgress, setLessonProgress] = useState<{
