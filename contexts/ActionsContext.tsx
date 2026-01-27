@@ -34,6 +34,11 @@ interface ActionsContextType {
    * Unregister a handler
    */
   unregisterHandler: (actionType: ActionType, buttonId: string) => void;
+
+  /**
+   * Open the video panel (right side resizable panel)
+   */
+  openVideoPanel?: () => void;
 }
 
 const ActionsContext = createContext<ActionsContextType | null>(null);
@@ -45,6 +50,10 @@ interface ActionsProviderProps {
    * Used to update message action status
    */
   onActionHandled?: (messageId: string, buttonId: string) => void;
+  /**
+   * Callback to open the video panel (right side resizable panel)
+   */
+  openVideoPanel?: () => void;
 }
 
 /**
@@ -58,7 +67,7 @@ interface ActionsProviderProps {
  * - Navigation component registers handlers for "next_lesson"
  * - Warmup component registers handlers for "start_warmup"
  */
-export function ActionsProvider({ children, onActionHandled }: ActionsProviderProps) {
+export function ActionsProvider({ children, onActionHandled, openVideoPanel }: ActionsProviderProps) {
   // Use ref to avoid recreating callbacks when handlers change
   const handlersRef = useRef<Map<string, ActionHandler>>(new Map());
 
@@ -102,8 +111,8 @@ export function ActionsProvider({ children, onActionHandled }: ActionsProviderPr
   );
 
   const value = useMemo<ActionsContextType>(
-    () => ({ handleButtonClick, registerHandler, unregisterHandler }),
-    [handleButtonClick, registerHandler, unregisterHandler]
+    () => ({ handleButtonClick, registerHandler, unregisterHandler, openVideoPanel }),
+    [handleButtonClick, registerHandler, unregisterHandler, openVideoPanel]
   );
 
   return <ActionsContext.Provider value={value}>{children}</ActionsContext.Provider>;

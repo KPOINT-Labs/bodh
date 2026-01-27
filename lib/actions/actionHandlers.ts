@@ -139,6 +139,11 @@ export const ACTION_HANDLERS: Record<ActionType, ActionHandler> = {
     }
   },
 
+  inlesson_prompt: (_buttonId, _metadata, _deps) => {
+    // Handler registered in ModuleContent.tsx ActionHandlerRegistry
+    // "yes" → show question, "skip" → resume video
+  },
+
   inlesson_complete: (buttonId, _metadata, deps) => {
     switch (buttonId) {
       case "continue_video":
@@ -147,8 +152,13 @@ export const ACTION_HANDLERS: Record<ActionType, ActionHandler> = {
     }
   },
 
+  warmup_next: (_buttonId, _metadata, _deps) => {
+    // Handler registered in ModuleContent.tsx ActionHandlerRegistry
+    // This is a fallback that does nothing
+  },
+
   warmup_complete: (buttonId, _metadata, deps) => {
-    if (buttonId === "watch_lesson") {
+    if (buttonId === "continue_video") {
       deps.playVideo();
     }
   },

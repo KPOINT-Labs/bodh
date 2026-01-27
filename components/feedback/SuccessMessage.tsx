@@ -28,6 +28,8 @@ export function SuccessMessage({ show, message = "Great job!", duration = 2000, 
         onClose?.();
       }, duration);
       return () => clearTimeout(timer);
+    } else {
+      setVisible(false);
     }
   }, [show, duration, onClose]);
 

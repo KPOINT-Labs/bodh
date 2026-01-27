@@ -31,8 +31,10 @@ export type ActionType =
   | "lesson_welcome" // First time lesson 2+ → "Start warm-up", "Skip"
   | "lesson_welcome_back" // Returning to lesson → "Continue where left", "Start from beginning"
   | "fa_intro" // Mid-lesson FA trigger → "Start quick check", "Skip for now"
+  | "inlesson_prompt" // Prof asks question → "Yes" (think first), "Skip" (continue video)
   | "inlesson_complete" // After in-lesson question answered → "Continue watching"
-  | "warmup_complete" // After warmup quiz finished → "Watch the lesson", "Skip"
+  | "warmup_next" // After warmup question answered (not last) → "Next"
+  | "warmup_complete" // After warmup quiz finished → "Continue to video"
   | "concept_check" // Concept completion → "Submit", "Skip"
   | "intro_complete" // After intro lesson video ends → "Continue to Lesson 1"
   | "lesson_complete" // After lesson ends → "Take assessment", "Warm-up", "Next lesson"
@@ -86,15 +88,27 @@ export const ACTION_REGISTRY: Record<ActionType, ActionDefinition> = {
       { id: "skip", label: "Skip for now", variant: "secondary" },
     ],
   },
+  inlesson_prompt: {
+    buttons: [
+      { id: "yes", label: "Yes", variant: "primary" },
+      { id: "skip", label: "Skip", variant: "secondary" },
+    ],
+    disableAfterClick: false,
+  },
   inlesson_complete: {
     buttons: [
       { id: "continue_video", label: "Continue watching", variant: "primary" },
     ],
     disableAfterClick: false,
   },
+  warmup_next: {
+    buttons: [
+      { id: "next", label: "Next", variant: "primary" },
+    ],
+  },
   warmup_complete: {
     buttons: [
-      { id: "watch_lesson", label: "Start the video", variant: "primary" },
+      { id: "continue_video", label: "Continue to video", variant: "primary" },
     ],
     disableAfterClick: false,
   },

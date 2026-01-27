@@ -53,6 +53,14 @@ interface ActionHandlerRegistryProps {
   // For FA intro handlers
   addUserMessage: (message: string, messageType?: string, inputType?: string) => Promise<void>;
   sendTextToAgent: (text: string) => Promise<void>;
+  // For warmup_next handler
+  advanceWarmupQuestion: () => void;
+  stopTTS: () => void;
+  // For inlesson_prompt handler
+  showPendingInlessonQuestion: () => void;
+  clearPendingInlessonQuestion: () => void;
+  // For learning summary (assessment_complete, feedback_complete)
+  addAssistantMessage: (message: string, options?: AddAssistantMessageOptions | string) => Promise<string | undefined>;
 }
 
 function ActionHandlerRegistry({
@@ -69,6 +77,11 @@ function ActionHandlerRegistry({
   startTour,
   addUserMessage,
   sendTextToAgent,
+  advanceWarmupQuestion,
+  stopTTS,
+  showPendingInlessonQuestion,
+  clearPendingInlessonQuestion,
+  addAssistantMessage,
 }: ActionHandlerRegistryProps) {
   const { registerHandler, unregisterHandler } = useActions();
 
@@ -118,7 +131,26 @@ function ActionHandlerRegistry({
       playVideo();
     });
 
-    registerHandler("warmup_complete", "watch_lesson", () => {
+    // Warmup next question handler
+    registerHandler("warmup_next", "next", () => {
+      stopTTS(); // Stop feedback TTS
+      advanceWarmupQuestion(); // Show next question
+    });
+
+    registerHandler("warmup_complete", "continue_video", () => {
+      stopTTS(); // Stop any playing TTS
+      playVideo();
+    });
+
+    // In-lesson prompt handlers
+    registerHandler("inlesson_prompt", "yes", () => {
+      stopTTS();
+      showPendingInlessonQuestion();
+    });
+
+    registerHandler("inlesson_prompt", "skip", () => {
+      stopTTS();
+      clearPendingInlessonQuestion();
       playVideo();
     });
 
@@ -199,6 +231,40 @@ function ActionHandlerRegistry({
       playVideo();
     });
 
+    // Assessment complete handler (View feedback button)
+    registerHandler("assessment_complete", "view_feedback", async (meta) => {
+      const lessonId = meta.lessonId as string;
+      const nextLesson = meta.nextLesson as Lesson & { moduleId?: string };
+
+      // Add learning summary message with feedback_complete action
+      await addAssistantMessage("", {
+        messageType: "learning_summary",
+        metadata: { lessonId },
+        action: "feedback_complete",
+        actionMetadata: {
+          nextLesson,
+          courseId,
+        },
+        tts: false, // Don't speak the summary card
+      });
+    });
+
+    // Feedback complete handlers (Review now / Continue to next lesson)
+    registerHandler("feedback_complete", "review", () => {
+      // For now, just show a toast - in future could open suggested aids
+      toast.info("Review materials coming soon!");
+    });
+
+    registerHandler("feedback_complete", "next_lesson", (meta) => {
+      const nextLesson = meta.nextLesson as Lesson & { moduleId?: string };
+      const metaCourseId = (meta.courseId as string) || courseId;
+      if (nextLesson) {
+        const targetModuleId = nextLesson.moduleId || moduleId;
+        setSelectedLesson(nextLesson);
+        router.push(`/course/${metaCourseId}/module/${targetModuleId}?lesson=${nextLesson.id}`);
+      }
+    });
+
     // Cleanup
     return () => {
       const handlers: Array<[ActionType, string]> = [
@@ -208,7 +274,10 @@ function ActionHandlerRegistry({
         ["course_welcome_back", "continue"],
         ["course_welcome_back", "take_tour"],
         ["inlesson_complete", "continue_video"],
-        ["warmup_complete", "watch_lesson"],
+        ["warmup_next", "next"],
+        ["warmup_complete", "continue_video"],
+        ["inlesson_prompt", "yes"],
+        ["inlesson_prompt", "skip"],
         ["lesson_welcome", "skip"],
         ["lesson_welcome_back", "continue"],
         ["lesson_welcome_back", "restart"],
@@ -218,6 +287,9 @@ function ActionHandlerRegistry({
         ["lesson_welcome", "start_warmup"],
         ["fa_intro", "start"],
         ["fa_intro", "skip"],
+        ["assessment_complete", "view_feedback"],
+        ["feedback_complete", "review"],
+        ["feedback_complete", "next_lesson"],
       ];
       for (const [actionType, buttonId] of handlers) {
         unregisterHandler(actionType, buttonId);
@@ -239,6 +311,11 @@ function ActionHandlerRegistry({
     startTour,
     addUserMessage,
     sendTextToAgent,
+    advanceWarmupQuestion,
+    stopTTS,
+    showPendingInlessonQuestion,
+    clearPendingInlessonQuestion,
+    addAssistantMessage,
   ]);
 
   return null; // This component doesn't render anything
@@ -404,7 +481,7 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
   const { isMuted: isAudioMuted, registerMuteCallback, unregisterMuteCallback } = useAudioContext();
 
   // TTS for warmup and in-lesson questions
-  const { speak: speakTTS } = useTTS();
+  const { speak: speakTTS, stop: stopTTS } = useTTS();
 
   // Find initial lesson from URL parameter or default to null (will show first lesson)
   const getInitialLesson = (): Lesson | null => {
@@ -429,6 +506,17 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
     messageId: string;
     type: "mcq" | "text";
     correctOption?: string;
+    feedback?: string;
+  } | null>(null);
+
+  // Pending in-lesson question (shown after user clicks "Yes" on prompt)
+  const [pendingInlessonQuestion, setPendingInlessonQuestion] = useState<{
+    id: string;
+    question: string;
+    type: "mcq" | "text";
+    options?: { id: string; text: string }[];
+    correctOption?: string;
+    feedback?: string;
   } | null>(null);
 
   const [showSuccessToast, setShowSuccessToast] = useState(false);
@@ -633,6 +721,7 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
     messageId: string;
     type: "mcq" | "text";
     correctOption?: string;
+    feedback?: string;
   } | null) => void) | null>(null);
 
   // Refs for warmup question functions (set after useChatSession)
@@ -645,6 +734,10 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
   const markWarmupAnsweredRef = useRef<((messageId: string, userAnswer?: string) => void) | null>(null);
   const markWarmupSkippedRef = useRef<((messageId: string) => void) | null>(null);
   const addWarmupFeedbackRef = useRef<((isCorrect: boolean, feedback: string) => string | undefined) | null>(null);
+
+  // Refs for lesson data (used in transcript callback for assessment_complete action)
+  const selectedLessonRef = useRef<Lesson | null>(null);
+  const sortedLessonsRef = useRef<Lesson[]>([]);
 
   // State for tracking active warmup flow
   const [warmupState, setWarmupState] = useState<{
@@ -661,6 +754,12 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
   useEffect(() => {
     isReturningUserRef.current = isReturningUser;
   }, [isReturningUser]);
+
+  // Keep lesson refs updated for use in transcript callback
+  useEffect(() => {
+    selectedLessonRef.current = selectedLesson;
+    sortedLessonsRef.current = sortedLessons;
+  }, [selectedLesson, sortedLessons]);
 
   // Handle user voice transcription - store final transcriptions in DB
   const handleUserTranscriptCallback = useCallback(
@@ -809,7 +908,38 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
             // Use the same message type as the user's last message (e.g., "fa" for FA responses)
             const responseType = lastUserMessageTypeRef.current;
             console.log("[ModuleContent] Storing agent response to chat with type:", responseType, segment.text.substring(0, 50) + "...");
-            addAssistantMessageRef.current(segment.text, responseType);
+
+            // Check if this is an FA completion message (hardcoded patterns for demo)
+            const isAssessmentComplete =
+              responseType === "fa" && (
+                segment.text.includes("That's it for the quick check") ||
+                segment.text.includes("Let's look at how this went overall") ||
+                segment.text.includes("You've completed the assessment") ||
+                segment.text.includes("assessment is complete")
+              );
+
+            if (isAssessmentComplete) {
+              // Attach assessment_complete action to show "View feedback" button
+              const currentLesson = selectedLessonRef.current;
+              const currentLessons = sortedLessonsRef.current;
+              const currentIndex = currentLessons.findIndex((l) => l.id === currentLesson?.id);
+              const nextLesson = currentIndex >= 0 && currentIndex < currentLessons.length - 1
+                ? currentLessons[currentIndex + 1]
+                : null;
+
+              console.log("[ModuleContent] FA complete - attaching assessment_complete action");
+              addAssistantMessageRef.current(segment.text, {
+                messageType: responseType,
+                action: "assessment_complete",
+                actionMetadata: {
+                  lessonId: currentLesson?.id,
+                  nextLesson,
+                },
+                tts: true,
+              });
+            } else {
+              addAssistantMessageRef.current(segment.text, responseType);
+            }
             if (clearAgentTranscriptRef.current) {
               clearAgentTranscriptRef.current();
             }
@@ -831,12 +961,13 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
     console.log("[ModuleContent] FA intro complete, showing buttons for topic:", data.topic);
 
     // V2: Save the FA intro message with action attached
+    // Note: tts: false because agent has already spoken this message via LiveKit
     if (data.introMessage && addAssistantMessageRef.current) {
       await addAssistantMessageRef.current(data.introMessage, {
         messageType: "fa",
         action: "fa_intro",
         actionMetadata: { topic: data.topic, introMessage: data.introMessage },
-        tts:true
+        tts: false  // Agent already spoke via LiveKit - don't play again
       });
     }
   }, []);
@@ -1119,40 +1250,35 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
         return;
       }
 
-      // Ensure chat panel is open
-      setIsPanelClosed(false);
-      expandPanel();
+      // Store the question for later (when user clicks "Yes")
+      setPendingInlessonQuestion({
+        id: question.id,
+        question: question.question,
+        type: question.type,
+        options: question.options,
+        correctOption: question.correct_option,
+        feedback: question.feedback,
+      });
 
-      // Add question to chat
-      if (addInlessonQuestionRef.current) {
-        const messageId = addInlessonQuestionRef.current({
-          id: question.id,
-          question: question.question,
-          type: question.type,
-          options: question.options,
-          correctOption: question.correct_option,
-        });
+      // Show the prompt message with action buttons
+      const promptMessage = "The professor has asked a question here. Do you want to think first before continuing with the video?";
 
-        // Track active question for answer handling
-        if (messageId && setActiveInlessonQuestionRef.current) {
-          setActiveInlessonQuestionRef.current({
-            questionId: question.id,
+      if (addAssistantMessageRef.current) {
+        addAssistantMessageRef.current(promptMessage, {
+          messageType: "inlesson_prompt",
+          action: "inlesson_prompt",
+          actionMetadata: { questionId: question.id },
+        }).then((messageId) => {
+          // Speak the prompt
+          speakTTS(promptMessage);
+
+          console.log("[ModuleContent] In-lesson prompt shown:", {
             messageId,
-            type: question.type,
-            correctOption: question.correct_option,
+            questionId: question.id,
           });
-        }
-
-        // Speak the question immediately
-        speakTTS(question.question);
-
-        console.log("[ModuleContent] In-lesson question added to chat:", {
-          messageId,
-          questionId: question.id,
-          type: question.type,
         });
       } else {
-        console.warn("[ModuleContent] addInlessonQuestionRef not ready");
+        console.warn("[ModuleContent] addAssistantMessageRef not ready");
       }
     },
     onFATrigger: async (_message: string, _timestampSeconds: number, topic?: string, _pauseVideo?: boolean) => {
@@ -1288,6 +1414,90 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
     }
   }, [activeLesson?.quiz, activeLesson?.id, userId, addWarmupQuestion, speakTTS]);
 
+  // Advance to next warmup question (called when user clicks "Next" button)
+  const advanceWarmupQuestion = useCallback(() => {
+    if (!warmupState.isActive) {
+      console.warn("[ModuleContent] No active warmup to advance");
+      return;
+    }
+
+    const nextIndex = warmupState.currentIndex + 1;
+    if (nextIndex >= warmupState.questions.length) {
+      console.warn("[ModuleContent] No more warmup questions");
+      return;
+    }
+
+    const nextQuestion = warmupState.questions[nextIndex];
+    const nextMessageId = addWarmupQuestion({
+      id: nextQuestion.id,
+      question: nextQuestion.question,
+      options: nextQuestion.options,
+      correctOption: nextQuestion.correct_option,
+    });
+
+    if (nextMessageId) {
+      // Speak the next question (use interrupt to ensure it plays even if previous TTS just stopped)
+      speakTTS(nextQuestion.question, { interrupt: true });
+      setWarmupState((prev) => {
+        const newMessageIds = new Map(prev.messageIds);
+        newMessageIds.set(nextQuestion.id, nextMessageId);
+        return {
+          ...prev,
+          currentIndex: nextIndex,
+          messageIds: newMessageIds,
+        };
+      });
+    }
+  }, [warmupState, addWarmupQuestion, speakTTS]);
+
+  // Show the pending in-lesson question (called when user clicks "Yes" on prompt)
+  const showPendingInlessonQuestion = useCallback(() => {
+    if (!pendingInlessonQuestion) {
+      console.warn("[ModuleContent] No pending in-lesson question to show");
+      return;
+    }
+
+    const question = pendingInlessonQuestion;
+
+    // Add question to chat
+    if (addInlessonQuestionRef.current) {
+      const messageId = addInlessonQuestionRef.current({
+        id: question.id,
+        question: question.question,
+        type: question.type,
+        options: question.options,
+        correctOption: question.correctOption,
+      });
+
+      // Track active question for answer handling
+      if (messageId && setActiveInlessonQuestionRef.current) {
+        setActiveInlessonQuestionRef.current({
+          questionId: question.id,
+          messageId,
+          type: question.type,
+          correctOption: question.correctOption,
+          feedback: question.feedback,
+        });
+      }
+
+      // Speak the question
+      speakTTS(question.question, { interrupt: true });
+
+      console.log("[ModuleContent] Pending in-lesson question shown:", {
+        messageId,
+        questionId: question.id,
+      });
+    }
+
+    // Clear the pending question
+    setPendingInlessonQuestion(null);
+  }, [pendingInlessonQuestion, speakTTS]);
+
+  // Clear pending in-lesson question (called when user clicks "Skip" on prompt)
+  const clearPendingInlessonQuestion = useCallback(() => {
+    setPendingInlessonQuestion(null);
+  }, []);
+
   // Handler for warmup MCQ answers
   const handleWarmupAnswer = useCallback(
     async (questionId: string, answer: string) => {
@@ -1335,46 +1545,31 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
       // Wait for celebration animation
       await new Promise((resolve) => setTimeout(resolve, isCorrect ? 2500 : 2000));
 
-      // Add feedback message and speak it
-      addWarmupFeedback(isCorrect, feedback);
-      speakTTS(feedback);
+      // Update counts in state
+      setWarmupState((prev) => ({
+        ...prev,
+        correctCount: prev.correctCount + (isCorrect ? 1 : 0),
+        incorrectCount: prev.incorrectCount + (isCorrect ? 0 : 1),
+      }));
 
       // Check if there are more questions
       const nextIndex = warmupState.currentIndex + 1;
-      if (nextIndex < warmupState.questions.length) {
-        // Wait for feedback TTS to complete before adding next question
-        await new Promise((resolve) => setTimeout(resolve, 3000));
+      const isLastQuestion = nextIndex >= warmupState.questions.length;
 
-        const nextQuestion = warmupState.questions[nextIndex];
-        const nextMessageId = addWarmupQuestion({
-          id: nextQuestion.id,
-          question: nextQuestion.question,
-          options: nextQuestion.options,
-          correctOption: nextQuestion.correct_option,
+      if (!isLastQuestion) {
+        // Not the last question: Show feedback with "Next" button
+        addWarmupFeedback(isCorrect, feedback, {
+          action: "warmup_next",
+          actionMetadata: {},
         });
-
-        if (nextMessageId) {
-          // Speak the next question
-          speakTTS(nextQuestion.question, { interrupt: true });
-          setWarmupState((prev) => {
-            const newMessageIds = new Map(prev.messageIds);
-            newMessageIds.set(nextQuestion.id, nextMessageId);
-            return {
-              ...prev,
-              currentIndex: nextIndex,
-              messageIds: newMessageIds,
-              correctCount: prev.correctCount + (isCorrect ? 1 : 0),
-              incorrectCount: prev.incorrectCount + (isCorrect ? 0 : 1),
-            };
-          });
-        }
+        speakTTS(feedback);
       } else {
-        // Warmup complete
+        // Last question: Show completion message with "Continue to video" button
         console.log("[ModuleContent] Warmup complete!");
         const totalQuestions = warmupState.questions.length;
         const finalCorrectCount = warmupState.correctCount + (isCorrect ? 1 : 0);
-        const finalIncorrectCount = warmupState.incorrectCount + (isCorrect ? 0 : 1);
 
+        // Reset warmup state
         setWarmupState({
           isActive: false,
           questions: [],
@@ -1385,7 +1580,7 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
           skippedCount: 0,
         });
 
-        // V2: Add completion feedback message with action attached
+        // Add completion feedback message with action attached
         let completionMessage: string;
         if (finalCorrectCount === totalQuestions) {
           completionMessage = `Amazing! You got all ${totalQuestions} questions right! You're ready to dive into the lesson.`;
@@ -1405,7 +1600,7 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
         }
       }
     },
-    [warmupState, activeLesson?.id, userId, markWarmupAnswered, addWarmupFeedback, addWarmupQuestion, speakTTS]
+    [warmupState, activeLesson?.id, userId, markWarmupAnswered, addWarmupFeedback, speakTTS]
   );
 
   // Handler for warmup question skip
@@ -1916,7 +2111,7 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
   ) : null;
 
   return (
-    <ActionsProvider onActionHandled={handleActionHandled}>
+    <ActionsProvider onActionHandled={handleActionHandled} openVideoPanel={() => setIsPanelClosed(false)}>
       {/* V2: Register action handlers for button clicks */}
       <ActionHandlerRegistry
         playVideo={playVideo}
@@ -1932,6 +2127,11 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
         startTour={startTour}
         addUserMessage={handleAddUserMessage}
         sendTextToAgent={liveKit.sendTextToAgent}
+        advanceWarmupQuestion={advanceWarmupQuestion}
+        stopTTS={stopTTS}
+        showPendingInlessonQuestion={showPendingInlessonQuestion}
+        clearPendingInlessonQuestion={clearPendingInlessonQuestion}
+        addAssistantMessage={addAssistantMessage}
       />
       <AnimatedBackground variant="full" intensity="medium" theme="learning" />
       <OnboardingModal isReturningUser={isReturningUser} />

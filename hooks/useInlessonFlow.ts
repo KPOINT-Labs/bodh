@@ -11,6 +11,7 @@ interface ActiveQuestion {
   messageId: string;
   type: "mcq" | "text";
   correctOption?: string;
+  feedback?: string; // Rich feedback from question data
 }
 
 type ShowActionFn = (
@@ -71,13 +72,14 @@ export function useInlessonFlow({
         return;
       }
 
-      const { messageId, type, correctOption } = activeQuestion;
+      const { messageId, type, correctOption, feedback: questionFeedback } = activeQuestion;
 
       if (type === "mcq") {
         const isCorrect = answer === correctOption;
-        const feedback = isCorrect
+        // Use rich feedback from question data, fallback to generic
+        const feedback = questionFeedback || (isCorrect
           ? "Great job! You got it right."
-          : "That's not quite right, but don't worry - keep learning!";
+          : "That's not quite right, but don't worry - keep learning!");
 
         if (isCorrect) {
           audioManager?.play("success");

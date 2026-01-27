@@ -18,6 +18,8 @@ export interface ExtendedMessageData extends MessageData {
     correctOption?: string;
     isAnswered?: boolean;
     isSkipped?: boolean;
+    // Learning summary metadata
+    lessonId?: string;
   };
   // V2 Action fields - actions stored directly on messages
   action?: ActionType;
@@ -33,6 +35,8 @@ export interface AddAssistantMessageOptions {
   actionMetadata?: Record<string, unknown>;
   /** When true, automatically plays TTS for this message using default voice settings */
   tts?: boolean;
+  /** Metadata to attach to the message (for learning summary, etc.) */
+  metadata?: ExtendedMessageData["metadata"];
 }
 
 interface Lesson {
@@ -303,6 +307,8 @@ export function useChatSession({
         action: opts.action,
         actionMetadata: opts.actionMetadata,
         actionStatus: opts.action ? "pending" : undefined,
+        // V3: Add metadata if provided (for learning summary, etc.)
+        metadata: opts.metadata,
       };
 
       setChatMessages((prev) => [...prev, assistantMessage]);
@@ -513,7 +519,10 @@ export function useChatSession({
 
   // Add feedback message for warmup answer
   const addWarmupFeedback = useCallback(
-    (isCorrect: boolean, feedback: string) => {
+    (isCorrect: boolean, feedback: string, options?: {
+      action?: ActionType;
+      actionMetadata?: Record<string, unknown>;
+    }) => {
       const convId = conversationIdRef.current;
       if (!convId) {
         console.error("Conversation not ready");
@@ -529,6 +538,10 @@ export function useChatSession({
         inputType: "text",
         messageType: "warmup_feedback",
         createdAt: new Date().toISOString(),
+        // V2: Action support for "Next" button
+        action: options?.action,
+        actionMetadata: options?.actionMetadata,
+        actionStatus: options?.action ? "pending" : undefined,
       };
 
       setChatMessages((prev) => [...prev, feedbackMessage]);

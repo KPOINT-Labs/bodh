@@ -3,6 +3,7 @@
 import { Sparkles, User } from "lucide-react";
 import { MessageContent } from "./MessageContent";
 import { AssessmentSummary } from "./AssessmentSummary";
+import { LearningSummary } from "./LearningSummary";
 import { Button } from "@/components/ui/button";
 import { ACTION_REGISTRY } from "@/lib/actions/actionRegistry";
 import { useActionsOptional } from "@/contexts/ActionsContext";
@@ -49,6 +50,9 @@ export function ChatMessage({
   const isAssessmentSummary =
     message.id.endsWith("-part2") && message.messageType === "fa";
 
+  // Check if this is a learning summary (post-assessment feedback)
+  const isLearningSummary = message.messageType === "learning_summary";
+
   // For warmup messages, use warmup handlers; for inlesson, use inlesson handlers
   const isWarmupMessage = message.messageType === "warmup_mcq";
   const effectiveOnAnswer = isWarmupMessage ? onWarmupAnswer : onInlessonAnswer;
@@ -64,7 +68,7 @@ export function ChatMessage({
   const handleButtonClick = async (buttonId: string) => {
     if (!message.action || !actionsContext) return;
 
-    // Collapse panel when starting a lesson/video
+    // Collapse left panel and open video panel when starting a lesson/video
     const collapseActions = [
       "see_intro",
       "skip_to_lesson",
@@ -72,8 +76,10 @@ export function ChatMessage({
       "restart",
       "skip",
       "next_lesson",
+      "continue_video"
     ];
     if (collapseActions.includes(buttonId)) {
+      actionsContext.openVideoPanel?.();
       learningPanelContext?.collapsePanel();
     }
 
@@ -106,7 +112,11 @@ export function ChatMessage({
               : "bg-gray-50 rounded-2xl rounded-tl-sm px-4 py-3 max-w-[85%] text-gray-800"
           }
         >
-          {isAssessmentSummary ? (
+          {isLearningSummary ? (
+            <LearningSummary
+              lessonId={(message.metadata?.lessonId as string) || ""}
+            />
+          ) : isAssessmentSummary ? (
             <AssessmentSummary
               content={message.content}
               onTimestampClick={onTimestampClick}

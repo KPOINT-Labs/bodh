@@ -54,6 +54,8 @@ export interface MessageData {
     userAnswer?: string;
     isAnswered?: boolean;
     isSkipped?: boolean;
+    // Learning summary metadata
+    lessonId?: string;
   };
   // V2 Action fields - actions stored directly on messages
   action?: ActionType;

@@ -28,6 +28,8 @@ export function ErrorMessage({ show, message = "Not quite correct!", duration = 
         onClose?.();
       }, duration);
       return () => clearTimeout(timer);
+    } else {
+      setVisible(false);
     }
   }, [show, duration, onClose]);
 

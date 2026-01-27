@@ -25,6 +25,7 @@ export interface InLessonQuestion {
   type: "mcq" | "text"; // MCQ = multiple choice, text = free-form answer
   options?: QuizOption[]; // Only for MCQ type
   correct_option?: string; // Only for MCQ type - ID of the correct option
+  feedback?: string; // Feedback to show after answering
   chapter_id?: string;
 }
 
