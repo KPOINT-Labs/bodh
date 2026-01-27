@@ -106,6 +106,16 @@ export async function POST(request: NextRequest) {
       Object.assign(metadata, body.metadata);
     }
 
+    // Debug: Log critical fields for Sarvam integration
+    console.log(`[API_TOKEN] ===== METADATA DEBUG =====`);
+    console.log(`[API_TOKEN] course_id: ${metadata.course_id || 'MISSING!'}`);
+    console.log(`[API_TOKEN] conversation_id: ${metadata.conversation_id || 'MISSING!'}`);
+    console.log(`[API_TOKEN] user_id: ${metadata.user_id || 'MISSING!'}`);
+    console.log(`[API_TOKEN] module_id: ${metadata.module_id || 'MISSING!'}`);
+    console.log(`[API_TOKEN] lesson_id: ${metadata.lesson_id || 'MISSING!'}`);
+    console.log(`[API_TOKEN] session_type: ${metadata.session_type || 'MISSING!'}`);
+    console.log(`[API_TOKEN] ============================`);
+
     console.log(
       `[API_TOKEN] Room metadata prepared for room '${body.room_name}':`,
       metadata
@@ -167,6 +177,7 @@ export async function POST(request: NextRequest) {
       canPublish: true,
       canSubscribe: true,
       canPublishData: true,
+      roomRecord: false, // Disable recording permission
     } as VideoGrant);
 
     // Generate JWT token
