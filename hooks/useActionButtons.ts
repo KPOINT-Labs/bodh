@@ -7,7 +7,7 @@
 
 import { useState, useCallback, useRef } from "react";
 import { ACTION_REGISTRY, type ActionType, type PendingAction } from "@/lib/actions/actionRegistry";
-import { ACTION_HANDLERS, ActionDependencies } from "@/lib/actions/actionHandlers";
+import type { ActionDependencies } from "@/lib/actions/actionHandlers";
 
 interface UseActionButtonsReturn {
   /** Currently pending action, or null if none */
@@ -79,15 +79,8 @@ export function useActionButtons(deps: ActionDependencies): UseActionButtonsRetu
         anchorMessageId: pendingAction.anchorMessageId,
       });
 
-      // Execute the handler
-      const handler = ACTION_HANDLERS[pendingAction.type];
-      if (handler) {
-        try {
-          await handler(buttonId, pendingAction.metadata || {}, deps);
-        } catch (error) {
-          console.error(`[useActionButtons] Handler error for ${pendingAction.type}:`, error);
-        }
-      }
+      // Note: Actual handler execution is done via ActionsContext + ActionHandlerRegistry
+      // This hook now only manages state (pending action, isActioned, handled tracking)
 
       const definition = ACTION_REGISTRY[pendingAction.type];
       const shouldReEnable = definition?.dismissAfterClick === false;
@@ -98,7 +91,7 @@ export function useActionButtons(deps: ActionDependencies): UseActionButtonsRetu
         setIsActioned(false);
       }
     },
-    [pendingAction, isActioned, deps]
+    [pendingAction, isActioned]
   );
 
   return {
