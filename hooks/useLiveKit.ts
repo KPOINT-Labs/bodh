@@ -61,6 +61,18 @@ export interface QuizEvaluationResultData {
   feedback: string;
 }
 
+/** FA response data from agent (MCQ questions) */
+export interface FAResponseData {
+  questionNumber: number;
+  questionText: string;
+  options: string[] | null;
+  isMcq: boolean;
+  feedbackType: "correct" | "incorrect" | null;
+  isComplete: boolean;
+  rawText: string;
+  ttsText: string;
+}
+
 interface UseLiveKitProps {
   conversationId: string;
   courseId: string;
@@ -82,6 +94,8 @@ interface UseLiveKitProps {
   onFAIntroComplete?: (data: FAIntroData) => void;
   /** Callback when quiz text evaluation result is received */
   onQuizEvaluationResult?: (result: QuizEvaluationResultData) => void;
+  /** Callback when FA response (MCQ question) is received */
+  onFAResponse?: (data: FAResponseData) => void;
 }
 
 interface UseLiveKitReturn {
@@ -158,6 +172,7 @@ export function useLiveKit({
   onUserTranscript,
   onFAIntroComplete,
   onQuizEvaluationResult,
+  onFAResponse,
 }: UseLiveKitProps): UseLiveKitReturn {
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -196,6 +211,7 @@ export function useLiveKit({
   const onUserTranscriptRef = useRef(onUserTranscript); // Ref for user transcript callback
   const onFAIntroCompleteRef = useRef(onFAIntroComplete); // Ref for FA intro complete callback
   const onQuizEvaluationResultRef = useRef(onQuizEvaluationResult); // Ref for quiz evaluation result callback
+  const onFAResponseRef = useRef(onFAResponse); // Ref for FA response (MCQ) callback
   const metadataRef = useRef(metadata); // Ref for metadata to always use current values
   const agentIdentityRef = useRef<string | null>(null); // Store agent identity for RPC calls
   const lastFinalTranscriptRef = useRef<string>(""); // Track last final transcript to prevent duplicates
@@ -220,6 +236,10 @@ export function useLiveKit({
   useEffect(() => {
     onQuizEvaluationResultRef.current = onQuizEvaluationResult;
   }, [onQuizEvaluationResult]);
+
+  useEffect(() => {
+    onFAResponseRef.current = onFAResponse;
+  }, [onFAResponse]);
 
   useEffect(() => {
     metadataRef.current = metadata;
@@ -457,6 +477,35 @@ export function useLiveKit({
               feedback: data.feedback || "",
             };
             onQuizEvaluationResultRef.current?.(result);
+          }
+
+          // Handle FA response (MCQ question from Sarvam)
+          if (data.type === "fa_response") {
+            console.log("[LiveKit] FA response received:", {
+              questionNumber: data.question_number,
+              isMcq: data.is_mcq,
+              optionsCount: data.options?.length || 0,
+              isComplete: data.is_complete,
+            });
+
+            const faResponse: FAResponseData = {
+              questionNumber: data.question_number || 0,
+              questionText: data.question_text || "",
+              options: data.options || null,
+              isMcq: data.is_mcq === true,
+              feedbackType: data.feedback_type || null,
+              isComplete: data.is_complete === true,
+              rawText: data.raw_text || "",
+              ttsText: data.tts_text || "",
+            };
+
+            // Call callback if provided
+            if (onFAResponseRef.current) {
+              console.log("[LiveKit] Calling onFAResponse callback");
+              onFAResponseRef.current(faResponse);
+            } else {
+              console.log("[LiveKit] No onFAResponse callback registered - FA will display as plain text");
+            }
           }
 
           // Handle TTS fallback response

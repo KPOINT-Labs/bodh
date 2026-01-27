@@ -91,6 +91,17 @@ function detectAnswerType(questionText: string, hasOptions: boolean): {
 function normalizeContent(content: string): string {
   let normalized = content;
 
+  // Convert FA marker format [QUESTION N] to standard "Question N:" format
+  normalized = normalized.replace(/\[QUESTION\s+(\d+)\]\s*/gi, '\nQuestion $1: ');
+
+  // Convert FA feedback markers to newlines (for proper separation)
+  normalized = normalized.replace(/\[CORRECT\]\s*/gi, '\n');
+  normalized = normalized.replace(/\[INCORRECT\]\s*/gi, '\n');
+  normalized = normalized.replace(/\[COMPLETE\]\s*/gi, '\n');
+
+  // Convert FA option markers [OPTION A/B/C/D] to standard format
+  normalized = normalized.replace(/\[OPTION\s+([A-D])\]\s*/gi, '\n$1) ');
+
   // Add newlines before "Question N" patterns
   normalized = normalized.replace(/\s*(Question\s+\d+)/gi, '\n$1');
 
@@ -281,8 +292,10 @@ export function parseAssessmentContent(content: string): ParsedAssessment {
  * Matches formats like "Question 1:", "Question 1", "Question 1 (Multiple Choice):", etc.
  */
 export function isAssessmentContent(content: string): boolean {
-  // Match "Question N" with optional type indicator and optional colon
-  return /Question\s+\d+/i.test(content) || content.toLowerCase().includes('quiz');
+  // Match "Question N" or "[QUESTION N]" format with optional type indicator and optional colon
+  return /Question\s+\d+/i.test(content) ||
+         /\[QUESTION\s+\d+\]/i.test(content) ||
+         content.toLowerCase().includes('quiz');
 }
 
 export interface FeedbackResult {

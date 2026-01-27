@@ -194,6 +194,35 @@ export function MessageContent({
     );
   }
 
+  // Handle FA MCQ questions (from Sarvam assessment)
+  if (messageType === "fa_mcq" && role === "assistant" && inlessonMetadata) {
+    const { questionId, options, isAnswered, isSkipped, correctOption, userAnswer } = inlessonMetadata;
+
+    if (options && questionId) {
+      return (
+        <div className="space-y-4">
+          <InLessonQuestion
+            question={content}
+            options={options}
+            isAnswered={isAnswered}
+            isSkipped={isSkipped}
+            correctOption={correctOption}
+            userAnswer={userAnswer}
+            onAnswer={(optionId: string) => onInlessonAnswer?.(questionId, optionId)}
+            onSkip={() => onInlessonSkip?.(questionId)}
+            onInteraction={stopTTS}
+          />
+        </div>
+      );
+    }
+
+    return (
+      <div className="text-sm leading-relaxed">
+        {content}
+      </div>
+    );
+  }
+
   // Handle in-lesson feedback messages
   if (messageType === "inlesson_feedback" && role === "assistant") {
     const feedback = detectAnswerFeedback(content);

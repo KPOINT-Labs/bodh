@@ -178,6 +178,8 @@ interface ChatAgentProps {
   onInlessonSkip?: (questionId: string) => void;
   onWarmupAnswer?: (questionId: string, answer: string) => void;
   onWarmupSkip?: (questionId: string) => void;
+  onFAAnswer?: (questionId: string, answer: string) => void;
+  onFASkip?: (questionId: string) => void;
 }
 
 /**
@@ -216,6 +218,8 @@ export function ChatAgent({
   onInlessonSkip: _onInlessonSkip,
   onWarmupAnswer: _onWarmupAnswer,
   onWarmupSkip: _onWarmupSkip,
+  onFAAnswer: _onFAAnswer,
+  onFASkip: _onFASkip,
 }: ChatAgentProps) {
   // State for session initialization
   const [historyMessages, setHistoryMessages] = useState<MessageData[]>([]);
@@ -438,7 +442,7 @@ export function ChatAgent({
         {historyMessages.length > 0 && (
           <div className="space-y-4">
             {expandMessagesWithSeparator(historyMessages).map((msg) => (
-              <ChatMessage key={msg.id} message={msg} onQuestionAnswer={handleQuestionAnswer} onQuestionSkip={handleQuestionSkip} onTimestampClick={onTimestampClick} isFromHistory={true} onInlessonAnswer={_onInlessonAnswer} onInlessonSkip={_onInlessonSkip} onWarmupAnswer={_onWarmupAnswer} onWarmupSkip={_onWarmupSkip} />
+              <ChatMessage key={msg.id} message={msg} onQuestionAnswer={handleQuestionAnswer} onQuestionSkip={handleQuestionSkip} onTimestampClick={onTimestampClick} isFromHistory={true} onInlessonAnswer={_onInlessonAnswer} onInlessonSkip={_onInlessonSkip} onWarmupAnswer={_onWarmupAnswer} onWarmupSkip={_onWarmupSkip} onFAAnswer={_onFAAnswer} onFASkip={_onFASkip} />
             ))}
           </div>
         )}
@@ -479,6 +483,8 @@ export function ChatAgent({
                  onInlessonSkip={_onInlessonSkip}
                  onWarmupAnswer={_onWarmupAnswer}
                  onWarmupSkip={_onWarmupSkip}
+                 onFAAnswer={_onFAAnswer}
+                 onFASkip={_onFASkip}
                />
              ))}
            </div>

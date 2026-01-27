@@ -2,7 +2,6 @@
 
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
 interface AssessmentQuestionProps {
@@ -188,26 +187,15 @@ export function AssessmentQuestion({
       {/* Text Input Section - Card Style */}
       {isTextInput && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 space-y-3">
-          {/* Text Input Field */}
-          {answerType === 'long_answer' ? (
-            <Textarea
-              value={textAnswer}
-              onChange={(e) => setTextAnswer(e.target.value)}
-              placeholder={placeholder || "Type your answer here..."}
-              disabled={hasSubmitted || hasSkipped || isFromHistory}
-              className="w-full min-h-[100px] px-4 py-3.5 bg-gray-50 border-2 border-transparent rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white resize-none text-sm disabled:opacity-75"
-              rows={4}
-            />
-          ) : (
-            <Input
-              type={answerType === 'numerical' ? 'number' : 'text'}
-              value={textAnswer}
-              onChange={(e) => setTextAnswer(e.target.value)}
-              placeholder={placeholder || (answerType === 'numerical' ? "Enter a number..." : "Type your answer here...")}
-              disabled={hasSubmitted || hasSkipped || isFromHistory}
-              className="w-full px-4 py-3.5 bg-gray-50 border-2 border-transparent rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white text-sm disabled:opacity-75"
-            />
-          )}
+          {/* Text Input Field - Always use Textarea for FA text questions */}
+          <Textarea
+            value={textAnswer}
+            onChange={(e) => setTextAnswer(e.target.value)}
+            placeholder={placeholder || "Type your answer here..."}
+            disabled={hasSubmitted || hasSkipped || isFromHistory}
+            className="w-full min-h-[100px] px-4 py-3.5 bg-gray-50 border-2 border-transparent rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white resize-none text-sm disabled:opacity-75"
+            rows={3}
+          />
 
           {/* Submit Button */}
           <Button
