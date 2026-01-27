@@ -130,10 +130,10 @@ export const ACTION_REGISTRY: Record<ActionType, ActionDefinition> = {
   lesson_complete: {
     buttons: [
       { id: "assessment", label: "Take assessment", variant: "primary" },
+      { id: "view_feedback", label: "View feedback", variant: "primary" },
       { id: "next_lesson", label: "Jump to next lesson", variant: "secondary" },
     ],
     disableAfterClick: false,
-
   },
   assessment_complete: {
     buttons: [

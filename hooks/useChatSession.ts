@@ -18,6 +18,9 @@ export interface ExtendedMessageData extends MessageData {
     correctOption?: string;
     isAnswered?: boolean;
     isSkipped?: boolean;
+    userAnswer?: string;
+    // FA MCQ metadata
+    questionNumber?: number;
     // Learning summary metadata
     lessonId?: string;
   };
@@ -353,6 +356,57 @@ export function useChatSession({
 
   const getLastAssistantMessageId = useCallback(() => lastAssistantMessageIdRef.current, []);
 
+  // Add FA MCQ question to chat (from Sarvam assessment)
+  const addFAQuestion = useCallback(
+    (question: {
+      questionNumber: number;
+      questionText: string;
+      options: string[];
+      ttsText?: string;
+    }) => {
+      const convId = conversationIdRef.current;
+      if (!convId) {
+        console.error("Conversation not ready");
+        return null;
+      }
+
+      // Convert options array to QuizOption format (A, B, C, D)
+      const optionLetters = ["A", "B", "C", "D"];
+      const formattedOptions: QuizOption[] = question.options.map((text, index) => ({
+        id: optionLetters[index] || `option-${index}`,
+        text: text,
+      }));
+
+      const tempId = `fa-q${question.questionNumber}-${Date.now()}-${++tempIdCounter}`;
+      const faMessage: ExtendedMessageData = {
+        id: tempId,
+        conversationId: convId,
+        role: "assistant",
+        content: question.questionText,
+        inputType: "text",
+        messageType: "fa_mcq",
+        createdAt: new Date().toISOString(),
+        metadata: {
+          questionId: `fa-q${question.questionNumber}`,
+          questionType: "mcq",
+          questionNumber: question.questionNumber,
+          options: formattedOptions,
+          isAnswered: false,
+          isSkipped: false,
+        },
+      };
+
+      console.log("[ChatSession] Adding FA MCQ question to chat:", {
+        questionNumber: question.questionNumber,
+        optionsCount: formattedOptions.length,
+      });
+
+      setChatMessages((prev) => [...prev, faMessage]);
+      return tempId;
+    },
+    []
+  );
+
   // Add in-lesson question to chat (local only - not stored in DB initially)
   // The question will be stored as an attempt when answered
   const addInlessonQuestion = useCallback(
@@ -598,6 +652,7 @@ export function useChatSession({
     addUserMessage,
     addAssistantMessage,
     addInlessonQuestion,
+    addFAQuestion,
     markInlessonAnswered,
     markInlessonSkipped,
     addInlessonFeedback,

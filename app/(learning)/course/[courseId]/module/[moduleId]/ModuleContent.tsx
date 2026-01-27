@@ -198,6 +198,17 @@ function ActionHandlerRegistry({
       await sendTextToAgent(assessmentPrompt);
     });
 
+    registerHandler("lesson_complete", "view_feedback", async (meta) => {
+      const lessonId = meta.lessonId as string;
+
+      // Add learning summary message (no action buttons)
+      await addAssistantMessage("", {
+        messageType: "learning_summary",
+        metadata: { lessonId },
+        tts: false, // Don't speak the summary card
+      });
+    });
+
     // Warmup handlers
     registerHandler("lesson_welcome", "start_warmup", () => {
       startWarmup();
@@ -284,6 +295,7 @@ function ActionHandlerRegistry({
         ["intro_complete", "continue_to_lesson1"],
         ["lesson_complete", "next_lesson"],
         ["lesson_complete", "assessment"],
+        ["lesson_complete", "view_feedback"],
         ["lesson_welcome", "start_warmup"],
         ["fa_intro", "start"],
         ["fa_intro", "skip"],
@@ -735,6 +747,14 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
   const markWarmupSkippedRef = useRef<((messageId: string) => void) | null>(null);
   const addWarmupFeedbackRef = useRef<((isCorrect: boolean, feedback: string) => string | undefined) | null>(null);
 
+  // Ref for FA MCQ question function (set after useChatSession)
+  const addFAQuestionRef = useRef<((question: {
+    questionNumber: number;
+    questionText: string;
+    options: string[];
+    ttsText?: string;
+  }) => string | null) | null>(null);
+
   // Refs for lesson data (used in transcript callback for assessment_complete action)
   const selectedLessonRef = useRef<Lesson | null>(null);
   const sortedLessonsRef = useRef<Lesson[]>([]);
@@ -903,10 +923,20 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
 
         // Case 2: Agent response to user message
         if (userHasSentMessageRef.current) {
+          // Skip FA responses that were already handled by handleFAResponse
+          // (handleFAResponse uses raw_text with markers, transcript has TTS text without markers)
+          const responseType = lastUserMessageTypeRef.current;
+          if (responseType === "fa" && faResponseHandledRef.current) {
+            console.log("[ModuleContent] Skipping transcript - FA response already handled via data channel");
+            if (clearAgentTranscriptRef.current) {
+              clearAgentTranscriptRef.current();
+            }
+            return;
+          }
+
           if (addAssistantMessageRef.current) {
             storedSegmentsRef.current.add(segmentKey);
             // Use the same message type as the user's last message (e.g., "fa" for FA responses)
-            const responseType = lastUserMessageTypeRef.current;
             console.log("[ModuleContent] Storing agent response to chat with type:", responseType, segment.text.substring(0, 50) + "...");
 
             // Check if this is an FA completion message (hardcoded patterns for demo)
@@ -915,7 +945,9 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
                 segment.text.includes("That's it for the quick check") ||
                 segment.text.includes("Let's look at how this went overall") ||
                 segment.text.includes("You've completed the assessment") ||
-                segment.text.includes("assessment is complete")
+                segment.text.includes("assessment is complete") ||
+                (segment.text.includes("Well done") && segment.text.includes("you've completed")) ||
+                segment.text.includes("What would you like to do next")
               );
 
             if (isAssessmentComplete) {
@@ -972,6 +1004,82 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
     }
   }, []);
 
+  // Track if FA response was handled (to prevent duplicate from transcript callback)
+  const faResponseHandledRef = useRef<boolean>(false);
+
+  // Handle FA response (MCQ or text question from Sarvam via LiveKit data channel)
+  // Uses raw_text which contains FA markers for proper parsing
+  const handleFAResponse = useCallback(async (data: {
+    questionNumber: number;
+    questionText: string;
+    options: string[] | null;
+    isMcq: boolean;
+    feedbackType: "correct" | "incorrect" | null;
+    isComplete: boolean;
+    rawText: string;
+    ttsText: string;
+  }) => {
+    console.log("[ModuleContent] FA response received:", {
+      questionNumber: data.questionNumber,
+      isMcq: data.isMcq,
+      optionsCount: data.options?.length || 0,
+      isComplete: data.isComplete,
+      feedbackType: data.feedbackType,
+    });
+
+    // Mark FA response as handled to prevent transcript callback from duplicating
+    faResponseHandledRef.current = true;
+    // Reset after a short delay to allow for next message
+    setTimeout(() => {
+      faResponseHandledRef.current = false;
+    }, 2000);
+
+    // If it's an MCQ with options, add as interactive question
+    if (data.isMcq && data.options && data.options.length > 0 && addFAQuestionRef.current) {
+      console.log("[ModuleContent] Adding FA MCQ to chat:", data.questionText.substring(0, 50));
+      addFAQuestionRef.current({
+        questionNumber: data.questionNumber,
+        questionText: data.questionText,
+        options: data.options,
+        ttsText: data.ttsText,
+      });
+    } else {
+      // Non-MCQ (text question or feedback) - use raw_text which has FA markers
+      // This allows the FA message parser to properly render questions
+      console.log("[ModuleContent] Adding FA response with markers to chat:", data.rawText.substring(0, 50));
+      if (addAssistantMessageRef.current) {
+        // Check if this is an assessment completion message
+        const isAssessmentComplete = data.isComplete ||
+          data.rawText.includes("[COMPLETE]") ||
+          data.rawText.includes("That's it for the quick check") ||
+          data.rawText.includes("assessment is complete") ||
+          (data.rawText.includes("Well done") && data.rawText.includes("you've completed")) ||
+          data.rawText.includes("What would you like to do next");
+
+        if (isAssessmentComplete) {
+          // Attach assessment_complete action
+          const currentLesson = selectedLessonRef.current;
+          const currentLessons = sortedLessonsRef.current;
+          const currentIndex = currentLessons.findIndex((l) => l.id === currentLesson?.id);
+          const nextLesson = currentIndex >= 0 && currentIndex < currentLessons.length - 1
+            ? currentLessons[currentIndex + 1]
+            : null;
+
+          await addAssistantMessageRef.current(data.rawText, {
+            messageType: "fa",
+            action: "assessment_complete",
+            actionMetadata: {
+              lessonId: currentLesson?.id,
+              nextLesson,
+            },
+          });
+        } else {
+          await addAssistantMessageRef.current(data.rawText, "fa");
+        }
+      }
+    }
+  }, []);
+
   // LiveKit voice session - auto-connect in listen-only mode (text-to-speech)
   // Only auto-connect once we know the session type
   // Note: User messages from FA triggers are handled directly in onFATrigger (above)
@@ -987,6 +1095,7 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
     onUserTranscript: handleUserTranscriptCallback, // Handle user voice transcription
     onFAIntroComplete: handleFAIntroComplete, // Show buttons after FA intro
     onQuizEvaluationResult: assessmentQuiz.handleTextEvaluationResult, // Handle quiz text evaluation results
+    onFAResponse: handleFAResponse, // Handle FA MCQ questions for interactive display
     metadata: {
       courseId: course.id,
       courseTitle: course.title,
@@ -1321,6 +1430,8 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
     markWarmupAnswered,
     markWarmupSkipped,
     addWarmupFeedback,
+    // FA MCQ support
+    addFAQuestion,
     // V2: Action support
     updateMessageAction,
   } = useChatSession({
@@ -1352,6 +1463,11 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
     markWarmupSkippedRef.current = markWarmupSkipped;
     addWarmupFeedbackRef.current = addWarmupFeedback;
   }, [addWarmupQuestion, markWarmupAnswered, markWarmupSkipped, addWarmupFeedback]);
+
+  // Keep FA question ref updated
+  useEffect(() => {
+    addFAQuestionRef.current = addFAQuestion;
+  }, [addFAQuestion]);
 
   // Inline warmup handler - replaces popup-based assessmentQuiz.startWarmup
   const handleInlineWarmup = useCallback(async () => {
@@ -1721,6 +1837,53 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
     handleAddUserMessageRef.current = handleAddUserMessage;
   }, [handleAddUserMessage]);
 
+  // Handler for FA MCQ answers - sends to LiveKit agent for evaluation
+  const handleFAAnswer = useCallback(
+    async (questionId: string, answer: string) => {
+      console.log("[ModuleContent] FA answer received:", { questionId, answer });
+
+      // Find the message with this questionId and mark it as answered
+      const faMessage = chatMessages.find(
+        (m) => m.metadata?.questionId === questionId && m.messageType === "fa_mcq"
+      );
+
+      if (faMessage) {
+        // Mark the question as answered in state
+        // Note: We can't directly mutate chatMessages, so we'll rely on the visual update
+        // from the agent's feedback response
+        console.log("[ModuleContent] Found FA message to mark as answered:", faMessage.id);
+      }
+
+      // Send answer to agent via LiveKit
+      if (liveKit.isConnected && liveKit.sendTextToAgent) {
+        try {
+          // Mark user has interacted for transcript routing
+          userHasSentMessageRef.current = true;
+          lastUserMessageTypeRef.current = "fa";
+
+          // Send the answer (just the letter, agent will understand context)
+          await liveKit.sendTextToAgent(answer);
+          console.log("[ModuleContent] FA answer sent to agent:", answer);
+        } catch (err) {
+          console.error("[ModuleContent] Failed to send FA answer:", err);
+        }
+      } else {
+        console.warn("[ModuleContent] LiveKit not connected, cannot send FA answer");
+      }
+    },
+    [chatMessages, liveKit.isConnected, liveKit.sendTextToAgent]
+  );
+
+  // Handler for FA question skip - resumes video
+  const handleFASkip = useCallback(
+    (questionId: string) => {
+      console.log("[ModuleContent] FA question skipped:", questionId);
+      // Resume video playback
+      playVideo();
+    },
+    [playVideo]
+  );
+
   // Handler for in-lesson MCQ/text answers
   const handleInlessonAnswer = useCallback(
     async (questionId: string, answer: string) => {
@@ -2041,6 +2204,9 @@ export function ModuleContent({ course, module, userId, initialLessonId, initial
         // Warmup question handlers (inline in chat)
         onWarmupAnswer={handleWarmupAnswer}
         onWarmupSkip={handleWarmupSkip}
+        // FA MCQ question handlers
+        onFAAnswer={handleFAAnswer}
+        onFASkip={handleFASkip}
       />
 
       {/* Module Lessons Overview - Removed as not needed */}

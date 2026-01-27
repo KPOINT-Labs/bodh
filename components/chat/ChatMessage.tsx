@@ -22,6 +22,9 @@ interface ChatMessageProps {
   // Warmup question handlers
   onWarmupAnswer?: (questionId: string, answer: string) => void;
   onWarmupSkip?: (questionId: string) => void;
+  // FA MCQ question handlers
+  onFAAnswer?: (questionId: string, answer: string) => void;
+  onFASkip?: (questionId: string) => void;
 }
 
 /**
@@ -41,6 +44,8 @@ export function ChatMessage({
   onInlessonSkip,
   onWarmupAnswer,
   onWarmupSkip,
+  onFAAnswer,
+  onFASkip,
 }: ChatMessageProps) {
   const isUser = message.role === "user";
   const actionsContext = useActionsOptional();
@@ -53,10 +58,22 @@ export function ChatMessage({
   // Check if this is a learning summary (post-assessment feedback)
   const isLearningSummary = message.messageType === "learning_summary";
 
-  // For warmup messages, use warmup handlers; for inlesson, use inlesson handlers
+  // Determine which handlers to use based on message type
+  // FA MCQ -> onFAAnswer/onFASkip
+  // Warmup MCQ -> onWarmupAnswer/onWarmupSkip
+  // In-lesson -> onInlessonAnswer/onInlessonSkip
   const isWarmupMessage = message.messageType === "warmup_mcq";
-  const effectiveOnAnswer = isWarmupMessage ? onWarmupAnswer : onInlessonAnswer;
-  const effectiveOnSkip = isWarmupMessage ? onWarmupSkip : onInlessonSkip;
+  const isFAMessage = message.messageType === "fa_mcq";
+  const effectiveOnAnswer = isFAMessage
+    ? onFAAnswer
+    : isWarmupMessage
+      ? onWarmupAnswer
+      : onInlessonAnswer;
+  const effectiveOnSkip = isFAMessage
+    ? onFASkip
+    : isWarmupMessage
+      ? onWarmupSkip
+      : onInlessonSkip;
 
   // V2: Action rendering logic
   const isAssistant = message.role === "assistant";

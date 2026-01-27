@@ -183,6 +183,10 @@ export const ACTION_HANDLERS: Record<ActionType, ActionHandler> = {
         console.log("[ActionHandler] Sending assessment prompt to agent:", assessmentPrompt);
         await deps.sendTextToAgent(assessmentPrompt);
         break;
+      case "view_feedback":
+        // Handler registered in ModuleContent.tsx ActionHandlerRegistry
+        // Shows the learning summary component
+        break;
       case "next_lesson":
         const nextLesson = metadata.nextLesson as Lesson & { moduleId?: string };
         const courseId = metadata.courseId as string;
