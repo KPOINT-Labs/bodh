@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { CheckCircle, Circle, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { QuizOption } from "@/types/assessment";
-import { audioManager } from "@/lib/audio/quizAudio";
+import { useFeedbackSound } from "@/hooks/useFeedbackSound";
 import { Celebration } from "./Celebration";
 import { SuccessMessage } from "./SuccessMessage";
 import { ErrorMessage } from "./ErrorMessage";
@@ -36,6 +36,7 @@ export function InLessonQuestion({
   const [submitting, setSubmitting] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
   const [showError, setShowError] = useState(false);
+  const { playSound } = useFeedbackSound();
 
   useEffect(() => {
     if (userAnswer) setSelected(userAnswer);
@@ -51,14 +52,13 @@ export function InLessonQuestion({
     setSubmitting(true);
 
     // Check correctness and show celebration/error
+    // Sound is played by SuccessMessage/ErrorMessage components via useFeedbackSound
     const isAnswerCorrect = correctOption && selected === correctOption;
 
     if (isAnswerCorrect) {
-      audioManager?.play("success");
       setShowCelebration(true);
       setTimeout(() => setShowCelebration(false), 3500);
     } else if (correctOption) {
-      audioManager?.play("error");
       setShowError(true);
       setTimeout(() => setShowError(false), 2500);
     }
@@ -73,7 +73,7 @@ export function InLessonQuestion({
     if (!disabled) {
       onInteraction?.(); // Stop TTS when user interacts
       setSelected(id);
-      audioManager?.play("click");
+      playSound("click");
     }
   };
 

@@ -210,7 +210,8 @@ function ActionHandlerRegistry({
     });
 
     // Warmup handlers
-    registerHandler("lesson_welcome", "start_warmup", () => {
+    registerHandler("lesson_welcome", "start_warmup", async () => {
+      await addUserMessage("Start warm-up");
       startWarmup();
     });
 
