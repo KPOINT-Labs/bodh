@@ -5,6 +5,7 @@ const SOUNDS = {
   celebration: 'https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3',
   notification: 'https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3',
   pop: 'https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3',
+  error: 'https://assets.mixkit.co/active_storage/sfx/2955/2955-preview.mp3',
 };
 
 class AudioPlayer {

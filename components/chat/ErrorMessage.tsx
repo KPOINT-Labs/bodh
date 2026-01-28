@@ -1,8 +1,9 @@
 "use client";
 
 import { XCircle } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
+import { useFeedbackSound } from "@/hooks/useFeedbackSound";
 
 interface ErrorMessageProps {
   show: boolean;
@@ -12,10 +13,19 @@ interface ErrorMessageProps {
 export function ErrorMessage({ show, message = "Not quite correct!" }: ErrorMessageProps) {
   const [visible, setVisible] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const { playSound } = useFeedbackSound();
+  const prevShowRef = useRef(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (show && !prevShowRef.current) {
+      playSound("error");
+    }
+    prevShowRef.current = show;
+  }, [show, playSound]);
 
   useEffect(() => {
     if (show) {

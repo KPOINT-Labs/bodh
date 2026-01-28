@@ -1,8 +1,9 @@
 "use client";
 
 import { CheckCircle, Sparkles } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
+import { useFeedbackSound } from "@/hooks/useFeedbackSound";
 
 interface SuccessMessageProps {
   show: boolean;
@@ -12,10 +13,19 @@ interface SuccessMessageProps {
 export function SuccessMessage({ show, message = "Great job!" }: SuccessMessageProps) {
   const [isVisible, setIsVisible] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const { playSound } = useFeedbackSound();
+  const prevShowRef = useRef(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (show && !prevShowRef.current) {
+      playSound("success");
+    }
+    prevShowRef.current = show;
+  }, [show, playSound]);
 
   useEffect(() => {
     if (show) {
